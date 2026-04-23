@@ -2,11 +2,11 @@ import { Heart, GraduationCap, Users } from "lucide-react";
 
 const Footer = () => {
   const teamMembers = [
-    "Fawaz Ziyad Alluhayd",
-    "Tariq Mohammed Alshammari",
-    "Hamad Nabil Almutairi",
-    "Mohammed Saadi Alrashidi",
-    "Yazeed Muteb Alshammari"
+    "فواز زياد اللحيد",
+    "طارق محمد الشمري",
+    "حمد نبيل المطيري",
+    "محمد سعدي الرشيدي",
+    "يزيد متعب الشمري"
   ];
 
   return (
@@ -23,11 +23,13 @@ const Footer = () => {
               <h3 className="font-black text-xl text-primary tracking-tighter">بوابة مجتمع حائل</h3>
             </div>
             <p className="text-sm font-bold text-muted-foreground leading-relaxed max-w-xs mx-auto md:mx-0">
-              مشروع تخرج لنيل درجة البكالوريوس في علوم الحاسب والمعلومات - جامعة حائل، المصمم لخدمة أهالي منطقة حائل.
+              مشروع تخرج علوم الحاسب والمعلومات.
+              <br />
+              مصمم لخدمة أهالي منطقة حائل.
             </p>
           </div>
 
-          {/* القسم الثاني: فريق العمل (الأسماء) */}
+          {/* القسم الثاني: فريق العمل (الأسماء بالعربي) */}
           <div className="space-y-4">
             <div className="flex items-center justify-center gap-2 text-primary font-black">
               <Users className="w-5 h-5" />
@@ -48,8 +50,8 @@ const Footer = () => {
               <p className="text-xs font-black text-muted-foreground mb-1 uppercase tracking-widest">جميع الحقوق محفوظة © 2026</p>
               <p className="text-sm font-black text-primary">جامعة حائل - كلية علوم الحاسب</p>
             </div>
-            <p className="flex items-center gap-1.5 text-[10px] font-black text-muted-foreground/60 uppercase tracking-[0.2em]">
-              MADE WITH <Heart className="w-3 h-3 text-red-500 fill-red-500 animate-pulse" /> IN HAIL
+            <p className="flex items-center gap-1.5 text-xs font-black text-muted-foreground/60 tracking-wide">
+              صُنع في حائل <Heart className="w-4 h-4 text-red-500 fill-red-500 animate-pulse" />
             </p>
           </div>
 
