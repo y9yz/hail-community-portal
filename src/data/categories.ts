@@ -1,0 +1,17 @@
+export const categories = [
+  { id: "all", label: "الكل" },
+  { id: "plumbing", label: "سباكة" },
+  { id: "electrical", label: "كهرباء" },
+  { id: "cleaning", label: "تنظيف" },
+  { id: "painting", label: "دهان" },
+  { id: "ac", label: "تكييف" },
+  { id: "carpentry", label: "نجارة" },
+  { id: "other", label: "أخرى" },
+];
+
+export const timeSlots = [
+  "08:00", "08:30", "09:00", "09:30", "10:00", "10:30",
+  "11:00", "11:30", "12:00", "12:30", "13:00", "13:30",
+  "14:00", "14:30", "15:00", "15:30", "16:00", "16:30",
+  "17:00", "17:30", "18:00", "18:30", "19:00", "19:30",
+];
