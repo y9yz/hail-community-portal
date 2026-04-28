@@ -60,7 +60,7 @@ const Footer = () => {
               <p className="text-sm font-black text-primary">جامعة حائل - كلية علوم الحاسب</p>
             </div>
             <p className="flex items-center gap-1.5 text-xs font-black text-muted-foreground/60 tracking-wide">
-              صُنع بكل فخر في حائل <Heart className="w-4 h-4 text-red-500 fill-red-500 animate-pulse" />
+              صُنع حائل <Heart className="w-4 h-4 text-red-500 fill-red-500 animate-pulse" />
             </p>
           </div>
 
