@@ -9,6 +9,7 @@ import { ArrowRight, Mail, Lock, User, Phone, ShieldAlert } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 
+/* بوابة المصادقة وإدارة الوصول للمنصة */
 const Auth = () => {
   const navigate = useNavigate();
   const { signIn, signUp, user, profile, role: userRole, loading: authLoading } = useAuth();
@@ -23,7 +24,7 @@ const Auth = () => {
   const [signupEmail, setSignupEmail] = useState("");
   const [signupPass, setSignupPass] = useState("");
 
-  // Role-based auto-redirect once verified
+  /* نظام التوجيه التلقائي بناءً على الصلاحيات وحالة التحقق من الحساب */
   useEffect(() => {
     if (authLoading) return;
     if (user && profile?.is_verified && userRole) {
@@ -32,6 +33,7 @@ const Auth = () => {
     }
   }, [authLoading, user, profile, userRole, navigate]);
 
+  /* تنفيذ عملية تسجيل الدخول عبر موفر الخدمة */
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -44,6 +46,7 @@ const Auth = () => {
     }
   };
 
+  /* معالجة إنشاء الحساب الجديد والتحقق من المتطلبات الأساسية */
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!signupName.trim() || !signupEmail.trim() || !signupPass.trim()) {
@@ -65,7 +68,7 @@ const Auth = () => {
     }
   };
 
-  // Verification pending message
+  /* عرض واجهة انتظار تفعيل الحساب في حال عدم اكتمال التحقق الإداري */
   if (user && profile && !profile.is_verified) {
     return (
       <div className="min-h-screen bg-secondary flex items-center justify-center p-4">
@@ -90,6 +93,7 @@ const Auth = () => {
 
         <Card className="rounded-2xl shadow-lg">
           <CardHeader className="pb-2">
+            {/* التبديل بين تسجيل الدخول وإنشاء حساب جديد */}
             <Tabs defaultValue="login" className="w-full">
               <TabsList className="grid w-full grid-cols-2 rounded-xl">
                 <TabsTrigger value="login">تسجيل الدخول</TabsTrigger>
@@ -120,6 +124,7 @@ const Auth = () => {
 
               <TabsContent value="signup" className="mt-6">
                 <form className="space-y-4" onSubmit={handleSignup}>
+                  {/* تحديد دور المستخدم عند التسجيل لضبط الصلاحيات لاحقاً */}
                   <div className="space-y-2">
                     <Label>نوع الحساب</Label>
                     <div className="grid grid-cols-2 gap-2">
@@ -128,7 +133,7 @@ const Auth = () => {
                     </div>
                     {role === "provider" && (
                       <p className="text-xs text-muted-foreground bg-accent/40 rounded-lg p-2">
-                        💡 الاشتراك السنوي 100 ⃁ مع شهر تجريبي مجاني عند التحقق من حسابك.
+                        سياسة الاشتراك: 100 ريال سنوياً مع شهر تجريبي مجاني.
                       </p>
                     )}
                   </div>

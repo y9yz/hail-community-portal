@@ -29,17 +29,17 @@ const ServiceDetail = () => {
   const [problemDescription, setProblemDescription] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
-  // ميزة الأوقات المحجوزة
   const [bookedTimes, setBookedTimes] = useState<string[]>([]);
   const [isCheckingTimes, setIsCheckingTimes] = useState(false);
 
-  // منع الأدمن والمزود من الحجز
+  /* حماية المسار: منع الإدارة والمزودين من الوصول لصفحة الحجز وتوجيههم لصفحاتهم */
   useEffect(() => {
     if (authLoading) return;
     if (role === "admin") { navigate("/admin", { replace: true }); return; }
     if (role === "provider") { navigate("/provider", { replace: true }); return; }
   }, [role, authLoading, navigate]);
 
+  /* جلب تفاصيل الخدمة مع بيانات الملف الشخصي للمزود المرتبط بها */
   useEffect(() => {
     const fetch = async () => {
       const { data } = await supabase
@@ -53,7 +53,7 @@ const ServiceDetail = () => {
     if (id) fetch();
   }, [id]);
 
-  // فحص الأوقات المحجوزة عند تغيير اليوم
+  /* التحقق من المواعيد المحجوزة مسبقاً لنفس اليوم لمنع التضارب في الحجوزات */
   useEffect(() => {
     const fetchBookedTimes = async () => {
       if (!selectedDate || !service?.provider_id) return;
@@ -67,7 +67,7 @@ const ServiceDetail = () => {
           .select("scheduled_time")
           .eq("provider_id", service.provider_id)
           .eq("scheduled_date", formattedDate)
-          // تجاهل الطلبات المرفوضة من المزود، لأن الوقت يعتبر متاح
+          /* استثناء المواعيد المرفوضة من الحظر لتوفيرها للعملاء مرة أخرى */
           .neq("provider_status", "declined");
 
         if (error) throw error;
@@ -85,7 +85,7 @@ const ServiceDetail = () => {
 
     if (selectedDate) {
       fetchBookedTimes();
-      setSelectedTime(undefined); // تصفير الوقت المختار عشان ما يعلق وقت محجوز
+      setSelectedTime(undefined); 
     }
   }, [selectedDate, service?.provider_id]);
 
@@ -95,12 +95,14 @@ const ServiceDetail = () => {
   const categoryLabel = categories.find((c) => c.id === service.category)?.label ?? "";
   const canProceed = selectedDate && selectedTime && problemDescription.trim().length > 0;
 
+  /* معالجة إنشاء طلب حجز جديد وإرسال إشعار فوري للمزود المعني */
   const handleSubmitRequest = async () => {
     if (!user) { toast.error("يجب تسجيل الدخول أولاً"); navigate("/auth"); return; }
     if (role !== "client") { toast.error("فقط العملاء يمكنهم إنشاء طلبات"); return; }
 
     setSubmitting(true);
     try {
+      /* إدراج سجل الطلب في جدول الحجوزات */
       const { data: booking, error } = await supabase.from("bookings").insert({
         client_id: user.id,
         provider_id: service.provider_id,
@@ -115,6 +117,7 @@ const ServiceDetail = () => {
 
       if (error) throw error;
 
+      /* توليد إشعار للمزود بوجود طلب جديد للخدمة */
       await supabase.from("notifications").insert({
         recipient_id: service.provider_id,
         sender_id: user.id,
@@ -220,6 +223,7 @@ const ServiceDetail = () => {
                       <Button 
                         key={time} 
                         variant={selectedTime === time ? "default" : "outline"} 
+                        /* تعطيل الأوقات المحجوزة بالفعل من الداتابيس لنفس اليوم والمزود */
                         disabled={isBooked || isCheckingTimes}
                         onClick={() => setSelectedTime(time)}
                         className={cn(

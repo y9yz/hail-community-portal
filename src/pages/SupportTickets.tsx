@@ -19,10 +19,10 @@ const SupportTickets = () => {
   const [newMessage, setNewMessage] = useState("");
   const [loading, setLoading] = useState(true);
 
+  /* جلب البلاغات من قاعدة البيانات بناءً على صلاحية المستخدم */
   const fetchTickets = async () => {
     if (!user) return;
     try {
-      // تم التعديل لاستخدام booking_id ليتوافق مع تحديث الداتابيس الأخير
       let query = supabase
         .from("support_tickets" as any)
         .select("*, user:profiles(full_name, phone)")
@@ -42,6 +42,7 @@ const SupportTickets = () => {
     }
   };
 
+  /* جلب رسائل المحادثة لبلاغ محدد */
   const fetchMessages = async (ticketId: string) => {
     const { data } = await supabase
       .from("support_messages" as any)
@@ -51,10 +52,12 @@ const SupportTickets = () => {
     if (data) setMessages(data);
   };
 
+  /* تحديث القائمة عند تحميل الصفحة أو تغيير المستخدم */
   useEffect(() => {
     fetchTickets();
   }, [user, role]);
 
+  /* تفعيل التحديث اللحظي للمحادثة عند اختيار بلاغ معين */
   useEffect(() => {
     if (selectedTicket) {
       fetchMessages(selectedTicket.id);
@@ -72,6 +75,7 @@ const SupportTickets = () => {
     }
   }, [selectedTicket]);
 
+  /* إرسال رد جديد في المحادثة */
   const sendMessage = async () => {
     if (!newMessage.trim() || !selectedTicket || !user) return;
     const { error } = await supabase.from("support_messages" as any).insert({
@@ -131,7 +135,7 @@ const SupportTickets = () => {
           </CardContent>
         </Card>
 
-        {/* منطقة المحادثة */}
+        {/* منطقة المحادثة والردود */}
         <Card className="md:col-span-2 flex flex-col rounded-3xl border-2 overflow-hidden shadow-md">
           {selectedTicket ? (
             <>
@@ -151,7 +155,7 @@ const SupportTickets = () => {
               </CardHeader>
               
               <CardContent className="flex-1 overflow-y-auto p-6 space-y-4 bg-muted/5">
-                {/* رسالة البلاغ الأصلية في الأعلى كبداية للمحادثة */}
+                {/* عرض نص البلاغ الأساسي */}
                 <div className="flex justify-start mb-6">
                   <div className="max-w-[85%] p-4 rounded-2xl bg-amber-50 border border-amber-100 text-amber-900 shadow-sm">
                     <p className="text-xs font-black mb-1">نص البلاغ الأصلي:</p>
@@ -159,6 +163,7 @@ const SupportTickets = () => {
                   </div>
                 </div>
 
+                {/* عرض فقاعات الدردشة */}
                 {messages.map(msg => (
                   <div key={msg.id} className={`flex ${msg.sender_id === user?.id ? 'justify-end' : 'justify-start'}`}>
                     <div className={`max-w-[80%] p-4 rounded-2xl shadow-sm ${
@@ -175,6 +180,7 @@ const SupportTickets = () => {
                 ))}
               </CardContent>
 
+              {/* حقل إدخال الرسائل */}
               <div className="p-4 border-t bg-card flex gap-2 items-center">
                 <Input 
                   placeholder="اكتب ردك هنا..." 
@@ -189,6 +195,7 @@ const SupportTickets = () => {
               </div>
             </>
           ) : (
+            /* واجهة فارغة عند عدم اختيار تذكرة */
             <div className="h-full flex flex-col items-center justify-center text-center p-10 space-y-4">
               <div className="bg-primary/5 p-6 rounded-full">
                 <MessageCircle className="w-16 h-16 text-primary/20" />

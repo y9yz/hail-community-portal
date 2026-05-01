@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import {
   CheckCircle2, XCircle, Users, Package, ClipboardList, Shield, UserCheck,
   Eye, FileText, TrendingUp, BarChart3, MessageSquareWarning, MessageSquare,
-  Ban, Unlock, Download, CreditCard, EyeOff, MapPin, Clock, User, Calendar
+  Ban, Unlock, Download, CreditCard, EyeOff, MapPin, Clock, User, Calendar, Loader2
 } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -37,6 +37,10 @@ const AdminDashboard = () => {
   const [viewingTicket, setViewingTicket] = useState<any | null>(null);
   const [viewingChat, setViewingChat] = useState<any | null>(null);
 
+  // 👈 حالات جديدة لعرض الوثيقة داخل الموقع
+  const [viewingDocUrl, setViewingDocUrl] = useState<string | null>(null);
+  const [isDocLoading, setIsDocLoading] = useState(false);
+
   useEffect(() => {
     if (authLoading) return;
     if (!user || role !== "admin") { navigate(user ? "/permission-denied" : "/auth"); return; }
@@ -51,10 +55,7 @@ const AdminDashboard = () => {
       
       const { data: bks } = await supabase.from("bookings" as any).select("*, client:profiles!bookings_client_id_fkey(full_name), provider:profiles!bookings_provider_id_fkey(full_name)").order("created_at", { ascending: false }) as any;
       const { data: tix } = await supabase.from("support_tickets" as any).select("*, user:profiles(full_name, phone)").order("created_at", { ascending: false }) as any;
-      
-      // 👈 التعديل هنا لجلب اسم المزود في الاشتراكات
       const { data: subs } = await supabase.from("subscriptions" as any).select("*, provider:profiles(full_name)") as any;
-      
       const { data: roles } = await supabase.from("user_roles" as any).select("*") as any;
 
       const allBks = (bks || []) as any[];
@@ -90,6 +91,31 @@ const AdminDashboard = () => {
       toast.error("حدث خطأ أثناء جلب البيانات");
     } finally {
       setLoading(false);
+    }
+  };
+
+  // 👈 دالة جلب رابط الوثيقة الآمن (Signed URL)
+  const handleViewDocument = async (path: string) => {
+    if (!path) {
+      toast.error("لا توجد وثيقة مرفقة");
+      return;
+    }
+    setIsDocLoading(true);
+    try {
+      // تأكد أن 'private-documents' هو اسم الباكيت الصحيح في سوبابيس
+      const { data, error } = await supabase.storage
+        .from('private-documents')
+        .createSignedUrl(path, 60);
+
+      if (error) throw error;
+      if (data?.signedUrl) {
+        setViewingDocUrl(data.signedUrl);
+      }
+    } catch (error: any) {
+      console.error("Error fetching doc:", error);
+      toast.error("تعذر فتح الوثيقة، تأكد من اسم الـ Bucket وصلاحيات الملف");
+    } finally {
+      setIsDocLoading(false);
     }
   };
 
@@ -351,7 +377,6 @@ const AdminDashboard = () => {
             ))}
           </TabsContent>
 
-          {/* 👈 التعديل الجديد على تبويب الاشتراكات */}
           <TabsContent value="subs" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
              {subscriptions.map(s => {
                 const daysLeft = s.expires_at ? Math.max(0, Math.ceil((new Date(s.expires_at).getTime() - Date.now()) / (1000 * 60 * 60 * 24))) : 0;
@@ -380,9 +405,10 @@ const AdminDashboard = () => {
         </Tabs>
       </div>
 
+      {/* مودال تفاصيل الخدمة */}
       <Dialog open={!!viewingService} onOpenChange={() => setViewingService(null)}>
         <DialogContent className="rounded-[2.5rem] text-right max-w-2xl" dir="rtl">
-           <DialogHeader><DialogTitle className="text-2xl font-black">معلومات الخدمة: {viewingService?.title}</DialogTitle></DialogHeader>
+           <DialogHeader><DialogTitle className="text-2xl font-black text-center">معلومات الخدمة: {viewingService?.title}</DialogTitle></DialogHeader>
            <div className="space-y-4 py-4">
              <img src={viewingService?.image_url} className="w-full h-48 object-cover rounded-[1.5rem] border shadow-inner" />
              <div className="bg-muted/50 p-4 rounded-2xl">
@@ -393,14 +419,21 @@ const AdminDashboard = () => {
                <MapPin className="w-5 h-5 text-emerald-600" />
                <p className="text-sm font-bold text-emerald-800">الموقع: {viewingService?.address_name}</p>
              </div>
-             <Button className="w-full h-12 rounded-2xl gap-2 font-bold bg-secondary text-secondary-foreground hover:bg-secondary/80" onClick={() => window.open(supabase.storage.from('private-documents').getPublicUrl(viewingService?.license_url).data.publicUrl, '_blank')}>
-                <FileText className="w-4 h-4" /> فتح مستند التوثيق (الرخصة)
+
+             {/* 👈 الزر المحدث لفتح الوثيقة داخل الموقع */}
+             <Button 
+               className="w-full h-12 rounded-2xl gap-2 font-black bg-secondary text-secondary-foreground hover:bg-secondary/80 shadow-sm" 
+               onClick={() => handleViewDocument(viewingService?.license_url)}
+               disabled={isDocLoading}
+             >
+                {isDocLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />}
+                {isDocLoading ? "جاري جلب المستند..." : "عرض وثيقة الترخيص (داخل الموقع)"}
              </Button>
 
              {viewingService?.admin_status === 'pending_admin' ? (
                <div className="flex gap-2 pt-2">
-                 <Button className="flex-1 bg-emerald-500 h-14 rounded-2xl font-black text-lg hover:bg-emerald-600" onClick={() => handleModerate(viewingService?.id, 'approved')}>اعتماد وتوثيق</Button>
-                 <Button variant="destructive" className="flex-1 h-14 rounded-2xl font-black text-lg" onClick={() => handleModerate(viewingService?.id, 'rejected')}>رفض</Button>
+                 <Button className="flex-1 bg-emerald-500 h-14 rounded-2xl font-black text-lg hover:bg-emerald-600 shadow-md" onClick={() => handleModerate(viewingService?.id, 'approved')}>اعتماد وتوثيق</Button>
+                 <Button variant="destructive" className="flex-1 h-14 rounded-2xl font-black text-lg shadow-md" onClick={() => handleModerate(viewingService?.id, 'rejected')}>رفض</Button>
                </div>
              ) : (
                <Button className="w-full h-14 rounded-2xl font-black text-lg" onClick={() => setViewingService(null)}>إغلاق النافذة</Button>
@@ -409,11 +442,47 @@ const AdminDashboard = () => {
         </DialogContent>
       </Dialog>
 
+      {/* 👈 المودال المحدث لعرض صورة الوثيقة داخل الموقع فقط */}
+<Dialog open={!!viewingDocUrl} onOpenChange={() => setViewingDocUrl(null)}>
+  <DialogContent className="max-w-4xl p-0 overflow-hidden rounded-[2.5rem] border-none bg-transparent shadow-none" dir="rtl">
+     <div className="relative bg-white/95 backdrop-blur-xl p-6 rounded-[2.5rem] flex flex-col items-center border shadow-2xl">
+        <div className="w-full flex justify-between items-center mb-6 px-4">
+           <h3 className="font-black text-primary flex items-center gap-2 text-xl">
+              <Shield className="w-6 h-6" /> معاينة وثيقة الترخيص الرسمية
+           </h3>
+           <Button variant="ghost" className="rounded-full hover:bg-red-50 group" onClick={() => setViewingDocUrl(null)}>
+              <XCircle className="w-8 h-8 text-muted-foreground group-hover:text-red-500 transition-colors" />
+           </Button>
+        </div>
+
+        {/* عرض الصورة */}
+        <div className="w-full bg-muted/20 rounded-2xl overflow-hidden border-2 border-dashed border-primary/10 flex justify-center items-center">
+          <img 
+            src={viewingDocUrl || ""} 
+            alt="وثيقة الترخيص" 
+            className="w-full h-auto max-h-[70vh] object-contain shadow-sm"
+          />
+        </div>
+
+        {/* زر الإغلاق فقط */}
+        <div className="mt-8 w-full px-10">
+           <Button 
+             className="w-full h-14 rounded-2xl font-black text-lg shadow-lg hover:shadow-xl transition-all"
+             onClick={() => setViewingDocUrl(null)}
+           >
+             إغلاق نافذة المعاينة
+           </Button>
+        </div>
+     </div>
+  </DialogContent>
+</Dialog>
+
+      {/* مودال البلاغات */}
       <Dialog open={!!viewingTicket} onOpenChange={() => setViewingTicket(null)}>
         <DialogContent className="rounded-[2.5rem] text-right" dir="rtl">
-           <DialogHeader><DialogTitle className="text-2xl font-black">إدارة البلاغ</DialogTitle></DialogHeader>
+           <DialogHeader><DialogTitle className="text-2xl font-black text-center">إدارة البلاغ</DialogTitle></DialogHeader>
            <div className="space-y-6 py-4">
-              <div className="bg-muted p-5 rounded-2xl border-l-4 border-l-primary">
+              <div className="bg-muted p-5 rounded-2xl border-l-4 border-l-primary shadow-inner">
                  <h4 className="font-bold text-lg mb-2">{viewingTicket?.subject}</h4>
                  <p className="text-sm italic leading-relaxed">"{viewingTicket?.message}"</p>
               </div>
@@ -432,7 +501,6 @@ const AdminDashboard = () => {
         </DialogContent>
       </Dialog>
 
-      {/* 👈 تمرير readOnly=true عشان ما يقدر يكتب */}
       {viewingChat && (
         <ChatDialog 
           open={!!viewingChat} 

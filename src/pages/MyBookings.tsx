@@ -12,6 +12,10 @@ import RatingDialog from "@/components/RatingDialog";
 import SupportTicketDialog from "@/components/SupportTicketDialog";
 import { toast } from "sonner";
 
+/**
+ * معالجة وتصنيف حالة الطلب بناءً على ردود فعل المزود
+ * يتم دمج حالة الخدمة النهائية وحالة قبول المزود لتحديد المظهر المناسب
+ */
 const getBookingStatus = (b: any) => {
   if (b.status === "completed") return { label: "مكتمل", color: "bg-green-500 text-white border-none", icon: CheckCheck };
   if (b.provider_status === "declined") return { label: "مرفوض", color: "bg-destructive text-white border-none", icon: XCircle };
@@ -34,7 +38,7 @@ const MyBookings = () => {
     if (!user) { navigate("/auth"); return; }
     fetchBookings();
 
-    // قناة تحديث فوري: لو المزود حدث الحالة، يظهر زر التقييم فوراً للعميل
+    /* إعداد قناة اتصال لحظي لتحديث حالة الطلبات عند تغييرها في قاعدة البيانات من طرف المزود */
     const channel = supabase
       .channel("realtime-bookings")
       .on("postgres_changes", { event: "*", schema: "public", table: "bookings", filter: `client_id=eq.${user.id}` }, () => {
@@ -45,6 +49,7 @@ const MyBookings = () => {
     return () => { supabase.removeChannel(channel); };
   }, [user, authLoading]);
 
+  /* جلب سجل الحجوزات مع ربط بيانات مقدم الخدمة وموقع الخدمة من الجداول المرتبطة */
   const fetchBookings = async () => {
     if (!user) return;
     try {
@@ -63,6 +68,7 @@ const MyBookings = () => {
     }
   };
 
+  /* معالجة إلغاء الطلب عبر تحديث الحالة في قاعدة البيانات */
   const handleCancel = async (booking: any) => {
     if (!confirm("هل أنت متأكد من إلغاء هذا الطلب؟")) return;
     try {
@@ -112,14 +118,15 @@ const MyBookings = () => {
             {bookings.map((b) => {
               const status = getBookingStatus(b);
               const StatusIcon = status.icon;
+              
+              /* تحديد الصلاحيات المتاحة للمستفيد بناءً على حالة الطلب الحالية */
               const canCancel = b.provider_status === "pending";
               const canChat = b.provider_status === "pending" || b.provider_status === "accepted";
-              
-              // تم تبسيط المنطق: لو الحالة مكتملة ولم يتم التقييم (has_review كذب)
               const canRate = b.status === "completed" && b.has_review !== true;
               
               return (
                 <Card key={b.id} className="rounded-3xl border-2 hover:shadow-lg transition-all overflow-hidden border-primary/5">
+                  {/* ترويسة الطلب: نوع الخدمة، الرقم المرجعي، والحالة */}
                   <div className="p-5 border-b bg-muted/10 flex items-center justify-between">
                     <div className="space-y-1">
                       <h3 className="font-black text-lg">{b.service_title}</h3>
@@ -132,10 +139,12 @@ const MyBookings = () => {
                   </div>
 
                   <div className="p-5 space-y-4">
+                    {/* تفاصيل وصف المشكلة المكتوبة من العميل */}
                     <div className="bg-muted/30 p-4 rounded-2xl border-r-4 border-primary/20">
                        <p className="text-sm text-muted-foreground italic leading-relaxed">"{b.problem_description}"</p>
                     </div>
                     
+                    {/* معلومات مقدم الخدمة وآلية الدفع الميدانية */}
                     <div className="grid grid-cols-2 gap-4 text-xs">
                       <div className="bg-secondary/30 p-3 rounded-xl">
                         <p className="text-muted-foreground mb-1">مقدم الخدمة:</p>
@@ -147,6 +156,7 @@ const MyBookings = () => {
                       </div>
                     </div>
 
+                    {/* عرض تفاصيل الموعد المجدول */}
                     {b.scheduled_date && (
                       <div className="flex items-center gap-2 text-[11px] font-bold text-muted-foreground bg-muted/20 p-2 rounded-lg">
                         <Clock className="w-4 h-4 text-primary" />
@@ -154,8 +164,8 @@ const MyBookings = () => {
                       </div>
                     )}
 
+                    {/* أزرار الإجراءات التفاعلية للمستخدم */}
                     <div className="flex gap-2 flex-wrap pt-2">
-                      {/* زر التقييم المحسن */}
                       {canRate && (
                         <Button className="rounded-2xl gap-2 flex-1 h-12 text-md font-black shadow-xl shadow-primary/20 bg-primary hover:bg-primary/90" onClick={() => setRatingBooking(b)}>
                           <Star className="w-5 h-5 fill-white" /> قيّم الخدمة الآن
@@ -186,14 +196,14 @@ const MyBookings = () => {
         )}
       </div>
 
-      {/* مودال التقييم */}
+      {/* نوافذ التفاعل الجانبية (Dialogs) */}
       {ratingBooking && (
         <RatingDialog
           open={!!ratingBooking}
           onOpenChange={(open) => !open && setRatingBooking(null)}
           serviceId={ratingBooking.service_id}
           serviceTitle={ratingBooking.service_title}
-          bookingId={ratingBooking.id} // تمرير id الطلب لتحديث has_review
+          bookingId={ratingBooking.id}
           onSubmitted={() => {
             fetchBookings();
             setRatingBooking(null);
@@ -201,7 +211,6 @@ const MyBookings = () => {
         />
       )}
 
-      {/* بقية المودالات */}
       {chatBooking && (
         <ChatDialog open={!!chatBooking} onOpenChange={(open) => !open && setChatBooking(null)} bookingId={chatBooking.id} otherName={chatBooking.provider?.full_name || "مقدم الخدمة"} />
       )}

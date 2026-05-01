@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label"; // تم إضافة هذا الاستيراد لحل الخطأ
+import { Label } from "@/components/ui/label"; 
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
@@ -30,6 +30,7 @@ const SupportTicketDialog = ({ open, onOpenChange, booking }: SupportTicketDialo
   const [sendingReply, setSendingReply] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  /* تهيئة البيانات عند فتح النافذة */
   useEffect(() => {
     if (open && user) {
       setSubject("");
@@ -40,6 +41,7 @@ const SupportTicketDialog = ({ open, onOpenChange, booking }: SupportTicketDialo
     }
   }, [open, user, booking]);
 
+  /* التحكم في تمرير المحادثة لآخر رسالة */
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
@@ -48,7 +50,7 @@ const SupportTicketDialog = ({ open, onOpenChange, booking }: SupportTicketDialo
     scrollToBottom();
   }, [messages]);
 
-  // تفعيل التحديث التلقائي (Realtime) وتجاوز أخطاء TypeScript باستخدام as any
+  /* تفعيل الاستماع اللحظي للرسائل الجديدة في التذكرة */
   useEffect(() => {
     if (!activeTicket || !user) return;
 
@@ -76,6 +78,7 @@ const SupportTicketDialog = ({ open, onOpenChange, booking }: SupportTicketDialo
     };
   }, [activeTicket, user]);
 
+  /* فحص وجود تذكرة مفتوحة مسبقاً مرتبطة بالطلب الحالي */
   const checkExistingTicket = async () => {
     if (!user || !booking) return;
     try {
@@ -97,8 +100,8 @@ const SupportTicketDialog = ({ open, onOpenChange, booking }: SupportTicketDialo
     }
   };
 
+  /* جلب سجل الرسائل للتذكرة النشطة */
   const fetchMessages = async (ticketId: string) => {
-    // استخدمنا as any لتجاوز خطأ TypeScript المتعلق بـ support_messages
     const { data } = await supabase
       .from("support_messages" as any)
       .select("*, sender:profiles(full_name, role)")
@@ -108,6 +111,7 @@ const SupportTicketDialog = ({ open, onOpenChange, booking }: SupportTicketDialo
     setMessages(data || []);
   };
 
+  /* إنشاء تذكرة دعم فني جديدة وإضافة أول رسالة */
   const handleCreateTicket = async () => {
     if (!user || !subject.trim() || !message.trim()) {
       toast.error("يرجى تعبئة عنوان وسبب البلاغ");
@@ -151,6 +155,7 @@ const SupportTicketDialog = ({ open, onOpenChange, booking }: SupportTicketDialo
     }
   };
 
+  /* إرسال رد جديد في المحادثة */
   const handleSendReply = async () => {
     if (!user || !activeTicket || !replyText.trim()) return;
 
@@ -176,6 +181,7 @@ const SupportTicketDialog = ({ open, onOpenChange, booking }: SupportTicketDialo
     }
   };
 
+  /* تحديد لون وشكل الشارة بناءً على حالة التذكرة */
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'open': return <Badge className="bg-amber-500 hover:bg-amber-600 gap-1"><Clock className="w-3 h-3" /> جاري المراجعة</Badge>;
@@ -201,6 +207,7 @@ const SupportTicketDialog = ({ open, onOpenChange, booking }: SupportTicketDialo
         </DialogHeader>
 
         {!activeTicket ? (
+          /* واجهة فتح بلاغ جديد */
           <div className="p-6 space-y-6">
             <div className="bg-amber-50/50 p-4 rounded-2xl border border-amber-100 flex items-start gap-3">
               <AlertCircle className="w-5 h-5 text-amber-600 mt-0.5" />
@@ -239,6 +246,7 @@ const SupportTicketDialog = ({ open, onOpenChange, booking }: SupportTicketDialo
             </div>
           </div>
         ) : (
+          /* واجهة المحادثة وتتبع البلاغ */
           <div className="flex flex-col h-[500px]">
             <div className="p-4 border-b bg-background flex justify-between items-center shadow-sm z-10">
               <div>
@@ -279,6 +287,7 @@ const SupportTicketDialog = ({ open, onOpenChange, booking }: SupportTicketDialo
               <div ref={messagesEndRef} />
             </div>
 
+            {/* منطقة الإدخال تظهر فقط إذا كانت التذكرة غير مغلقة */}
             {activeTicket.status !== 'closed' ? (
               <div className="p-4 bg-background border-t mt-auto">
                 <div className="flex gap-2">

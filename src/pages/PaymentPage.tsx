@@ -11,14 +11,23 @@ const PaymentPage = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
 
-  // دالة الدفع التي تربط مباشرة مع جدول subscriptions في سوبابيس
+  /**
+   * معالجة عملية الدفع وتحديث قاعدة البيانات
+   * يتم احتساب سنة كاملة من تاريخ اليوم وتحديث سجل الاشتراك بربطه بـ provider_id
+   */
   const handlePayment = async (methodName: string) => {
+    /* التحقق من وجود جلسة مستخدم نشطة */
     if (!user) return;
 
     try {
+      /* احتساب تاريخ الانتهاء (سنة من اللحظة الحالية) */
       const newExpiry = new Date();
       newExpiry.setFullYear(newExpiry.getFullYear() + 1);
 
+      /**
+       * استخدام upsert لتحديث سجل الاشتراك الحالي أو إنشاء سجل جديد
+       * تم تحديد onConflict لضمان عدم تكرار السجلات لنفس المزود
+       */
       const { error } = await supabase
         .from("subscriptions" as any) 
         .upsert({ 
@@ -29,12 +38,14 @@ const PaymentPage = () => {
         }, { onConflict: 'provider_id' });
 
       if (error) {
-        // سيظهر لك تنبيه فيه تفاصيل الخطأ التقني إذا فشل
+        /* إظهار الخطأ التقني المباشر في حال فشل الاتصال بقاعدة البيانات */
         alert("خطأ سوبابيس: " + error.message);
         throw error;
       }
 
       toast.success(`تمت عملية الدفع عبر ${methodName} بنجاح!`);
+      
+      /* إعادة التوجيه للوحة التحكم بعد تحديث الحالة */
       navigate("/provider"); 
       
     } catch (err: any) {
@@ -43,6 +54,7 @@ const PaymentPage = () => {
     }
   };
 
+  /* قائمة ببيانات وسائل الدفع المتاحة للعرض */
   const paymentMethods = [
     { name: "Apple Pay", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b0/Apple_Pay_logo.svg/1200px-Apple_Pay_logo.svg.png" },
     { name: "مدى mada", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c5/Mada_Logo.svg/1200px-Mada_Logo.svg.png" },
@@ -53,11 +65,14 @@ const PaymentPage = () => {
     <div className="min-h-screen bg-background">
       <Navbar />
       <div className="container py-10 max-w-md space-y-8">
+        
+        {/* ترويسة الصفحة والرجوع */}
         <div className="flex items-center gap-2">
           <Button variant="ghost" size="icon" onClick={() => navigate("/provider")}><ArrowRight /></Button>
           <h1 className="text-2xl font-black">إتمام الدفع</h1>
         </div>
 
+        {/* عرض تفاصيل المبلغ المستحق */}
         <Card className="rounded-3xl border-2 border-primary/20 p-6 text-center space-y-4 shadow-lg">
           <div className="space-y-1">
             <p className="text-muted-foreground text-sm font-bold">قيمة الاشتراك السنوي</p>
@@ -68,6 +83,7 @@ const PaymentPage = () => {
           </p>
         </Card>
 
+        {/* عرض خيارات الدفع كبطاقات تفاعلية */}
         <div className="space-y-4">
           <p className="text-sm font-bold text-center mb-2">اختر وسيلة الدفع</p>
           {paymentMethods.map((method) => (
@@ -84,6 +100,7 @@ const PaymentPage = () => {
           ))}
         </div>
 
+        {/* تنبيه قانوني حول آلية التجديد الآلي وتغيير حالة الحساب */}
         <div className="bg-primary/5 p-4 rounded-2xl border border-primary/10 flex items-start gap-3">
           <CheckCircle2 className="w-5 h-5 text-primary shrink-0 mt-0.5" />
           <p className="text-[10px] text-muted-foreground leading-relaxed">

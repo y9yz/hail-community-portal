@@ -31,9 +31,12 @@ const ProviderDashboard = () => {
   const [bookings, setBookings] = useState<any[]>([]);
   const [subscription, setSubscription] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
+  
+  // تجميع إحصائيات الأداء في حالة واحدة لتقليل عمليات إعادة الرندرة
   const [providerStats, setProviderStats] = useState({
     total: 0, accepted: 0, pending: 0, completed: 0, declined: 0, avgRating: 0
   });
+  
   const [chatBooking, setChatBooking] = useState<any>(null);
   const [supportOpen, setSupportOpen] = useState(false);
 
@@ -49,12 +52,17 @@ const ProviderDashboard = () => {
   const imageInputRef = useRef<HTMLInputElement>(null);
   const licenseInputRef = useRef<HTMLInputElement>(null);
 
+  // حماية الصفحة على مستوى المكون والتحقق من دور المستخدم
   useEffect(() => {
     if (authLoading) return;
     if (!user || role !== "provider") { navigate("/"); return; }
     fetchData();
   }, [user, role, authLoading]);
 
+  /**
+   * جلب البيانات بشكل متوازي (Parallel) باستخدام Promise.all
+   * لتقليل زمن الانتظار الإجمالي (Latency) وتحديث الواجهة مرة واحدة
+   */
   const fetchData = async () => {
     if (!user) return;
     setLoading(true);
@@ -76,6 +84,7 @@ const ProviderDashboard = () => {
       setBookings(allBks);
       setSubscription(sub || null);
 
+      // حساب متوسط التقييم برمجياً من مصفوفة المراجعات
       const myReviews = (reviewData || []).filter((r: any) => (svc || []).map(s => s.id).includes(r.service_id));
       const avg = myReviews.length > 0 ? myReviews.reduce((s: number, r: any) => s + r.rating, 0) / myReviews.length : 0;
 
@@ -96,11 +105,17 @@ const ProviderDashboard = () => {
 
   const isFormValid = title && category && description && neighborhood && mapsLink && serviceImage && licenseFile;
 
+  /**
+   * معالجة رفع الخدمة:
+   * 1. رفع الصورة العامة (Public) والوثيقة الخاصة (Private) للتخزين
+   * 2. حفظ الروابط والبيانات الوصفية في جدول الخدمات
+   */
   const handleSubmitService = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user || !isFormValid) return;
     setAddingService(true);
     try {
+      // التعامل مع رفع الصور لـ Supabase Storage
       const imagePath = `${user.id}/${Date.now()}-svc.jpg`;
       await supabase.storage.from("public-assets").upload(imagePath, serviceImage!);
       const { data: imgUrl } = supabase.storage.from("public-assets").getPublicUrl(imagePath);
@@ -117,18 +132,21 @@ const ProviderDashboard = () => {
       if (error) throw error;
       toast.success("تم نشر الخدمة بنجاح وهي تحت المراجعة");
       fetchData();
+      // تصفير الحقول بعد النجاح
       setTitle(""); setCategory(""); setDescription(""); setNeighborhood(""); setMapsLink(""); setServiceImage(null); setLicenseFile(null);
     } catch (err: any) { toast.error(err.message); }
     finally { setAddingService(false); }
   };
 
-  // إعدادات العداد والفترة التجريبية الدقيقة
   const isSubscribed = subscription && subscription.status === 'active';
   
+  /**
+   * احتساب أيام الفترة التجريبية بناءً على تاريخ الإنشاء في نظام المصادقة
+   * لضمان عدم تلاعب المستخدم ببيانات المتصفح
+   */
   const calculateTrialDays = () => {
-    // نعتمد على تاريخ إنشاء الحساب من Auth System لأنه مضمون
     const creationDate = user?.created_at;
-    if (!creationDate) return 30; // احتياطي لحين التحميل
+    if (!creationDate) return 30; 
     
     const createdTime = new Date(creationDate).getTime();
     const currentTime = Date.now();
@@ -139,7 +157,6 @@ const ProviderDashboard = () => {
 
   const trialDaysLeft = calculateTrialDays();
 
-  // بيانات الرسم البياني
   const chartData = [
     { name: 'مكتملة', value: providerStats.completed },
     { name: 'معلقة', value: providerStats.pending },
@@ -153,7 +170,7 @@ const ProviderDashboard = () => {
       <Navbar />
       <div className="container py-8 max-w-6xl space-y-8">
         
-        {/* بانر الفترة التجريبية - تفاعلي ودقيق */}
+        {/* نظام التنبيه للمشتركين والمنتهية فترتهم التجريبية */}
         {!isSubscribed && (
           <Card className={`rounded-[2rem] border-2 p-6 flex flex-col md:flex-row items-center justify-between gap-6 shadow-sm transition-all ${trialDaysLeft > 0 ? 'border-primary/20 bg-primary/5' : 'border-destructive/30 bg-destructive/5'}`}>
              <div className="space-y-2 text-center md:text-right">
@@ -185,7 +202,7 @@ const ProviderDashboard = () => {
           </div>
         </div>
 
-        {/* الإحصائيات السريعة */}
+        {/* عرض مؤشرات الأداء الرئيسية (KPIs) */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <Card className="rounded-3xl border-2"><CardContent className="p-6 text-center">
             <p className="text-[10px] text-muted-foreground uppercase font-black mb-1">إجمالي الطلبات</p>
@@ -227,6 +244,7 @@ const ProviderDashboard = () => {
                       <Badge variant="outline" className="px-3 py-1 font-bold font-mono">{b.client?.phone}</Badge>
                     </div>
                   </div>
+                  {/* التحكم في دورة حياة الطلب (قبول/رفض/إكمال) */}
                   <div className="flex flex-col gap-2 min-w-[160px] justify-center border-t md:border-t-0 md:border-r pt-4 md:pt-0 md:pr-6 border-dashed">
                     {b.provider_status === 'pending' ? (
                       <>
@@ -250,39 +268,40 @@ const ProviderDashboard = () => {
             {bookings.length === 0 && <div className="text-center py-20 opacity-30 font-black text-xl">لا توجد طلبات حالياً</div>}
           </TabsContent>
 
+          {/* تبويب التقارير: تمثيل البيانات مرئياً باستخدام Recharts */}
           <TabsContent value="reports" className="space-y-6">
-             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <Card className="rounded-[2rem] border-2 p-6">
-                   <h3 className="font-black text-lg mb-6 text-center">توزيع حالات الطلبات</h3>
-                   <div className="h-[300px]">
-                      <ResponsiveContainer width="100%" height="100%">
-                         <PieChart>
-                            <Pie data={chartData} cx="50%" cy="50%" innerRadius={60} outerRadius={100} paddingAngle={5} dataKey="value">
-                               {chartData.map((entry, index) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}
-                            </Pie>
-                            <Tooltip contentStyle={{ borderRadius: '1rem', fontWeight: 'bold' }} />
-                            <Legend wrapperStyle={{ fontWeight: 'bold', fontSize: '12px' }} />
-                         </PieChart>
-                      </ResponsiveContainer>
-                   </div>
-                </Card>
-                <Card className="rounded-[2rem] border-2 p-6">
-                   <h3 className="font-black text-lg mb-6 text-center">إحصائيات الأداء</h3>
-                   <div className="h-[300px]">
-                      <ResponsiveContainer width="100%" height="100%">
-                         <BarChart data={chartData}>
-                            <CartesianGrid strokeDasharray="3 3" opacity={0.2} vertical={false} />
-                            <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontWeight: 'bold', fontSize: 12 }} />
-                            <YAxis axisLine={false} tickLine={false} />
-                            <Tooltip cursor={{ fill: 'transparent' }} contentStyle={{ borderRadius: '1rem', fontWeight: 'bold' }} />
-                            <Bar dataKey="value" radius={[8, 8, 8, 8]}>
-                               {chartData.map((entry, index) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}
-                            </Bar>
-                         </BarChart>
-                      </ResponsiveContainer>
-                   </div>
-                </Card>
-             </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                 <Card className="rounded-[2rem] border-2 p-6">
+                    <h3 className="font-black text-lg mb-6 text-center">توزيع حالات الطلبات</h3>
+                    <div className="h-[300px]">
+                       <ResponsiveContainer width="100%" height="100%">
+                          <PieChart>
+                             <Pie data={chartData} cx="50%" cy="50%" innerRadius={60} outerRadius={100} paddingAngle={5} dataKey="value">
+                                {chartData.map((entry, index) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}
+                             </Pie>
+                             <Tooltip contentStyle={{ borderRadius: '1rem', fontWeight: 'bold' }} />
+                             <Legend wrapperStyle={{ fontWeight: 'bold', fontSize: '12px' }} />
+                          </PieChart>
+                       </ResponsiveContainer>
+                    </div>
+                 </Card>
+                 <Card className="rounded-[2rem] border-2 p-6">
+                    <h3 className="font-black text-lg mb-6 text-center">إحصائيات الأداء</h3>
+                    <div className="h-[300px]">
+                       <ResponsiveContainer width="100%" height="100%">
+                          <BarChart data={chartData}>
+                             <CartesianGrid strokeDasharray="3 3" opacity={0.2} vertical={false} />
+                             <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontWeight: 'bold', fontSize: 12 }} />
+                             <YAxis axisLine={false} tickLine={false} />
+                             <Tooltip cursor={{ fill: 'transparent' }} contentStyle={{ borderRadius: '1rem', fontWeight: 'bold' }} />
+                             <Bar dataKey="value" radius={[8, 8, 8, 8]}>
+                                {chartData.map((entry, index) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}
+                             </Bar>
+                          </BarChart>
+                       </ResponsiveContainer>
+                    </div>
+                 </Card>
+              </div>
           </TabsContent>
 
           <TabsContent value="services" className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -306,6 +325,7 @@ const ProviderDashboard = () => {
             ))}
           </TabsContent>
 
+          {/* نموذج إضافة خدمة جديدة مع التحقق من الحقول الإجبارية */}
           <TabsContent value="add">
             <Card className="rounded-[2.5rem] border-2 shadow-sm">
               <CardContent className="p-8 space-y-8">
@@ -327,6 +347,7 @@ const ProviderDashboard = () => {
                       <div className="space-y-2"><Label className="font-black text-sm">رابط الموقع (خرائط قوقل) *</Label><Input type="url" placeholder="انسخ رابط الموقع هنا" value={mapsLink} onChange={e => setMapsLink(e.target.value)} className="rounded-2xl h-14 bg-white" /></div>
                     </div>
                     <div className="grid grid-cols-2 gap-4">
+                      {/* استخدام useRef لتفعيل اختيار الملفات عبر أزرار مخصصة */}
                       <div className={`p-6 border-2 border-dashed rounded-[2rem] text-center cursor-pointer transition-all ${serviceImage ? 'bg-primary/10 border-primary' : 'hover:bg-muted/50'}`} onClick={() => imageInputRef.current?.click()}>
                         <Image className={`mx-auto mb-3 w-8 h-8 ${serviceImage ? 'text-primary' : 'text-muted-foreground'}`} />
                         <p className="text-xs font-black">{serviceImage ? "تم إرفاق الصورة ✓" : "إرفاق صورة للخدمة *"}</p>
@@ -349,7 +370,7 @@ const ProviderDashboard = () => {
         </Tabs>
       </div>
 
-      <SupportTicketDialog open={supportOpen} onOpenChange={setSupportOpen} />
+      <SupportTicketDialog open={supportOpen} onOpenChange={supportOpen => setSupportOpen(supportOpen)} />
       
       {chatBooking && (
         <ChatDialog open={!!chatBooking} onOpenChange={open => !open && setChatBooking(null)} bookingId={chatBooking.id} otherName={chatBooking.client?.full_name || "العميل"} />

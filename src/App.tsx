@@ -16,25 +16,46 @@ import NotFound from "./pages/NotFound";
 import SubscriptionPage from "./pages/SubscriptionPage"; 
 import SupportTickets from "./pages/SupportTickets"; 
 import PaymentPage from "./pages/PaymentPage";
-import Footer from "./components/Footer"; // 👈 استيراد الـ Footer الجديد
+import Footer from "./components/Footer";
 
+/* إعداد عميل البيانات للتعامل مع الـ Cache */
 const queryClient = new QueryClient();
 
+/**
+ * حماية المسارات (RBAC)
+ * تتحقق من تسجيل الدخول ومن مطابقة صلاحية المستخدم للمسار المطلوب
+ */
 const ProtectedRoute = ({ children, allowedRoles }: { children: React.ReactNode, allowedRoles: string[] }) => {
   const { user, role, loading } = useAuth();
+
+  /* منع التحويل العشوائي قبل اكتمال جلب بيانات المستخدم */
   if (loading) return <div className="flex h-screen items-center justify-center">جاري التحميل...</div>;
+
+  /* توجيه غير المسجلين لصفحة الدخول */
   if (!user) return <Navigate to="/auth" replace />;
-  if (!allowedRoles.includes(role || '')) return <Navigate to="/permission-denied" replace />;
+
+  /* فحص الصلاحية؛ إذا لم تتطابق يوجه لصفحة المنع */
+  if (!allowedRoles.includes(role || '')) {
+    return <Navigate to="/permission-denied" replace />;
+  }
+
   return <>{children}</>;
 };
 
+/**
+ * تحويل الصفحة الرئيسية
+ * يوجه الأدمن ومزود الخدمة لصفحات التحكم الخاصة بهم تلقائياً
+ */
 const HomeRedirect = () => {
   const { user, role, loading } = useAuth();
+
   if (loading) return null;
+
   if (user) {
     if (role === 'admin') return <Navigate to="/admin" replace />;
     if (role === 'provider') return <Navigate to="/provider" replace />;
   }
+
   return <Index />;
 };
 
@@ -45,16 +66,20 @@ const App = () => (
         <Toaster />
         <Sonner />
         <BrowserRouter>
-          {/* أضفنا هذا الـ Div لضمان دفع الـ Footer لأسفل الصفحة دائماً */}
+          {/* حاوية flex لضمان بقاء الفوتر في الأسفل دوماً */}
           <div className="min-h-screen flex flex-col bg-background">
             <main className="flex-1">
               <Routes>
+                {/* المسارات العامة */}
                 <Route path="/" element={<HomeRedirect />} />
                 <Route path="/auth" element={<Auth />} />
                 <Route path="/service/:id" element={<ServiceDetail />} />
+                
+                {/* مسارات العميل المستفيد */}
                 <Route path="/my-bookings" element={<ProtectedRoute allowedRoles={['client']}><MyBookings /></ProtectedRoute>} />
                 <Route path="/support" element={<SupportTickets />} />
 
+                {/* مسارات مقدم الخدمة - تتطلب اشتراك وتحقق */}
                 <Route path="/provider" element={
                   <ProtectedRoute allowedRoles={['provider']}>
                     <ProviderDashboard />
@@ -76,17 +101,18 @@ const App = () => (
                   </ProtectedRoute>
                 } />
 
+                {/* مسار الإدارة والمشرفين */}
                 <Route path="/admin" element={
                   <ProtectedRoute allowedRoles={['admin']}>
                     <AdminDashboard />
                   </ProtectedRoute>
                 } />
 
+                {/* صفحات الخطأ والمنع */}
                 <Route path="/permission-denied" element={<PermissionDenied />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </main>
-            {/* 👈 الـ Footer يظهر هنا في جميع الصفحات */}
             <Footer />
           </div>
         </BrowserRouter>

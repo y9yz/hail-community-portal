@@ -11,14 +11,17 @@ import { Edit, Eye, CalendarCheck, MapPin } from "lucide-react";
 const ServiceCard = ({ service }: { service: Service }) => {
   const navigate = useNavigate();
   const { user, role } = useAuth();
+  
+  // استخراج اسم التصنيف من ملف البيانات بناءً على معرف التصنيف
   const categoryLabel = categories.find((c) => c.id === service.category)?.label ?? service.category;
 
-  // هل المستخدم الحالي هو صاحب هذه الخدمة؟
+  // التحقق مما إذا كان المستخدم المسجل هو نفسه صاحب الخدمة
   const isOwner = user?.id === service.provider_id;
 
   return (
     <Card className="overflow-hidden rounded-3xl border-2 shadow-sm hover:shadow-xl transition-all duration-300 animate-fade-in group">
-      {/* منطقة الصورة */}
+      
+      {/* عرض صورة الخدمة مع تأثير التكبير عند تمرير الماوس وشارة التصنيف */}
       <div className="relative h-48 overflow-hidden">
         <img
           src={service.image_url || "/placeholder.svg"}
@@ -29,12 +32,10 @@ const ServiceCard = ({ service }: { service: Service }) => {
         <Badge className="absolute top-3 start-3 bg-primary/90 backdrop-blur-sm text-primary-foreground border-none px-3 py-1 rounded-full text-[10px] font-bold">
           {categoryLabel}
         </Badge>
-        
-        {/* تم حذف مربع السعر (10 ريال) نهائياً من هنا بناءً على طلبك */}
       </div>
 
       <CardContent className="p-5 space-y-4">
-        {/* العنوان والمعلومات الأساسية */}
+        {/* تفاصيل الخدمة: العنوان، اسم المزود، والموقع الجغرافي */}
         <div className="space-y-1">
           <h3 className="font-black text-lg text-foreground leading-tight line-clamp-1 group-hover:text-primary transition-colors">
             {service.title}
@@ -43,7 +44,6 @@ const ServiceCard = ({ service }: { service: Service }) => {
             <p className="text-[11px] text-muted-foreground flex items-center gap-1">
               بواسطة: <span className="font-bold text-foreground/80">{service.provider?.full_name || "مزود موثق"}</span>
             </p>
-            {/* عرض الحي بدلاً من السعر لزيادة جودة المعلومات */}
             {service.address_name && (
               <p className="text-[11px] text-primary font-bold flex items-center gap-1">
                 <MapPin className="w-3 h-3" /> {service.address_name}
@@ -52,7 +52,7 @@ const ServiceCard = ({ service }: { service: Service }) => {
           </div>
         </div>
 
-        {/* التقييم وعلامة التوثيق */}
+        {/* عرض متوسط التقييمات وشارة "موثق" إذا تمت الموافقة من الإدارة */}
         <div className="flex items-center justify-between border-y py-2 border-dashed">
           <div className="flex items-center gap-1.5">
             <StarRating rating={service.avg_rating || 0} />
@@ -68,7 +68,11 @@ const ServiceCard = ({ service }: { service: Service }) => {
           )}
         </div>
 
-        {/* أزرار التحكم بناءً على الدور */}
+        {/* منطق الأزرار التفاعلية حسب نوع المستخدم:
+            1. المزود صاحب الخدمة: يظهر له زر "تعديل".
+            2. المشرف (Admin): يظهر له زر "إدارة".
+            3. العميل/الزائر: يظهر له زر "حجز".
+        */}
         <div className="pt-1 space-y-3">
           {role === 'provider' && isOwner ? (
             <Button 
@@ -98,6 +102,7 @@ const ServiceCard = ({ service }: { service: Service }) => {
             </Button>
           )}
           
+          {/* نص توضيحي بأسفل البطاقة حول آلية الدفع */}
           <div className="flex items-center justify-center gap-1.5 opacity-60">
              <div className="h-px w-4 bg-muted-foreground/30"></div>
              <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-tighter">

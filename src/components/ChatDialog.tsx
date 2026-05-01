@@ -12,7 +12,7 @@ interface ChatDialogProps {
   onOpenChange: (open: boolean) => void;
   bookingId: string;
   otherName: string;
-  readOnly?: boolean; // 👈 الإضافة الجديدة هنا
+  readOnly?: boolean; 
 }
 
 const ChatDialog = ({ open, onOpenChange, bookingId, otherName, readOnly = false }: ChatDialogProps) => {
@@ -20,17 +20,19 @@ const ChatDialog = ({ open, onOpenChange, bookingId, otherName, readOnly = false
   const [messages, setMessages] = useState<any[]>([]);
   const [signedUrls, setSignedUrls] = useState<Record<string, string>>({});
   const [newMessage, setNewMessage] = useState("");
-  const [sending, setSending] = useState(false);
+  const [sending, setSending] = useState(false); // مسمار الشغل هنا
   const [pendingImage, setPendingImage] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
+  // يجيب الرسايل ويضبط روابط الصور من الـ Storage
   const fetchMessages = async () => {
     const { data } = await supabase
       .from("chat_messages")
       .select("*")
       .eq("booking_id", bookingId)
       .order("created_at", { ascending: true });
+    
     const msgs = data || [];
     setMessages(msgs);
 
@@ -50,6 +52,7 @@ const ChatDialog = ({ open, onOpenChange, bookingId, otherName, readOnly = false
     }
   };
 
+  // يراقب المحادثة "بث حي".. أي رسالة تدخل الداتابيس تطلع هنا بلحظتها
   useEffect(() => {
     if (!open || !bookingId) return;
     fetchMessages();
@@ -67,12 +70,14 @@ const ChatDialog = ({ open, onOpenChange, bookingId, otherName, readOnly = false
     return () => { supabase.removeChannel(channel); };
   }, [open, bookingId]);
 
+  // يلحق آخر رسالة وينزل الشاشة تحت تلقائي
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [messages, signedUrls]);
 
+  // يرفع الصورة ويرسل الكلام.. وإذا قضى يطفي حالة الإرسال
   const handleSend = async () => {
     if (readOnly || (!newMessage.trim() && !pendingImage) || !user) return;
     setSending(true);
@@ -86,12 +91,14 @@ const ChatDialog = ({ open, onOpenChange, bookingId, otherName, readOnly = false
           .upload(imagePath, pendingImage);
         if (upErr) throw upErr;
       }
+
       const { error } = await supabase.from("chat_messages").insert({
         booking_id: bookingId,
         sender_id: user.id,
         message: newMessage.trim() || null,
         image_url: imagePath,
       } as any);
+
       if (error) throw error;
       setNewMessage("");
       setPendingImage(null);
@@ -99,13 +106,14 @@ const ChatDialog = ({ open, onOpenChange, bookingId, otherName, readOnly = false
     } catch (err: any) {
       toast.error(err.message || "تعذر إرسال الرسالة");
     } finally {
-      setSending(false);
+      setSending(false); // تعديل: هنا كان الخطأ وتم تصحيحه
     }
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md h-[70vh] flex flex-col rounded-[2rem] p-0 overflow-hidden" dir="rtl">
+        
         <DialogHeader className={`p-4 border-b ${readOnly ? 'bg-amber-50/50' : 'bg-muted/30'}`}>
           <DialogTitle className="font-black text-lg text-primary px-2 flex items-center gap-2">
             {readOnly && <ShieldAlert className="w-5 h-5 text-amber-600" />}
@@ -146,7 +154,6 @@ const ChatDialog = ({ open, onOpenChange, bookingId, otherName, readOnly = false
           ))}
         </div>
 
-        {/* 👈 الشرط الجديد: إذا القراءة فقط، نلغي أزرار الإرسال */}
         {readOnly ? (
           <div className="p-4 bg-muted/30 border-t text-center">
              <p className="text-sm font-bold text-muted-foreground">وضع المراقبة فقط (لا يمكنك إرسال رسائل)</p>

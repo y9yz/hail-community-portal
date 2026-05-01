@@ -7,12 +7,12 @@ import { toast } from "sonner";
 import { Check, CreditCard, Gift } from "lucide-react";
 
 const SubscriptionPage = () => {
-  // هذه الأسطر هي التي كانت مفقودة وتسبب خطأ 'user' و 'loading'
+  /* جلب بيانات المستخدم الحالي من الـ Context */
   const { user } = useAuth();
   const [subscription, setSubscription] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
-  // دالة جلب البيانات مصححة بـ as any لتجنب خطأ التوافق
+  /* الاستعلام عن سجل الاشتراك الخاص بالمزود */
   const fetchSubscription = async () => {
     if (!user) return;
     try {
@@ -20,7 +20,7 @@ const SubscriptionPage = () => {
         .from("provider_subscriptions" as any)
         .select("*")
         .eq('provider_id', user.id)
-        .maybeSingle(); // استخدام maybeSingle أضمن من single في حال لا يوجد اشتراك
+        .maybeSingle(); // استخدام maybeSingle لتجنب الخطأ في حال عدم وجود سجل سابق
       
       if (!error) setSubscription(data);
     } catch (err) {
@@ -30,10 +30,12 @@ const SubscriptionPage = () => {
     }
   };
 
+  /* تحديث البيانات عند تحميل المكون أو تغيير المستخدم */
   useEffect(() => {
     fetchSubscription();
   }, [user]);
 
+  /* معالجة عملية الاشتراك وتحديث التاريخ لعام كامل */
   const handleSubscribe = async () => {
     if (!user) return;
     try {
@@ -43,6 +45,7 @@ const SubscriptionPage = () => {
           provider_id: user.id,
           status: 'active',
           amount: 100,
+          /* حساب تاريخ الانتهاء بإضافة سنة واحدة من تاريخ اليوم */
           expires_at: new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString(),
         });
 
@@ -91,6 +94,7 @@ const SubscriptionPage = () => {
         </CardContent>
 
         <CardFooter>
+          {/* تعطيل الزر في حال كان الاشتراك نشطاً لمنع التكرار */}
           <Button 
             className="w-full h-12 text-lg rounded-xl" 
             onClick={handleSubscribe}
@@ -102,6 +106,7 @@ const SubscriptionPage = () => {
         </CardFooter>
       </Card>
 
+      {/* عرض تفاصيل تاريخ الانتهاء إذا وجد اشتراك */}
       {subscription && (
         <p className="mt-6 text-center text-sm text-muted-foreground">
           حالة الاشتراك: {subscription.status === 'trial' ? "فترة تجريبية" : "نشط"} | 

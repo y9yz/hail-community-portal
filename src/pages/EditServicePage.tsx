@@ -14,8 +14,6 @@ import { toast } from "sonner";
 import { categories } from "@/data/categories";
 import type { Service } from "@/types/service";
 
-// Dedicated page that opens the existing service prefilled — avoids
-// reusing the "Add service" form, which previously caused confusion.
 const EditServicePage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -32,6 +30,7 @@ const EditServicePage = () => {
   const [saving, setSaving] = useState(false);
   const imageInputRef = useRef<HTMLInputElement>(null);
 
+  /* حماية الصفحة والتحقق من ملكية المزود للخدمة قبل السماح بالتعديل */
   useEffect(() => {
     if (authLoading) return;
     if (!user) { navigate("/auth"); return; }
@@ -44,8 +43,11 @@ const EditServicePage = () => {
         .select("*")
         .eq("id", id)
         .single();
+      
+      /* منع الدخول إذا كانت الخدمة لا تخص المستخدم الحالي */
       if (error || !data) { toast.error("تعذّر تحميل الخدمة"); navigate("/provider"); return; }
       if ((data as any).provider_id !== user.id) { navigate("/permission-denied"); return; }
+      
       const s = data as any;
       setService(s);
       setTitle(s.title);
@@ -57,15 +59,20 @@ const EditServicePage = () => {
     })();
   }, [authLoading, user, role, id, navigate]);
 
+  /* دالة للتحقق من صياغة الروابط الخارجية */
   const isValidUrl = (url: string) => { try { new URL(url); return true; } catch { return false; } };
 
+  /* معالجة تحديث البيانات ورفع الصورة الجديدة إذا وجدت */
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!service || !user) return;
     if (mapsLink && !isValidUrl(mapsLink)) { toast.error("يرجى إدخال رابط خريطة صحيح"); return; }
+    
     setSaving(true);
     try {
       let imageUrl = service.image_url;
+      
+      /* رفع الصورة الجديدة واستبدال الرابط القديم في حال تم اختيار ملف جديد */
       if (serviceImage) {
         const ext = serviceImage.name.split(".").pop();
         const path = `${user.id}/${Date.now()}-service.${ext}`;
@@ -74,12 +81,15 @@ const EditServicePage = () => {
         const { data: urlData } = supabase.storage.from("public-assets").getPublicUrl(path);
         imageUrl = urlData.publicUrl;
       }
+
+      /* تنفيذ عملية التحديث في قاعدة البيانات بناءً على معرف الخدمة */
       const { error } = await supabase.from("services").update({
         title, category, description,
         address_name: addressName,
         maps_link: mapsLink || null,
         image_url: imageUrl,
       } as any).eq("id", service.id);
+
       if (error) throw error;
       toast.success("تم حفظ التعديلات");
       navigate("/provider");
@@ -144,6 +154,7 @@ const EditServicePage = () => {
                   <Image className="w-4 h-4 text-primary" />
                   صورة الخدمة (اختياري — للتحديث)
                 </Label>
+                {/* عرض الصورة الحالية قبل الاستبدال */}
                 {service?.image_url && !serviceImage && (
                   <img src={service.image_url} alt="حالية" className="rounded-xl h-32 w-full object-cover" />
                 )}

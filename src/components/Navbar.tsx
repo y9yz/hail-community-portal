@@ -22,33 +22,40 @@ interface NavbarProps {
 const Navbar = ({ searchQuery = "", onSearchChange }: NavbarProps) => {
   const navigate = useNavigate();
   const { user, role, profile, signOut } = useAuth();
+  
+  /* شيك على الثيم.. ليل ولا نهار */
   const [dark, setDark] = useState(() => document.documentElement.classList.contains("dark"));
   const [editOpen, setEditOpen] = useState(false);
   const [reqName, setReqName] = useState(profile?.full_name || "");
   const [reqPhone, setReqPhone] = useState(profile?.phone || "");
   const [submitting, setSubmitting] = useState(false);
 
+  /* إذا تغير البروفايل.. حدث البيانات اللي بالخانات */
   useEffect(() => {
     setReqName(profile?.full_name || "");
     setReqPhone(profile?.phone || "");
   }, [profile]);
 
+  /* اقلب اللمبة.. فاتح ولا داكن */
   const toggleDark = () => {
     document.documentElement.classList.toggle("dark");
     setDark(!dark);
   };
 
+  /* تسجيل الخروج.. ودعناهم */
   const handleSignOut = async () => {
     await signOut();
     navigate("/auth");
   };
 
+  /* ضغطة الشعار.. يوديك لمكانك حسب رتبتك */
   const handleLogoClick = () => {
     if (role === "provider") navigate("/provider");
     else if (role === "admin") navigate("/admin");
     else navigate("/");
   };
 
+  /* يرسل طلب تعديل بياناتك للإدارة.. مراجعة وتدقيق */
   const handleProfileEditRequest = async () => {
     if (!user) return;
     setSubmitting(true);
@@ -68,12 +75,14 @@ const Navbar = ({ searchQuery = "", onSearchChange }: NavbarProps) => {
     }
   };
 
+  /* البحث ما يظهر إلا للعملاء الدوارة */
   const showSearch = role === "client" && onSearchChange;
 
   return (
     <>
       <header className="sticky top-0 z-50 bg-card/80 backdrop-blur-lg border-b">
         <div className="container flex items-center justify-between h-16 gap-4">
+          {/* شعار البوابة.. ضغطة وحدة ترجعك لبيتك */}
           <h1
             className="text-xl font-extrabold text-primary cursor-pointer shrink-0"
             onClick={handleLogoClick}
@@ -81,6 +90,7 @@ const Navbar = ({ searchQuery = "", onSearchChange }: NavbarProps) => {
             بوابة حائل
           </h1>
 
+          {/* خانة البحث.. دور لك على خدمة */}
           {showSearch && (
             <div className="relative flex-1 max-w-md">
               <Search className="absolute start-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -93,6 +103,7 @@ const Navbar = ({ searchQuery = "", onSearchChange }: NavbarProps) => {
             </div>
           )}
 
+          {/* أزرار التحكم والبروفايل */}
           <div className="flex items-center gap-1">
             <Button variant="ghost" size="icon" onClick={toggleDark} title={dark ? "الوضع الفاتح" : "الوضع الداكن"}>
               {dark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
@@ -100,14 +111,12 @@ const Navbar = ({ searchQuery = "", onSearchChange }: NavbarProps) => {
 
             {user && profile?.is_verified && <NotificationsBell />}
 
-            {/* أيقونة الدعم الفني الدائرية - متاحة الآن للكل (عميل، مزود، أدمن) */}
+            {/* الدعم الفني.. تواصل معهم بأي وقت */}
             {user && (
               <Button variant="ghost" size="icon" onClick={() => navigate("/support")} title="الدعم الفني">
                 <MessageCircle className="w-5 h-5" /> 
               </Button>
             )}
-
-            {/* تم حذف زر الاشتراك السنوي من هنا بناءً على طلبك */}
 
             {user && profile?.is_verified && role === "client" && (
               <Button variant="ghost" size="icon" onClick={() => navigate("/my-bookings")} title="طلباتي">
@@ -116,6 +125,7 @@ const Navbar = ({ searchQuery = "", onSearchChange }: NavbarProps) => {
             )}
 
             {user ? (
+              /* قائمة المستخدم.. إعدادات وخروج */
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" size="icon" title="الاعدادات">
@@ -150,6 +160,7 @@ const Navbar = ({ searchQuery = "", onSearchChange }: NavbarProps) => {
         </div>
       </header>
 
+      {/* نافذة تعديل البيانات.. ترسل الطلب وتنتظر المراجعة */}
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>

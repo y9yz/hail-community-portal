@@ -23,6 +23,7 @@ const RatingDialog = ({ open, onOpenChange, serviceId, serviceTitle, bookingId, 
   const [comment, setComment] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
+  /* إعادة تعيين الحقول عند فتح النافذة */
   useEffect(() => {
     if (open) {
       setRating(0);
@@ -30,6 +31,11 @@ const RatingDialog = ({ open, onOpenChange, serviceId, serviceTitle, bookingId, 
     }
   }, [open]);
 
+  /**
+   * معالجة إرسال التقييم:
+   * 1. إضافة سجل جديد في جدول التقييمات (reviews).
+   * 2. تحديث سجل الطلب (bookings) لوسمه كـ "تم تقييمه" لمنع التكرار.
+   */
   const handleSubmit = async () => {
     if (!user || rating === 0) {
       toast.error("يرجى اختيار تقييم (عدد النجوم)");
@@ -38,7 +44,7 @@ const RatingDialog = ({ open, onOpenChange, serviceId, serviceTitle, bookingId, 
 
     setSubmitting(true);
     try {
-      // 1. إضافة التقييم في جدول الـ reviews
+      /* الخطوة الأولى: حفظ التقييم والتعليق */
       const { error: reviewError } = await supabase.from("reviews").insert({
         service_id: serviceId,
         client_id: user.id,
@@ -48,7 +54,7 @@ const RatingDialog = ({ open, onOpenChange, serviceId, serviceTitle, bookingId, 
 
       if (reviewError) throw reviewError;
 
-      // 2. تحديث حالة الطلب ليختفي زر التقييم
+      /* الخطوة الثانية: تحديث حالة الطلب لإخفاء زر التقييم من واجهة المستخدم */
       const { error: bookingError } = await supabase
         .from("bookings")
         .update({ has_review: true } as any)
@@ -81,7 +87,7 @@ const RatingDialog = ({ open, onOpenChange, serviceId, serviceTitle, bookingId, 
           <div className="flex flex-col items-center gap-2">
             <p className="text-xs text-muted-foreground font-bold">كيف كانت تجربتك مع المزود؟</p>
             <div className="bg-muted/30 p-4 rounded-2xl">
-              {/* تم تغيير size من lg إلى md لحل الخطأ */}
+              {/* مكون النجوم التفاعلي */}
               <StarRating rating={rating} size="md" interactive onRate={setRating} />
             </div>
           </div>

@@ -11,6 +11,7 @@ const NotificationsBell = () => {
   const [notifications, setNotifications] = useState<any[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
 
+  // تجيب الإشعارات من سوبابيس وتعدّ اللي ما انقرت عشان نحدث العداد
   const fetchNotifications = async () => {
     if (!user) return;
     const { data } = await supabase
@@ -23,6 +24,7 @@ const NotificationsBell = () => {
     setUnreadCount((data || []).filter((n: any) => !n.is_read).length);
   };
 
+  // مراقبة فورية (Real-time).. أول ما يجيك إشعار جديد في الداتابيس، يسحبه لك بلحظتها
   useEffect(() => {
     if (!user) return;
     fetchNotifications();
@@ -40,6 +42,7 @@ const NotificationsBell = () => {
     return () => { supabase.removeChannel(channel); };
   }, [user]);
 
+  // تقلب حالة كل الإشعارات إلى "مقروءة" بضغطة وحدة عشان يصفى العداد
   const markAllRead = async () => {
     if (!user) return;
     const { error } = await supabase
@@ -54,7 +57,7 @@ const NotificationsBell = () => {
     }
   };
 
-  // وظيفة جديدة: مسح الإشعارات المقروءة فقط
+  // تنظيف الصندوق.. يقشع لك الإشعارات اللي قريتها وخلصت منها
   const deleteReadNotifications = async () => {
     if (!user) return;
     const { error } = await supabase
@@ -69,7 +72,7 @@ const NotificationsBell = () => {
     }
   };
 
-  // وظيفة جديدة: مسح جميع الإشعارات (إفراغ الصندوق)
+  // مسح كامل.. هذا يقشع الأخضر واليابس ويصفي لك الصندوق تصفير كامل
   const clearAll = async () => {
     if (!user) return;
     if (!confirm("هل أنت متأكد من حذف جميع الإشعارات؟")) return;
@@ -88,6 +91,7 @@ const NotificationsBell = () => {
   return (
     <Popover>
       <PopoverTrigger asChild>
+        {/* زر الجرس مع العداد الأحمر اللي ينبض إذا فيه شي جديد */}
         <Button variant="ghost" size="icon" className="relative hover:bg-primary/10 rounded-full transition-colors">
           <Bell className="w-5 h-5 text-foreground/80" />
           {unreadCount > 0 && (
@@ -97,7 +101,9 @@ const NotificationsBell = () => {
           )}
         </Button>
       </PopoverTrigger>
+      
       <PopoverContent className="w-80 p-0 rounded-3xl border-2 shadow-2xl overflow-hidden" align="end">
+        {/* هيدر مركز الإشعارات */}
         <div className="bg-primary/5 p-4 border-b flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Bell className="w-4 h-4 text-primary" />
@@ -112,12 +118,14 @@ const NotificationsBell = () => {
 
         <div className="max-h-80 overflow-y-auto">
           {notifications.length === 0 ? (
+            /* شكل الصندوق إذا كان فاضي ومصفّر */
             <div className="flex flex-col items-center justify-center py-10 text-muted-foreground opacity-40">
               <BellOff className="w-10 h-10 mb-2" />
               <p className="text-xs font-bold">لا توجد إشعارات حالياً</p>
             </div>
           ) : (
             <>
+              {/* أزرار الحذف السريع */}
               <div className="p-2 bg-muted/20 flex gap-2 border-b">
                  <Button variant="ghost" className="h-7 text-[9px] font-black flex-1 rounded-lg hover:bg-destructive/10 hover:text-destructive" onClick={deleteReadNotifications}>
                    <Trash2 className="w-3 h-3 me-1" /> حذف المقروء
@@ -126,6 +134,8 @@ const NotificationsBell = () => {
                    <Trash2 className="w-3 h-3 me-1" /> مسح الكل
                  </Button>
               </div>
+              
+              {/* لستة الإشعارات.. الجديد يتميز بخط عريض ولون خلفية خفيف */}
               {notifications.map((n) => (
                 <div 
                   key={n.id} 
@@ -146,6 +156,7 @@ const NotificationsBell = () => {
           )}
         </div>
         
+        {/* فوتر بسيط يختم الشكل */}
         {notifications.length > 0 && (
           <div className="p-2 bg-muted/10 text-center">
             <p className="text-[8px] text-muted-foreground uppercase font-black tracking-widest">بوابة حائل — نظام التنبيهات الفوري</p>
