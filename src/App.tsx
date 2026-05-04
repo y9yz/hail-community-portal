@@ -18,8 +18,19 @@ import SupportTickets from "./pages/SupportTickets";
 import PaymentPage from "./pages/PaymentPage";
 import Footer from "./components/Footer";
 
-/* إعداد عميل البيانات للتعامل مع الـ Cache */
-const queryClient = new QueryClient();
+/* 
+  🚀 التعديل الجوهري هنا: إعداد عميل البيانات للتعامل مع الـ Cache بذكاء 
+  هذا التعديل يمنع التهنيق عند العودة للتبويب ويجعل الموقع فائق السرعة
+*/
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      refetchOnWindowFocus: false, // يمنع إعادة جلب البيانات دفعة واحدة عند الرجوع للتبويب
+      retry: 1, // يحاول مرة واحدة فقط في حال فشل الاتصال بدلاً من المحاولات اللانهائية
+      staleTime: 5 * 60 * 1000, // يعتبر البيانات "طازجة" لمدة 5 دقائق، مما يقلل التحميل على السيرفر
+    },
+  },
+});
 
 /**
  * حماية المسارات (RBAC)

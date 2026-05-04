@@ -1,180 +1,294 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Card, CardHeader } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowRight, Mail, Lock, User, Phone, ShieldAlert } from "lucide-react";
-import { useAuth } from "@/hooks/useAuth";
+import { ArrowRight, Mail, Lock, User, Phone, ShieldAlert, KeyRound, CheckCircle2 } from "lucide-react";
+import { useAuth, translateError } from "@/hooks/useAuth"; // ✅ تأكد من استيراد translateError
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
-/* بوابة المصادقة وإدارة الوصول للمنصة */
 const Auth = () => {
   const navigate = useNavigate();
-  const { signIn, signUp, user, profile, role: userRole, loading: authLoading } = useAuth();
+  const { 
+    signIn, signUp, verifyOtp, resetPasswordEmail, updatePassword, 
+    user, profile, role: userRole, loading: authLoading 
+  } = useAuth();
+  
+  const [view, setView] = useState<"login" | "signup" | "verify-otp" | "forgot-password" | "reset-password">("login");
   const [role, setRole] = useState<"client" | "provider">("client");
   const [loading, setLoading] = useState(false);
 
-  const [loginEmail, setLoginEmail] = useState("");
-  const [loginPass, setLoginPass] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [otpCode, setOtpCode] = useState("");
+  const [newPassword, setNewPassword] = useState("");
 
-  const [signupName, setSignupName] = useState("");
-  const [signupPhone, setSignupPhone] = useState("");
-  const [signupEmail, setSignupEmail] = useState("");
-  const [signupPass, setSignupPass] = useState("");
-
-  /* نظام التوجيه التلقائي بناءً على الصلاحيات وحالة التحقق من الحساب */
+  // ✅ التعديل 1: التوجيه يعتمد على وجود المستخدم ودوره فقط، دون انتظار التوثيق اليدوي
   useEffect(() => {
     if (authLoading) return;
-    if (user && profile?.is_verified && userRole) {
+    if (user && userRole) {
       const dest = userRole === "admin" ? "/admin" : userRole === "provider" ? "/provider" : "/";
       navigate(dest, { replace: true });
     }
-  }, [authLoading, user, profile, userRole, navigate]);
+  }, [authLoading, user, userRole, navigate]);
 
-  /* تنفيذ عملية تسجيل الدخول عبر موفر الخدمة */
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     try {
-      await signIn(loginEmail, loginPass);
+      await signIn(email, password);
     } catch (err: any) {
-      toast.error(err.message || "خطأ في تسجيل الدخول");
+      toast.error(translateError(err.message));
     } finally {
       setLoading(false);
     }
   };
 
-  /* معالجة إنشاء الحساب الجديد والتحقق من المتطلبات الأساسية */
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!signupName.trim() || !signupEmail.trim() || !signupPass.trim()) {
+    if (!name.trim() || !email.trim() || !password.trim()) {
       toast.error("يرجى ملء جميع الحقول المطلوبة");
-      return;
-    }
-    if (signupPass.length < 6) {
-      toast.error("كلمة المرور يجب أن تكون 6 أحرف على الأقل");
       return;
     }
     setLoading(true);
     try {
-      await signUp(signupEmail, signupPass, signupName, signupPhone, role);
-      toast.success("تم إنشاء الحساب! حسابك بانتظار التحقق من الإدارة.");
+      await signUp(email, password, name, phone, role);
+      toast.success("تم إرسال رمز التحقق إلى بريدك الإلكتروني");
+      setView("verify-otp");
     } catch (err: any) {
-      toast.error(err.message || "خطأ في إنشاء الحساب");
+      toast.error(translateError(err.message));
     } finally {
       setLoading(false);
     }
   };
 
-  /* عرض واجهة انتظار تفعيل الحساب في حال عدم اكتمال التحقق الإداري */
-  if (user && profile && !profile.is_verified) {
-    return (
-      <div className="min-h-screen bg-secondary flex items-center justify-center p-4">
-        <Card className="w-full max-w-md rounded-2xl shadow-lg p-8 text-center space-y-4">
-          <ShieldAlert className="w-12 h-12 text-warning mx-auto" />
-          <h2 className="text-xl font-extrabold text-foreground">حسابك بانتظار التحقق</h2>
-          <p className="text-muted-foreground">
-            جاري التحقق من حسابك من قبل الإدارة. ستصلك رسالة عند اكتمال التحقق.
-          </p>
-        </Card>
-      </div>
-    );
-  }
+  const handleVerifyOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      await verifyOtp(email, otpCode, 'signup');
+      toast.success("تم تفعيل حسابك بنجاح!");
+      // التوجيه سيتم تلقائياً عبر useEffect بالأعلى بمجرد تحديث حالة المستخدم
+    } catch (err: any) {
+      toast.error(translateError(err.message));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      await resetPasswordEmail(email);
+      toast.success("تم إرسال رمز استعادة كلمة المرور لبريدك الإلكتروني");
+      setView("reset-password");
+    } catch (err: any) {
+      toast.error(translateError(err.message));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResetPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      await verifyOtp(email, otpCode, 'recovery');
+      await updatePassword(newPassword);
+      toast.success("تم تحديث كلمة المرور بنجاح");
+      setView("login");
+    } catch (err: any) {
+      toast.error(translateError(err.message));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ✅ التعديل 2: حذف واجهة "بانتظار التحقق" ليدخل الجميع فور تفعيل الإيميل
+  // (المراجعة ستكون للخدمات فقط وليس للحساب نفسه)
 
   return (
-    <div className="min-h-screen bg-secondary flex items-center justify-center p-4">
+    <div className="min-h-screen bg-secondary flex items-center justify-center p-4" dir="rtl">
       <div className="w-full max-w-md animate-fade-in">
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-extrabold text-primary">بوابة حائل</h1>
-          <p className="text-muted-foreground mt-2">مرحبًا بك في بوابة الخدمات</p>
+          <h1 className="text-3xl font-black text-primary tracking-tighter">بوابة مجتمع حائل</h1>
+          <p className="text-muted-foreground mt-2">نظام الخدمات الذكي لمنطقة حائل</p>
         </div>
 
-        <Card className="rounded-2xl shadow-lg">
-          <CardHeader className="pb-2">
-            {/* التبديل بين تسجيل الدخول وإنشاء حساب جديد */}
-            <Tabs defaultValue="login" className="w-full">
-              <TabsList className="grid w-full grid-cols-2 rounded-xl">
-                <TabsTrigger value="login">تسجيل الدخول</TabsTrigger>
-                <TabsTrigger value="signup">حساب جديد</TabsTrigger>
-              </TabsList>
+        <Card className="rounded-[2rem] shadow-xl overflow-hidden border-none bg-white/80 backdrop-blur-sm">
+          <CardContent className="p-0">
+            {(view === "login" || view === "signup") && (
+              <Tabs value={view} onValueChange={(v) => setView(v as any)} className="w-full">
+                <TabsList className="grid w-full grid-cols-2 rounded-none h-14 bg-muted/10 p-1">
+                  <TabsTrigger value="login" className="text-base font-bold data-[state=active]:bg-white data-[state=active]:text-primary rounded-xl transition-all">تسجيل الدخول</TabsTrigger>
+                  <TabsTrigger value="signup" className="text-base font-bold data-[state=active]:bg-white data-[state=active]:text-primary rounded-xl transition-all">حساب جديد</TabsTrigger>
+                </TabsList>
 
-              <TabsContent value="login" className="mt-6">
-                <form className="space-y-4" onSubmit={handleLogin}>
-                  <div className="space-y-2">
-                    <Label htmlFor="login-email">البريد الإلكتروني</Label>
-                    <div className="relative">
-                      <Mail className="absolute start-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                      <Input id="login-email" type="email" placeholder="example@mail.com" className="ps-10" dir="ltr" value={loginEmail} onChange={e => setLoginEmail(e.target.value)} required />
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="login-pass">كلمة المرور</Label>
-                    <div className="relative">
-                      <Lock className="absolute start-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                      <Input id="login-pass" type="password" placeholder="••••••••" className="ps-10" dir="ltr" value={loginPass} onChange={e => setLoginPass(e.target.value)} required />
-                    </div>
-                  </div>
-                  <Button className="w-full" type="submit" disabled={loading}>
-                    {loading ? "جاري الدخول..." : "دخول"}
+                <div className="p-6">
+                  <TabsContent value="login" className="mt-0 space-y-4">
+                    <form className="space-y-4" onSubmit={handleLogin}>
+                      <div className="space-y-2">
+                        <Label className="font-bold">البريد الإلكتروني</Label>
+                        <div className="relative">
+                          <Mail className="absolute start-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                          <Input type="email" placeholder="أدخل بريدك الإلكتروني" className="ps-10 h-11 rounded-xl" dir="ltr" value={email} onChange={e => setEmail(e.target.value)} required />
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="font-bold">كلمة المرور</Label>
+                        <div className="relative">
+                          <Lock className="absolute start-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                          <Input type="password" placeholder="••••••••" className="ps-10 h-11 rounded-xl" dir="ltr" value={password} onChange={e => setPassword(e.target.value)} required />
+                        </div>
+                      </div>
+                      <div className="flex justify-start">
+                        <Button type="button" variant="link" className="px-0 h-auto text-primary text-xs font-bold" onClick={() => setView("forgot-password")}>
+                          هل نسيت كلمة المرور؟
+                        </Button>
+                      </div>
+                      <Button className="w-full h-12 text-base font-black rounded-xl bg-primary hover:bg-primary/90 shadow-lg shadow-primary/20" type="submit" disabled={loading}>
+                        {loading ? "جاري التحقق..." : "تسجيل الدخول"}
+                      </Button>
+                    </form>
+                  </TabsContent>
+
+                  <TabsContent value="signup" className="mt-0 space-y-4">
+                    <form className="space-y-4" onSubmit={handleSignup}>
+                      <div className="space-y-2">
+                        <Label className="font-bold">نوع الحساب</Label>
+                        <div className="grid grid-cols-2 gap-2">
+                          <Button type="button" variant={role === "client" ? "default" : "outline"} className="rounded-xl h-10 font-bold" onClick={() => setRole("client")}>عميل</Button>
+                          <Button type="button" variant={role === "provider" ? "default" : "outline"} className="rounded-xl h-10 font-bold" onClick={() => setRole("provider")}>مقدم خدمة</Button>
+                        </div>
+                        {role === "provider" && (
+                          <div className="bg-amber-50 border border-amber-100 rounded-xl p-3 mt-2 flex items-start gap-2 animate-in fade-in slide-in-from-top-1">
+                            <ShieldAlert className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                            <p className="text-xs font-bold text-amber-800 leading-relaxed">
+                              سياسة الاشتراك: 100 ريال سنوياً مع <span className="text-primary font-black">شهر تجريبي مجاني</span> عند التسجيل.
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="font-bold">الاسم الكامل</Label>
+                        <div className="relative">
+                          <User className="absolute start-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                          <Input placeholder="الاسم ثلاثي" className="ps-10 h-11 rounded-xl" value={name} onChange={e => setName(e.target.value)} required />
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="font-bold">رقم الجوال</Label>
+                        <div className="relative">
+                          <Phone className="absolute start-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                          <Input type="tel" placeholder="05XXXXXXXX" className="ps-10 h-11 rounded-xl" dir="ltr" value={phone} onChange={e => setPhone(e.target.value)} />
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="font-bold">البريد الإلكتروني</Label>
+                        <div className="relative">
+                          <Mail className="absolute start-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                          <Input type="email" placeholder="example@mail.com" className="ps-10 h-11 rounded-xl" dir="ltr" value={email} onChange={e => setEmail(e.target.value)} required />
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="font-bold">كلمة المرور</Label>
+                        <div className="relative">
+                          <Lock className="absolute start-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                          <Input type="password" placeholder="••••••••" className="ps-10 h-11 rounded-xl" dir="ltr" value={password} onChange={e => setPassword(e.target.value)} required />
+                        </div>
+                      </div>
+                      <Button className="w-full h-12 text-base font-black rounded-xl bg-primary hover:bg-primary/90 shadow-lg shadow-primary/20" type="submit" disabled={loading}>
+                        {loading ? "جاري معالجة الطلب..." : "إنشاء حساب جديد"}
+                      </Button>
+                    </form>
+                  </TabsContent>
+                </div>
+              </Tabs>
+            )}
+
+            {view === "verify-otp" && (
+              <div className="p-8 text-center space-y-6">
+                <div className="bg-primary/10 w-16 h-16 rounded-full flex items-center justify-center mx-auto">
+                    <CheckCircle2 className="w-10 h-10 text-primary" />
+                </div>
+                <div className="space-y-2">
+                  <h2 className="text-2xl font-black">تأكيد الحساب</h2>
+                  <p className="text-sm text-muted-foreground leading-relaxed">
+                    أدخل رمز التحقق المكون من <span className="font-bold text-primary">6 أرقام</span> المرسل إلى بريدك الإلكتروني
+                  </p>
+                </div>
+                <form onSubmit={handleVerifyOtp} className="space-y-6">
+                  <Input 
+                    placeholder="0 0 0 0 0 0" 
+                    className="text-center text-3xl tracking-[15px] font-black h-16 bg-muted/30 border-2 focus:border-primary transition-all rounded-2xl" 
+                    maxLength={6}
+                    inputMode="numeric"
+                    dir="ltr"
+                    value={otpCode}
+                    onChange={e => setOtpCode(e.target.value.replace(/\D/g, ""))}
+                    required
+                  />
+                  <Button className="w-full h-12 font-black rounded-xl text-lg shadow-lg shadow-primary/20" type="submit" disabled={loading}>
+                    تفعيل الحساب
+                  </Button>
+                  <Button type="button" variant="ghost" className="text-sm font-bold text-muted-foreground hover:text-primary" onClick={() => setView("signup")}>
+                    العودة لتعديل البيانات
                   </Button>
                 </form>
-              </TabsContent>
+              </div>
+            )}
 
-              <TabsContent value="signup" className="mt-6">
-                <form className="space-y-4" onSubmit={handleSignup}>
-                  {/* تحديد دور المستخدم عند التسجيل لضبط الصلاحيات لاحقاً */}
-                  <div className="space-y-2">
-                    <Label>نوع الحساب</Label>
-                    <div className="grid grid-cols-2 gap-2">
-                      <Button type="button" variant={role === "client" ? "default" : "outline"} className="rounded-xl" onClick={() => setRole("client")}>عميل</Button>
-                      <Button type="button" variant={role === "provider" ? "default" : "outline"} className="rounded-xl" onClick={() => setRole("provider")}>مقدم خدمة</Button>
-                    </div>
-                    {role === "provider" && (
-                      <p className="text-xs text-muted-foreground bg-accent/40 rounded-lg p-2">
-                        سياسة الاشتراك: 100 ريال سنوياً مع شهر تجريبي مجاني.
-                      </p>
-                    )}
+            {view === "forgot-password" && (
+              <div className="p-8 space-y-6">
+                <div className="text-center space-y-2">
+                  <div className="bg-primary/10 w-16 h-16 rounded-full flex items-center justify-center mx-auto">
+                    <KeyRound className="w-10 h-10 text-primary" />
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="signup-name">الاسم الكامل</Label>
-                    <div className="relative">
-                      <User className="absolute start-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                      <Input id="signup-name" placeholder="أدخل اسمك" className="ps-10" value={signupName} onChange={e => setSignupName(e.target.value)} required />
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="signup-phone">رقم الجوال</Label>
-                    <div className="relative">
-                      <Phone className="absolute start-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                      <Input id="signup-phone" type="tel" placeholder="05XXXXXXXX" className="ps-10" dir="ltr" value={signupPhone} onChange={e => setSignupPhone(e.target.value)} />
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="signup-email">البريد الإلكتروني</Label>
-                    <div className="relative">
-                      <Mail className="absolute start-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                      <Input id="signup-email" type="email" placeholder="example@mail.com" className="ps-10" dir="ltr" value={signupEmail} onChange={e => setSignupEmail(e.target.value)} required />
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="signup-pass">كلمة المرور</Label>
-                    <div className="relative">
-                      <Lock className="absolute start-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                      <Input id="signup-pass" type="password" placeholder="••••••••" className="ps-10" dir="ltr" value={signupPass} onChange={e => setSignupPass(e.target.value)} required />
-                    </div>
-                  </div>
-                  <Button className="w-full" type="submit" disabled={loading}>
-                    {loading ? "جاري الإنشاء..." : "إنشاء حساب"}
-                  </Button>
+                  <h2 className="text-2xl font-black">استعادة كلمة المرور</h2>
+                  <p className="text-sm text-muted-foreground">أدخل بريدك الإلكتروني لنرسل لك رمز الأمان</p>
+                </div>
+                <form onSubmit={handleForgotPassword} className="space-y-4">
+                  <Input type="email" placeholder="example@mail.com" className="h-12 text-center text-lg rounded-xl" dir="ltr" value={email} onChange={e => setEmail(e.target.value)} required />
+                  <Button className="w-full h-12 font-black rounded-xl shadow-lg shadow-primary/20" type="submit" disabled={loading}>إرسال الرمز</Button>
+                  <Button type="button" variant="ghost" className="w-full font-bold" onClick={() => setView("login")}>العودة للدخول</Button>
                 </form>
-              </TabsContent>
-            </Tabs>
-          </CardHeader>
+              </div>
+            )}
+
+            {view === "reset-password" && (
+              <div className="p-8 space-y-6">
+                <div className="text-center space-y-2">
+                  <h2 className="text-2xl font-black text-primary">تعيين كلمة جديدة</h2>
+                  <p className="text-sm text-muted-foreground">أدخل الرمز المكون من 6 أرقام وكلمتك الجديدة</p>
+                </div>
+                <form onSubmit={handleResetPassword} className="space-y-4">
+                  <Label className="text-xs font-bold text-muted-foreground">رمز التحقق (6 أرقام)</Label>
+                  <Input 
+                    maxLength={6} 
+                    placeholder="000000"
+                    className="text-center font-black tracking-[10px] h-12 text-xl bg-muted/20 rounded-xl" 
+                    dir="ltr" 
+                    value={otpCode} 
+                    inputMode="numeric"
+                    onChange={e => setOtpCode(e.target.value.replace(/\D/g, ""))} 
+                    required 
+                  />
+                  <Label className="text-xs font-bold text-muted-foreground">كلمة المرور الجديدة</Label>
+                  <Input type="password" placeholder="••••••••" className="h-12 rounded-xl" dir="ltr" value={newPassword} onChange={e => setNewPassword(e.target.value)} required />
+                  <Button className="w-full h-12 font-black rounded-xl mt-2 shadow-lg shadow-primary/20" type="submit" disabled={loading}>تحديث كلمة المرور</Button>
+                </form>
+              </div>
+            )}
+          </CardContent>
         </Card>
 
-        <Button variant="ghost" className="w-full mt-4 text-muted-foreground" onClick={() => navigate("/")}>
+        <Button variant="ghost" className="w-full mt-6 text-muted-foreground font-bold hover:text-primary transition-colors" onClick={() => navigate("/")}>
           <ArrowRight className="w-4 h-4 ms-2" />
           العودة للرئيسية
         </Button>

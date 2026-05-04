@@ -2,7 +2,7 @@ import { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   CheckCircle2, XCircle, Clock, MessageSquare, Plus, Package, Inbox, Upload,
-  Image, FileText, Edit, Phone, MessageCircle, CheckCheck, TrendingUp, BarChart3, Download, Star, MapPin, Wallet, AlertTriangle, ArrowLeft, LifeBuoy
+  Image, FileText, Edit, Phone, MessageCircle, CheckCheck, TrendingUp, BarChart3, Download, Star, MapPin, Wallet, AlertTriangle, ArrowLeft, LifeBuoy, Calendar
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -32,11 +32,12 @@ const ProviderDashboard = () => {
   const [subscription, setSubscription] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
   
-  // تجميع إحصائيات الأداء في حالة واحدة لتقليل عمليات إعادة الرندرة
   const [providerStats, setProviderStats] = useState({
     total: 0, accepted: 0, pending: 0, completed: 0, declined: 0, avgRating: 0
   });
   
+  const [recentReviews, setRecentReviews] = useState<{rating: number, comment: string, serviceTitle: string}[]>([]);
+
   const [chatBooking, setChatBooking] = useState<any>(null);
   const [supportOpen, setSupportOpen] = useState(false);
 
@@ -52,17 +53,12 @@ const ProviderDashboard = () => {
   const imageInputRef = useRef<HTMLInputElement>(null);
   const licenseInputRef = useRef<HTMLInputElement>(null);
 
-  // حماية الصفحة على مستوى المكون والتحقق من دور المستخدم
   useEffect(() => {
     if (authLoading) return;
     if (!user || role !== "provider") { navigate("/"); return; }
     fetchData();
   }, [user, role, authLoading]);
 
-  /**
-   * جلب البيانات بشكل متوازي (Parallel) باستخدام Promise.all
-   * لتقليل زمن الانتظار الإجمالي (Latency) وتحديث الواجهة مرة واحدة
-   */
   const fetchData = async () => {
     if (!user) return;
     setLoading(true);
@@ -75,7 +71,7 @@ const ProviderDashboard = () => {
       ] = await Promise.all([
         supabase.from("services").select("*").eq("provider_id", user.id).order("created_at", { ascending: false }),
         supabase.from("bookings").select("*, client:profiles!bookings_client_id_fkey(full_name, phone)").eq("provider_id", user.id).order("created_at", { ascending: false }),
-        supabase.from("reviews").select("rating, service_id"),
+        supabase.from("reviews").select("rating, comment, service_id").order("created_at", { ascending: false }),
         supabase.from("subscriptions" as any).select("*").eq("provider_id", user.id).maybeSingle(),
       ]);
 
@@ -84,9 +80,17 @@ const ProviderDashboard = () => {
       setBookings(allBks);
       setSubscription(sub || null);
 
-      // حساب متوسط التقييم برمجياً من مصفوفة المراجعات
       const myReviews = (reviewData || []).filter((r: any) => (svc || []).map(s => s.id).includes(r.service_id));
       const avg = myReviews.length > 0 ? myReviews.reduce((s: number, r: any) => s + r.rating, 0) / myReviews.length : 0;
+      
+      const commentsWithTitles = myReviews
+        .filter((r: any) => r.comment && r.comment.trim() !== '')
+        .map((r: any) => ({
+          rating: r.rating,
+          comment: r.comment,
+          serviceTitle: (svc as any)?.find((s: any) => s.id === r.service_id)?.title || "خدمة"
+        }));
+      setRecentReviews(commentsWithTitles);
 
       setProviderStats({
         total: allBks.length,
@@ -105,17 +109,11 @@ const ProviderDashboard = () => {
 
   const isFormValid = title && category && description && neighborhood && mapsLink && serviceImage && licenseFile;
 
-  /**
-   * معالجة رفع الخدمة:
-   * 1. رفع الصورة العامة (Public) والوثيقة الخاصة (Private) للتخزين
-   * 2. حفظ الروابط والبيانات الوصفية في جدول الخدمات
-   */
   const handleSubmitService = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user || !isFormValid) return;
     setAddingService(true);
     try {
-      // التعامل مع رفع الصور لـ Supabase Storage
       const imagePath = `${user.id}/${Date.now()}-svc.jpg`;
       await supabase.storage.from("public-assets").upload(imagePath, serviceImage!);
       const { data: imgUrl } = supabase.storage.from("public-assets").getPublicUrl(imagePath);
@@ -132,7 +130,6 @@ const ProviderDashboard = () => {
       if (error) throw error;
       toast.success("تم نشر الخدمة بنجاح وهي تحت المراجعة");
       fetchData();
-      // تصفير الحقول بعد النجاح
       setTitle(""); setCategory(""); setDescription(""); setNeighborhood(""); setMapsLink(""); setServiceImage(null); setLicenseFile(null);
     } catch (err: any) { toast.error(err.message); }
     finally { setAddingService(false); }
@@ -140,23 +137,16 @@ const ProviderDashboard = () => {
 
   const isSubscribed = subscription && subscription.status === 'active';
   
-  /**
-   * احتساب أيام الفترة التجريبية بناءً على تاريخ الإنشاء في نظام المصادقة
-   * لضمان عدم تلاعب المستخدم ببيانات المتصفح
-   */
   const calculateTrialDays = () => {
     const creationDate = user?.created_at;
     if (!creationDate) return 30; 
-    
     const createdTime = new Date(creationDate).getTime();
     const currentTime = Date.now();
     const daysPassed = Math.floor((currentTime - createdTime) / (1000 * 60 * 60 * 24));
-    
     return Math.max(0, 30 - daysPassed);
   };
 
   const trialDaysLeft = calculateTrialDays();
-
   const chartData = [
     { name: 'مكتملة', value: providerStats.completed },
     { name: 'معلقة', value: providerStats.pending },
@@ -170,7 +160,6 @@ const ProviderDashboard = () => {
       <Navbar />
       <div className="container py-8 max-w-6xl space-y-8">
         
-        {/* نظام التنبيه للمشتركين والمنتهية فترتهم التجريبية */}
         {!isSubscribed && (
           <Card className={`rounded-[2rem] border-2 p-6 flex flex-col md:flex-row items-center justify-between gap-6 shadow-sm transition-all ${trialDaysLeft > 0 ? 'border-primary/20 bg-primary/5' : 'border-destructive/30 bg-destructive/5'}`}>
              <div className="space-y-2 text-center md:text-right">
@@ -202,24 +191,51 @@ const ProviderDashboard = () => {
           </div>
         </div>
 
-        {/* عرض مؤشرات الأداء الرئيسية (KPIs) */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <Card className="rounded-3xl border-2"><CardContent className="p-6 text-center">
-            <p className="text-[10px] text-muted-foreground uppercase font-black mb-1">إجمالي الطلبات</p>
-            <h3 className="text-3xl font-black">{providerStats.total}</h3>
-          </CardContent></Card>
-          <Card className="rounded-3xl border-2 border-amber-100 bg-amber-50/20"><CardContent className="p-6 text-center">
-            <p className="text-[10px] text-amber-600 uppercase font-black mb-1">قيد الانتظار</p>
-            <h3 className="text-3xl font-black text-amber-600">{providerStats.pending}</h3>
-          </CardContent></Card>
-          <Card className="rounded-3xl border-2 border-emerald-100 bg-emerald-50/20"><CardContent className="p-6 text-center">
-            <p className="text-[10px] text-emerald-600 uppercase font-black mb-1">مكتملة</p>
-            <h3 className="text-3xl font-black text-emerald-600">{providerStats.completed}</h3>
-          </CardContent></Card>
-          <Card className="rounded-3xl border-2"><CardContent className="p-6 text-center">
-            <p className="text-[10px] text-muted-foreground uppercase font-black mb-1">التقييم العام</p>
-            <h3 className="text-3xl font-black text-primary">{providerStats.avgRating} <Star className="inline w-5 h-5 mb-1 fill-primary" /></h3>
-          </CardContent></Card>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-2 gap-4 lg:col-span-2">
+            <Card className="rounded-3xl border-2"><CardContent className="p-6 text-center h-full flex flex-col justify-center">
+              <p className="text-[10px] text-muted-foreground uppercase font-black mb-1">إجمالي الطلبات</p>
+              <h3 className="text-3xl font-black">{providerStats.total}</h3>
+            </CardContent></Card>
+            <Card className="rounded-3xl border-2 border-amber-100 bg-amber-50/20"><CardContent className="p-6 text-center h-full flex flex-col justify-center">
+              <p className="text-[10px] text-amber-600 uppercase font-black mb-1">قيد الانتظار</p>
+              <h3 className="text-3xl font-black text-amber-600">{providerStats.pending}</h3>
+            </CardContent></Card>
+            <Card className="rounded-3xl border-2 border-emerald-100 bg-emerald-50/20"><CardContent className="p-6 text-center h-full flex flex-col justify-center">
+              <p className="text-[10px] text-emerald-600 uppercase font-black mb-1">مكتملة</p>
+              <h3 className="text-3xl font-black text-emerald-600">{providerStats.completed}</h3>
+            </CardContent></Card>
+            <Card className="rounded-3xl border-2"><CardContent className="p-6 text-center h-full flex flex-col justify-center">
+              <p className="text-[10px] text-muted-foreground uppercase font-black mb-1">التقييم العام</p>
+              <h3 className="text-3xl font-black text-primary">{providerStats.avgRating} <Star className="inline w-5 h-5 mb-1 fill-primary" /></h3>
+            </CardContent></Card>
+          </div>
+
+          <Card className="rounded-3xl border-2 bg-primary/5 border-primary/10 flex flex-col overflow-hidden max-h-[260px] lg:max-h-full">
+            <div className="bg-primary text-primary-foreground px-4 py-3 font-black flex items-center gap-2 shadow-sm z-10 shrink-0">
+              <Star className="w-5 h-5 fill-current" /> أبرز التعليقات
+            </div>
+            <div className="p-4 flex-1 overflow-y-auto flex flex-col gap-3">
+              {recentReviews.length > 0 ? (
+                recentReviews.map((r, i) => (
+                  <div key={i} className="bg-background/80 backdrop-blur rounded-2xl p-3 shadow-sm border border-primary/10 shrink-0">
+                    <div className="flex justify-between items-center mb-1.5">
+                      <span className="text-[10px] font-black text-primary/70 line-clamp-1 flex-1 me-2">{r.serviceTitle}</span>
+                      <span className="text-xs font-bold flex items-center gap-1 text-amber-500 shrink-0">
+                        {r.rating} <Star className="w-3 h-3 fill-current" />
+                      </span>
+                    </div>
+                    <p className="text-sm font-bold text-foreground/90 italic">"{r.comment}"</p>
+                  </div>
+                ))
+              ) : (
+                <div className="flex flex-col items-center justify-center h-full opacity-50 space-y-2 py-8">
+                  <MessageSquare className="w-8 h-8 text-muted-foreground" />
+                  <p className="text-xs font-black">لا توجد تعليقات حالياً</p>
+                </div>
+              )}
+            </div>
+          </Card>
         </div>
 
         <Tabs defaultValue="requests" className="w-full">
@@ -234,17 +250,32 @@ const ProviderDashboard = () => {
             {bookings.map(b => (
               <Card key={b.id} className="rounded-3xl border-2 overflow-hidden hover:border-primary/30 transition-all bg-card">
                 <div className="p-6 flex flex-col md:flex-row justify-between gap-6">
-                  <div className="space-y-2 flex-1">
-                    <h3 className="font-black text-xl flex items-center gap-2">
-                      {b.service_title} <Badge variant="outline" className="text-xs font-mono">#{b.order_number}</Badge>
-                    </h3>
+                  <div className="space-y-4 flex-1">
+                    <div className="flex justify-between items-start">
+                      <h3 className="font-black text-xl flex items-center gap-2">
+                        {b.service_title} <Badge variant="outline" className="text-xs font-mono">#{b.order_number}</Badge>
+                      </h3>
+                      {/* 🚀 إضافة وقت وصول الطلب من العميل */}
+                      <div className="flex flex-col items-end gap-1 text-[11px] font-bold text-muted-foreground">
+                        <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> وقت الطلب:</span>
+                        <span dir="ltr">{new Date(b.created_at).toLocaleString('ar-SA', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' })}</span>
+                      </div>
+                    </div>
+
                     <p className="text-sm bg-muted/30 p-4 rounded-2xl italic leading-relaxed">"{b.problem_description}"</p>
-                    <div className="flex items-center gap-2 pt-2">
+                    
+                    <div className="flex flex-wrap items-center gap-3">
                       <Badge variant="secondary" className="px-3 py-1 font-bold">العميل: {b.client?.full_name}</Badge>
                       <Badge variant="outline" className="px-3 py-1 font-bold font-mono">{b.client?.phone}</Badge>
+                      
+                      {/* 🚀 إضافة الموعد الذي اختاره العميل للتنفيذ */}
+                      <div className="flex items-center gap-2 bg-primary/10 text-primary px-3 py-1.5 rounded-xl border border-primary/20 shadow-sm">
+                        <Calendar className="w-4 h-4" />
+                        <span className="text-xs font-black">الموعد المطلوب: {b.scheduled_date || "قريباً"} | {b.scheduled_time || "--:--"}</span>
+                      </div>
                     </div>
                   </div>
-                  {/* التحكم في دورة حياة الطلب (قبول/رفض/إكمال) */}
+                  
                   <div className="flex flex-col gap-2 min-w-[160px] justify-center border-t md:border-t-0 md:border-r pt-4 md:pt-0 md:pr-6 border-dashed">
                     {b.provider_status === 'pending' ? (
                       <>
@@ -258,9 +289,12 @@ const ProviderDashboard = () => {
                     ) : (
                       <Badge className="bg-emerald-100 text-emerald-700 py-3 justify-center border-none font-black rounded-2xl text-sm">مكتمل بنجاح</Badge>
                     )}
-                    <Button variant="ghost" onClick={() => setChatBooking(b)} className="rounded-2xl h-12 font-bold mt-2 bg-muted/50 hover:bg-primary/10 hover:text-primary">
-                      <MessageCircle className="w-5 h-5 me-2" /> تواصل مع العميل
-                    </Button>
+                    
+                    {b.status !== 'completed' && b.provider_status !== 'declined' && (
+                      <Button variant="ghost" onClick={() => setChatBooking(b)} className="rounded-2xl h-12 font-bold mt-2 bg-muted/50 hover:bg-primary/10 hover:text-primary">
+                        <MessageCircle className="w-5 h-5 me-2" /> تواصل مع العميل
+                      </Button>
+                    )}
                   </div>
                 </div>
               </Card>
@@ -268,7 +302,6 @@ const ProviderDashboard = () => {
             {bookings.length === 0 && <div className="text-center py-20 opacity-30 font-black text-xl">لا توجد طلبات حالياً</div>}
           </TabsContent>
 
-          {/* تبويب التقارير: تمثيل البيانات مرئياً باستخدام Recharts */}
           <TabsContent value="reports" className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                  <Card className="rounded-[2rem] border-2 p-6">
@@ -325,7 +358,6 @@ const ProviderDashboard = () => {
             ))}
           </TabsContent>
 
-          {/* نموذج إضافة خدمة جديدة مع التحقق من الحقول الإجبارية */}
           <TabsContent value="add">
             <Card className="rounded-[2.5rem] border-2 shadow-sm">
               <CardContent className="p-8 space-y-8">
@@ -347,7 +379,6 @@ const ProviderDashboard = () => {
                       <div className="space-y-2"><Label className="font-black text-sm">رابط الموقع (خرائط قوقل) *</Label><Input type="url" placeholder="انسخ رابط الموقع هنا" value={mapsLink} onChange={e => setMapsLink(e.target.value)} className="rounded-2xl h-14 bg-white" /></div>
                     </div>
                     <div className="grid grid-cols-2 gap-4">
-                      {/* استخدام useRef لتفعيل اختيار الملفات عبر أزرار مخصصة */}
                       <div className={`p-6 border-2 border-dashed rounded-[2rem] text-center cursor-pointer transition-all ${serviceImage ? 'bg-primary/10 border-primary' : 'hover:bg-muted/50'}`} onClick={() => imageInputRef.current?.click()}>
                         <Image className={`mx-auto mb-3 w-8 h-8 ${serviceImage ? 'text-primary' : 'text-muted-foreground'}`} />
                         <p className="text-xs font-black">{serviceImage ? "تم إرفاق الصورة ✓" : "إرفاق صورة للخدمة *"}</p>

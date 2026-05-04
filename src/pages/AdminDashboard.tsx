@@ -3,7 +3,8 @@ import { useNavigate } from "react-router-dom";
 import {
   CheckCircle2, XCircle, Users, Package, ClipboardList, Shield, UserCheck,
   Eye, FileText, TrendingUp, BarChart3, MessageSquareWarning, MessageSquare,
-  Ban, Unlock, Download, CreditCard, EyeOff, MapPin, Clock, User, Calendar, Loader2
+  Ban, Unlock, Download, CreditCard, EyeOff, MapPin, Clock, User, Calendar, Loader2, LifeBuoy,
+  MessageCircle, Lock
 } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -37,7 +38,6 @@ const AdminDashboard = () => {
   const [viewingTicket, setViewingTicket] = useState<any | null>(null);
   const [viewingChat, setViewingChat] = useState<any | null>(null);
 
-  // 👈 حالات جديدة لعرض الوثيقة داخل الموقع
   const [viewingDocUrl, setViewingDocUrl] = useState<string | null>(null);
   const [isDocLoading, setIsDocLoading] = useState(false);
 
@@ -53,9 +53,9 @@ const AdminDashboard = () => {
       const { data: svc } = await supabase.from("services").select("*, provider:profiles(full_name)").order("created_at", { ascending: false });
       const { data: profs } = await supabase.from("profiles").select("*").order("created_at", { ascending: false });
       
-      const { data: bks } = await supabase.from("bookings" as any).select("*, client:profiles!bookings_client_id_fkey(full_name), provider:profiles!bookings_provider_id_fkey(full_name)").order("created_at", { ascending: false }) as any;
+      const { data: bks } = await supabase.from("bookings" as any).select("*, client:profiles!bookings_client_id_fkey(full_name, created_at), provider:profiles!bookings_provider_id_fkey(full_name, created_at)").order("created_at", { ascending: false }) as any;
       const { data: tix } = await supabase.from("support_tickets" as any).select("*, user:profiles(full_name, phone)").order("created_at", { ascending: false }) as any;
-      const { data: subs } = await supabase.from("subscriptions" as any).select("*, provider:profiles(full_name)") as any;
+      const { data: subs } = await supabase.from("subscriptions" as any).select("*, provider:profiles(full_name, created_at)") as any;
       const { data: roles } = await supabase.from("user_roles" as any).select("*") as any;
 
       const allBks = (bks || []) as any[];
@@ -94,7 +94,6 @@ const AdminDashboard = () => {
     }
   };
 
-  // 👈 دالة جلب رابط الوثيقة الآمن (Signed URL)
   const handleViewDocument = async (path: string) => {
     if (!path) {
       toast.error("لا توجد وثيقة مرفقة");
@@ -102,7 +101,6 @@ const AdminDashboard = () => {
     }
     setIsDocLoading(true);
     try {
-      // تأكد أن 'private-documents' هو اسم الباكيت الصحيح في سوبابيس
       const { data, error } = await supabase.storage
         .from('private-documents')
         .createSignedUrl(path, 60);
@@ -113,7 +111,7 @@ const AdminDashboard = () => {
       }
     } catch (error: any) {
       console.error("Error fetching doc:", error);
-      toast.error("تعذر فتح الوثيقة، تأكد من اسم الـ Bucket وصلاحيات الملف");
+      toast.error("تعذر فتح الوثيقة");
     } finally {
       setIsDocLoading(false);
     }
@@ -202,11 +200,11 @@ const AdminDashboard = () => {
                   <div className="h-[300px]">
                      <ResponsiveContainer width="100%" height="100%">
                         <PieChart>
-                           <Pie data={rolesChartData} cx="50%" cy="50%" innerRadius={70} outerRadius={110} paddingAngle={5} dataKey="value">
-                              {rolesChartData.map((entry, index) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}
-                           </Pie>
-                           <Tooltip contentStyle={{ borderRadius: '1rem', fontWeight: 'bold' }} />
-                           <Legend wrapperStyle={{ fontWeight: 'bold', fontSize: '14px' }} />
+                            <Pie data={rolesChartData} cx="50%" cy="50%" innerRadius={70} outerRadius={110} paddingAngle={5} dataKey="value">
+                               {rolesChartData.map((entry, index) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}
+                            </Pie>
+                            <Tooltip contentStyle={{ borderRadius: '1rem', fontWeight: 'bold' }} />
+                            <Legend wrapperStyle={{ fontWeight: 'bold', fontSize: '14px' }} />
                         </PieChart>
                      </ResponsiveContainer>
                   </div>
@@ -216,13 +214,13 @@ const AdminDashboard = () => {
                   <div className="h-[300px]">
                      <ResponsiveContainer width="100%" height="100%">
                         <BarChart data={ordersChartData}>
-                           <CartesianGrid strokeDasharray="3 3" opacity={0.2} vertical={false} />
-                           <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontWeight: 'bold', fontSize: 14 }} />
-                           <YAxis axisLine={false} tickLine={false} />
-                           <Tooltip cursor={{ fill: 'transparent' }} contentStyle={{ borderRadius: '1rem', fontWeight: 'bold' }} />
-                           <Bar dataKey="value" radius={[8, 8, 8, 8]}>
-                              {ordersChartData.map((entry, index) => <Cell key={`cell-${index}`} fill={COLORS[(index + 1) % COLORS.length]} />)}
-                           </Bar>
+                            <CartesianGrid strokeDasharray="3 3" opacity={0.2} vertical={false} />
+                            <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontWeight: 'bold', fontSize: 14 }} />
+                            <YAxis axisLine={false} tickLine={false} />
+                            <Tooltip cursor={{ fill: 'transparent' }} contentStyle={{ borderRadius: '1rem', fontWeight: 'bold' }} />
+                            <Bar dataKey="value" radius={[8, 8, 8, 8]}>
+                               {ordersChartData.map((entry, index) => <Cell key={`cell-${index}`} fill={COLORS[(index + 1) % COLORS.length]} />)}
+                            </Bar>
                         </BarChart>
                      </ResponsiveContainer>
                   </div>
@@ -285,33 +283,125 @@ const AdminDashboard = () => {
           </TabsContent>
 
           <TabsContent value="orders" className="space-y-4">
-            {bookings.map(b => (
-              <Card key={b.id} className="rounded-2xl p-4 border-2 hover:border-primary transition-all bg-card">
-                <div className="flex justify-between items-center">
-                  <div className="flex items-center gap-4">
-                    <Badge variant="outline" className="bg-muted px-3 py-1 font-mono text-sm">#{b.order_number}</Badge>
-                    <div>
-                      <p className="font-black text-lg">{b.service_title}</p>
-                      <p className="text-xs text-muted-foreground font-bold mt-1">المزود: {b.provider?.full_name} | العميل: {b.client?.full_name}</p>
+            {bookings.map(b => {
+              const linkedTicket = tickets.find(t => t.booking_id === b.id);
+              
+              return (
+                <Card key={b.id} className="rounded-[2rem] p-6 border-2 hover:border-primary transition-all bg-card shadow-sm">
+                  <div className="flex flex-col space-y-4">
+                    <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                      <div className="flex items-center gap-4">
+                        <Badge variant="outline" className="bg-muted px-3 py-1 font-mono text-sm shrink-0">#{b.order_number}</Badge>
+                        <h3 className="font-black text-xl text-primary">{b.service_title}</h3>
+                      </div>
+                      <Badge className={`px-4 py-1.5 rounded-full font-black border-none text-white shadow-sm ${b.status === 'completed' ? "bg-emerald-500" : "bg-blue-500"}`}>
+                        {b.status === 'completed' ? 'مكتمل بنجاح' : 'قيد التنفيذ / تحت المعالجة'}
+                      </Badge>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-muted/30 p-4 rounded-2xl border border-dashed">
+                       <div className="flex flex-col gap-1">
+                          <span className="text-[10px] font-black text-muted-foreground flex items-center gap-1">
+                             <Clock className="w-3 h-3" /> وقت استلام الطلب من العميل:
+                          </span>
+                          <span className="text-sm font-bold" dir="ltr">
+                             {new Date(b.created_at).toLocaleString('ar-SA', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' })}
+                          </span>
+                       </div>
+                       <div className="flex flex-col gap-1">
+                          <span className="text-[10px] font-black text-primary flex items-center gap-1">
+                             <Calendar className="w-3 h-3" /> موعد التنفيذ المجدول:
+                          </span>
+                          <span className="text-sm font-black text-primary">
+                             {b.scheduled_date || "غير محدد"} | {b.scheduled_time || "--:--"}
+                          </span>
+                       </div>
+                    </div>
+
+                    <div className="flex flex-col md:flex-row justify-between items-center gap-4 border-t pt-4">
+                      <div className="text-xs font-bold text-muted-foreground">
+                        المزود: <span className="text-foreground">{b.provider?.full_name}</span> | 
+                        العميل: <span className="text-foreground">{b.client?.full_name}</span>
+                      </div>
+                      
+                      <div className="flex flex-wrap items-center gap-2 justify-end w-full md:w-auto">
+                        {linkedTicket && (
+                          <Button 
+                            variant="secondary"
+                            size="sm"
+                            className="rounded-xl gap-2 h-10 px-4 font-black bg-amber-100 text-amber-700 hover:bg-amber-200"
+                            onClick={() => setViewingTicket(linkedTicket)}
+                          >
+                            <LifeBuoy className="w-4 h-4" /> استعراض البلاغ
+                          </Button>
+                        )}
+                        
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className="rounded-xl gap-2 border-primary text-primary font-black h-10 px-4 hover:bg-primary/5"
+                          onClick={() => setViewingChat(b)}
+                        >
+                          <MessageSquare className="w-4 h-4" /> مراقبة المحادثة
+                        </Button>
+                      </div>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      className="rounded-xl gap-2 border-primary text-primary font-bold h-10 px-4"
-                      onClick={() => setViewingChat(b)}
-                    >
-                      <MessageSquare className="w-4 h-4" /> استعراض المحادثة
-                    </Button>
-                    <Badge className={`px-4 py-1.5 rounded-xl font-bold border-none ${b.status === 'completed' ? "bg-emerald-500 text-white" : "bg-blue-500 text-white"}`}>
-                      {b.status === 'completed' ? 'مكتمل' : 'تحت المعالجة'}
-                    </Badge>
-                  </div>
-                </div>
-              </Card>
-            ))}
-            {bookings.length === 0 && <div className="text-center py-20 font-black opacity-30">لا توجد طلبات في النظام</div>}
+                </Card>
+              );
+            })}
+          </TabsContent>
+
+          {/* 🚀 قسم البلاغات (Tickets) المحدث */}
+          <TabsContent value="tickets" className="space-y-4">
+            {tickets.map(t => {
+              // ✅ التحقق هل التذكرة مغلقة؟
+              const isClosed = t.status === 'closed';
+
+              return (
+                <Card 
+                  key={t.id} 
+                  className={`rounded-3xl p-5 border-2 transition-all ${isClosed ? 'bg-muted/30 opacity-80 border-dashed' : 'bg-card cursor-pointer hover:border-primary/50'}`}
+                  onClick={() => !isClosed && setViewingTicket(t)}
+                >
+                   <div className="flex justify-between items-start">
+                     <div className="space-y-1">
+                       <div className="flex items-center gap-2">
+                          {isClosed && <Lock className="w-4 h-4 text-muted-foreground" />}
+                          <h3 className={`font-black text-lg ${isClosed ? 'text-muted-foreground' : ''}`}>{t.subject}</h3>
+                       </div>
+                       <p className="text-sm italic text-muted-foreground mt-2">"{t.message}"</p>
+                       <p className="text-xs font-bold text-primary mt-3">المرسل: {t.user?.full_name}</p>
+                     </div>
+                     
+                     <div className="flex items-center gap-3">
+                       {/* ✅ زر الرد يختفي أو يتحول لزر استعراض إذا كانت مغلقة */}
+                       <Button 
+                         variant="outline" 
+                         size="sm" 
+                         className="rounded-xl font-bold border-primary/20 hover:bg-primary/5 h-10 px-4 gap-2 hidden md:flex"
+                         onClick={(e) => {
+                           e.stopPropagation(); 
+                           // نقوم بتمرير حالة القفل عبر الـ state
+                           navigate("/support", { state: { ticketId: t.id, readOnly: isClosed } });
+                         }}
+                       >
+                         {isClosed ? <Eye className="w-4 h-4" /> : <MessageCircle className="w-4 h-4" />}
+                         {isClosed ? 'استعراض' : 'الرد'}
+                       </Button>
+
+                       <Badge className={`px-4 py-1.5 rounded-full font-black border-none text-white shadow-sm ${
+                         t.status === 'open' ? 'bg-amber-500' : 
+                         t.status === 'in_progress' ? 'bg-blue-500' : 'bg-emerald-500'
+                       }`}>
+                         {t.status === 'open' ? 'تنتظر الرد' : t.status === 'in_progress' ? 'قيد المعالجة' : 'مكتملة ومقفلة'}
+                       </Badge>
+                     </div>
+                   </div>
+                </Card>
+              );
+            })}
+            {tickets.length === 0 && <div className="text-center py-20 opacity-30 font-black">لا يوجد بلاغات</div>}
           </TabsContent>
 
           <TabsContent value="services" className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -344,63 +434,56 @@ const AdminDashboard = () => {
               ))}
           </TabsContent>
 
-          <TabsContent value="tickets" className="space-y-4">
-            {tickets.map(t => (
-              <Card key={t.id} className="rounded-3xl p-5 border-2 bg-card cursor-pointer hover:border-primary/50 transition-all" onClick={() => setViewingTicket(t)}>
-                 <div className="flex justify-between items-start">
-                   <div className="space-y-1">
-                     <h3 className="font-black text-lg">{t.subject}</h3>
-                     <p className="text-sm italic text-muted-foreground mt-2">"{t.message}"</p>
-                     <p className="text-xs font-bold text-primary mt-3">المرسل: {t.user?.full_name}</p>
-                   </div>
-                   <Badge className={`px-4 py-1.5 rounded-full font-black border-none text-white ${
-                     t.status === 'open' ? 'bg-amber-500' : 
-                     t.status === 'in_progress' ? 'bg-blue-500' : 'bg-emerald-500'
-                   }`}>
-                     {t.status === 'open' ? 'تنتظر الرد' : t.status === 'in_progress' ? 'قيد المعالجة' : 'مكتملة'}
-                   </Badge>
-                 </div>
-              </Card>
-            ))}
-            {tickets.length === 0 && <div className="text-center py-20 opacity-30 font-black">لا يوجد بلاغات</div>}
-          </TabsContent>
-
           <TabsContent value="verify" className="space-y-4">
-             {pendingServices.map(s => (
-               <Card key={s.id} className="rounded-3xl border-2 p-5 flex flex-col md:flex-row gap-6 items-center bg-amber-50/5">
-                  <img src={s.image_url} className="w-32 h-32 rounded-[1.5rem] object-cover" />
-                  <div className="flex-1 text-center md:text-right">
-                    <h3 className="font-black text-xl">{s.title}</h3>
-                    <Button onClick={() => setViewingService(s)} className="rounded-2xl h-12 px-6 font-black mt-4">مراجعة والتوثيق</Button>
-                  </div>
-               </Card>
-            ))}
+              {pendingServices.map(s => (
+                <Card key={s.id} className="rounded-3xl border-2 p-5 flex flex-col md:flex-row gap-6 items-center bg-amber-50/5">
+                   <img src={s.image_url} className="w-32 h-32 rounded-[1.5rem] object-cover" />
+                   <div className="flex-1 text-center md:text-right">
+                     <h3 className="font-black text-xl">{s.title}</h3>
+                     <Button onClick={() => setViewingService(s)} className="rounded-2xl h-12 px-6 font-black mt-4">مراجعة والتوثيق</Button>
+                   </div>
+                </Card>
+             ))}
           </TabsContent>
 
           <TabsContent value="subs" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-             {subscriptions.map(s => {
-                const daysLeft = s.expires_at ? Math.max(0, Math.ceil((new Date(s.expires_at).getTime() - Date.now()) / (1000 * 60 * 60 * 24))) : 0;
-                return (
-                  <Card key={s.id} className="rounded-3xl border-2 p-6 shadow-sm space-y-4">
-                     <div className="flex justify-between items-start">
-                       <div>
-                         <p className="font-black text-lg text-primary">{s.provider?.full_name || 'مزود غير معروف'}</p>
-                         <p className="text-xs text-muted-foreground font-bold mt-1 flex items-center gap-1">
-                           <Calendar className="w-3 h-3" /> بدأ: {new Date(s.created_at).toLocaleDateString('ar-SA')}
-                         </p>
-                       </div>
-                       <Badge className={s.status === 'active' && daysLeft > 0 ? "bg-emerald-500 text-white" : "bg-destructive text-white"}>
-                         {s.status === 'active' && daysLeft > 0 ? "نشط" : "منتهي"}
-                       </Badge>
+            {subscriptions.map(s => {
+              const now = new Date().getTime();
+              const expiryDate = s.expires_at ? new Date(s.expires_at) : (s.trial_ends_at ? new Date(s.trial_ends_at) : null);
+              const targetTime = expiryDate ? expiryDate.getTime() : 0;
+              const daysLeft = targetTime > now ? Math.ceil((targetTime - now) / (1000 * 60 * 60 * 24)) : 0;
+              const isExpired = daysLeft === 0;
+              const isTrial = !s.expires_at && !isExpired; 
+
+              return (
+                <Card key={s.id} className="rounded-3xl border-2 p-6 shadow-sm space-y-4 bg-white">
+                   <div className="flex justify-between items-start">
+                     <div>
+                       <p className="font-black text-lg text-primary">{s.provider?.full_name || 'مزود غير معروف'}</p>
+                       <p className="text-xs text-muted-foreground font-bold mt-1 flex items-center gap-1">
+                         <Calendar className="w-3 h-3" /> انضم في: {new Date(s.provider?.created_at || s.created_at).toLocaleDateString('ar-SA')}
+                       </p>
                      </div>
-                     <div className="bg-muted/40 p-3 rounded-2xl flex justify-between items-center border">
-                       <span className="text-sm font-bold text-muted-foreground">الأيام المتبقية:</span>
-                       <span className={`font-black text-lg ${daysLeft <= 30 ? 'text-amber-600' : 'text-emerald-600'}`}>{daysLeft} يوم</span>
+                     <Badge className={`px-3 py-1 rounded-xl font-bold border-none text-white ${
+                       isExpired ? "bg-destructive" : isTrial ? "bg-orange-500" : "bg-emerald-500" 
+                     }`}>
+                       {isExpired ? "منتهي" : isTrial ? "فترة تجريبية" : "اشتراك نشط"}
+                     </Badge>
+                   </div>
+                   <div className={`p-4 rounded-2xl flex justify-between items-center border ${
+                     isTrial ? 'bg-orange-50/50 border-orange-100' : 'bg-muted/40 border-slate-100'
+                   }`}>
+                     <span className="text-sm font-bold text-muted-foreground">الأيام المتبقية:</span>
+                     <div className="text-left">
+                       <span className={`font-black text-2xl ${isExpired ? 'text-red-500' : isTrial ? 'text-orange-600' : 'text-emerald-600'}`}>
+                         {daysLeft}
+                       </span>
+                       <span className="text-[10px] font-bold text-slate-400 mr-1">يوم</span>
                      </div>
-                  </Card>
-                );
-             })}
-             {subscriptions.length === 0 && <div className="col-span-full text-center py-20 font-black opacity-30">لا توجد اشتراكات حالياً</div>}
+                   </div>
+                </Card>
+              );
+            })}
           </TabsContent>
         </Tabs>
       </div>
@@ -408,96 +491,80 @@ const AdminDashboard = () => {
       {/* مودال تفاصيل الخدمة */}
       <Dialog open={!!viewingService} onOpenChange={() => setViewingService(null)}>
         <DialogContent className="rounded-[2.5rem] text-right max-w-2xl" dir="rtl">
-           <DialogHeader><DialogTitle className="text-2xl font-black text-center">معلومات الخدمة: {viewingService?.title}</DialogTitle></DialogHeader>
-           <div className="space-y-4 py-4">
-             <img src={viewingService?.image_url} className="w-full h-48 object-cover rounded-[1.5rem] border shadow-inner" />
-             <div className="bg-muted/50 p-4 rounded-2xl">
-               <p className="text-sm font-bold text-muted-foreground mb-1">وصف الخدمة:</p>
-               <p className="text-sm italic">"{viewingService?.description}"</p>
-             </div>
-             <div className="bg-emerald-50 p-4 rounded-2xl border border-emerald-100 flex items-center gap-2">
-               <MapPin className="w-5 h-5 text-emerald-600" />
-               <p className="text-sm font-bold text-emerald-800">الموقع: {viewingService?.address_name}</p>
-             </div>
+            <DialogHeader><DialogTitle className="text-2xl font-black text-center">معلومات الخدمة: {viewingService?.title}</DialogTitle></DialogHeader>
+            <div className="space-y-4 py-4">
+              <img src={viewingService?.image_url} className="w-full h-48 object-cover rounded-[1.5rem] border shadow-inner" />
+              <div className="bg-muted/50 p-4 rounded-2xl">
+                <p className="text-sm font-bold text-muted-foreground mb-1">وصف الخدمة:</p>
+                <p className="text-sm italic">"{viewingService?.description}"</p>
+              </div>
+              <div className="bg-emerald-50 p-4 rounded-2xl border border-emerald-100 flex items-center gap-2">
+                <MapPin className="w-5 h-5 text-emerald-600" />
+                <p className="text-sm font-bold text-emerald-800">الموقع: {viewingService?.address_name}</p>
+              </div>
+              <Button 
+                className="w-full h-12 rounded-2xl gap-2 font-black bg-secondary text-secondary-foreground hover:bg-secondary/80 shadow-sm" 
+                onClick={() => handleViewDocument(viewingService?.license_url)}
+                disabled={isDocLoading}
+              >
+                 {isDocLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />}
+                 {isDocLoading ? "جاري جلب المستند..." : "عرض وثيقة الترخيص (داخل الموقع)"}
+              </Button>
+              {viewingService?.admin_status === 'pending_admin' ? (
+                <div className="flex gap-2 pt-2">
+                  <Button className="flex-1 bg-emerald-500 h-14 rounded-2xl font-black text-lg hover:bg-emerald-600 shadow-md" onClick={() => handleModerate(viewingService?.id, 'approved')}>اعتماد وتوثيق</Button>
+                  <Button variant="destructive" className="flex-1 h-14 rounded-2xl font-black text-lg shadow-md" onClick={() => handleModerate(viewingService?.id, 'rejected')}>رفض</Button>
+                </div>
+              ) : (
+                <Button className="w-full h-14 rounded-2xl font-black text-lg" onClick={() => setViewingService(null)}>إغلاق النافذة</Button>
+              )}
+            </div>
+        </DialogContent>
+      </Dialog>
 
-             {/* 👈 الزر المحدث لفتح الوثيقة داخل الموقع */}
-             <Button 
-               className="w-full h-12 rounded-2xl gap-2 font-black bg-secondary text-secondary-foreground hover:bg-secondary/80 shadow-sm" 
-               onClick={() => handleViewDocument(viewingService?.license_url)}
-               disabled={isDocLoading}
-             >
-                {isDocLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />}
-                {isDocLoading ? "جاري جلب المستند..." : "عرض وثيقة الترخيص (داخل الموقع)"}
-             </Button>
-
-             {viewingService?.admin_status === 'pending_admin' ? (
-               <div className="flex gap-2 pt-2">
-                 <Button className="flex-1 bg-emerald-500 h-14 rounded-2xl font-black text-lg hover:bg-emerald-600 shadow-md" onClick={() => handleModerate(viewingService?.id, 'approved')}>اعتماد وتوثيق</Button>
-                 <Button variant="destructive" className="flex-1 h-14 rounded-2xl font-black text-lg shadow-md" onClick={() => handleModerate(viewingService?.id, 'rejected')}>رفض</Button>
-               </div>
-             ) : (
-               <Button className="w-full h-14 rounded-2xl font-black text-lg" onClick={() => setViewingService(null)}>إغلاق النافذة</Button>
-             )}
+      {/* المودال المحدث لعرض صورة الوثيقة */}
+      <Dialog open={!!viewingDocUrl} onOpenChange={() => setViewingDocUrl(null)}>
+        <DialogContent className="max-w-4xl p-0 overflow-hidden rounded-[2.5rem] border-none bg-transparent shadow-none" dir="rtl">
+           <div className="relative bg-white/95 backdrop-blur-xl p-6 rounded-[2.5rem] flex flex-col items-center border shadow-2xl">
+              <div className="w-full flex justify-between items-center mb-6 px-4">
+                 <h3 className="font-black text-primary flex items-center gap-2 text-xl">
+                    <Shield className="w-6 h-6" /> معاينة وثيقة الترخيص الرسمية
+                 </h3>
+                 <Button variant="ghost" className="rounded-full hover:bg-red-50 group" onClick={() => setViewingDocUrl(null)}>
+                    <XCircle className="w-8 h-8 text-muted-foreground group-hover:text-red-500 transition-colors" />
+                 </Button>
+              </div>
+              <div className="w-full bg-muted/20 rounded-2xl overflow-hidden border-2 border-dashed border-primary/10 flex justify-center items-center">
+                <img src={viewingDocUrl || ""} className="w-full h-auto max-h-[70vh] object-contain shadow-sm" />
+              </div>
+              <div className="mt-8 w-full px-10">
+                 <Button className="w-full h-14 rounded-2xl font-black text-lg shadow-lg hover:shadow-xl transition-all" onClick={() => setViewingDocUrl(null)}>إغلاق نافذة المعاينة</Button>
+              </div>
            </div>
         </DialogContent>
       </Dialog>
 
-      {/* 👈 المودال المحدث لعرض صورة الوثيقة داخل الموقع فقط */}
-<Dialog open={!!viewingDocUrl} onOpenChange={() => setViewingDocUrl(null)}>
-  <DialogContent className="max-w-4xl p-0 overflow-hidden rounded-[2.5rem] border-none bg-transparent shadow-none" dir="rtl">
-     <div className="relative bg-white/95 backdrop-blur-xl p-6 rounded-[2.5rem] flex flex-col items-center border shadow-2xl">
-        <div className="w-full flex justify-between items-center mb-6 px-4">
-           <h3 className="font-black text-primary flex items-center gap-2 text-xl">
-              <Shield className="w-6 h-6" /> معاينة وثيقة الترخيص الرسمية
-           </h3>
-           <Button variant="ghost" className="rounded-full hover:bg-red-50 group" onClick={() => setViewingDocUrl(null)}>
-              <XCircle className="w-8 h-8 text-muted-foreground group-hover:text-red-500 transition-colors" />
-           </Button>
-        </div>
-
-        {/* عرض الصورة */}
-        <div className="w-full bg-muted/20 rounded-2xl overflow-hidden border-2 border-dashed border-primary/10 flex justify-center items-center">
-          <img 
-            src={viewingDocUrl || ""} 
-            alt="وثيقة الترخيص" 
-            className="w-full h-auto max-h-[70vh] object-contain shadow-sm"
-          />
-        </div>
-
-        {/* زر الإغلاق فقط */}
-        <div className="mt-8 w-full px-10">
-           <Button 
-             className="w-full h-14 rounded-2xl font-black text-lg shadow-lg hover:shadow-xl transition-all"
-             onClick={() => setViewingDocUrl(null)}
-           >
-             إغلاق نافذة المعاينة
-           </Button>
-        </div>
-     </div>
-  </DialogContent>
-</Dialog>
-
       {/* مودال البلاغات */}
       <Dialog open={!!viewingTicket} onOpenChange={() => setViewingTicket(null)}>
         <DialogContent className="rounded-[2.5rem] text-right" dir="rtl">
-           <DialogHeader><DialogTitle className="text-2xl font-black text-center">إدارة البلاغ</DialogTitle></DialogHeader>
-           <div className="space-y-6 py-4">
-              <div className="bg-muted p-5 rounded-2xl border-l-4 border-l-primary shadow-inner">
-                 <h4 className="font-bold text-lg mb-2">{viewingTicket?.subject}</h4>
-                 <p className="text-sm italic leading-relaxed">"{viewingTicket?.message}"</p>
-              </div>
-              <div className="space-y-3">
-                 <Label className="font-bold text-muted-foreground">تحديث حالة البلاغ:</Label>
-                 <div className="grid grid-cols-2 gap-2">
-                   <Button variant="outline" className="rounded-2xl h-14 font-black border-blue-500 text-blue-600 hover:bg-blue-50" onClick={() => handleUpdateTicketStatus(viewingTicket?.id, 'in_progress')}>
-                     <Clock className="w-4 h-4 me-2" /> قيد المعالجة
-                   </Button>
-                   <Button className="rounded-2xl h-14 font-black bg-emerald-500 hover:bg-emerald-600" onClick={() => handleUpdateTicketStatus(viewingTicket?.id, 'closed')}>
-                     <CheckCircle2 className="w-4 h-4 me-2" /> مكتمل / مغلق
-                   </Button>
-                 </div>
-              </div>
-           </div>
+            <DialogHeader><DialogTitle className="text-2xl font-black text-center">إدارة البلاغ</DialogTitle></DialogHeader>
+            <div className="space-y-6 py-4">
+               <div className="bg-muted p-5 rounded-2xl border-l-4 border-l-primary shadow-inner">
+                  <h4 className="font-bold text-lg mb-2">{viewingTicket?.subject}</h4>
+                  <p className="text-sm italic leading-relaxed">"{viewingTicket?.message}"</p>
+               </div>
+               <div className="space-y-3">
+                  <Label className="font-bold text-muted-foreground">تحديث حالة البلاغ:</Label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <Button variant="outline" className="rounded-2xl h-14 font-black border-blue-500 text-blue-600 hover:bg-blue-50" onClick={() => handleUpdateTicketStatus(viewingTicket?.id, 'in_progress')}>
+                      <Clock className="w-4 h-4 me-2" /> قيد المعالجة
+                    </Button>
+                    <Button className="rounded-2xl h-14 font-black bg-emerald-500 hover:bg-emerald-600" onClick={() => handleUpdateTicketStatus(viewingTicket?.id, 'closed')}>
+                      <CheckCircle2 className="w-4 h-4 me-2" /> تم الحل وإغلاق التذكرة
+                    </Button>
+                  </div>
+               </div>
+            </div>
         </DialogContent>
       </Dialog>
 

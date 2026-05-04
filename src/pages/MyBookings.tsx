@@ -119,9 +119,9 @@ const MyBookings = () => {
               const status = getBookingStatus(b);
               const StatusIcon = status.icon;
               
-              /* تحديد الصلاحيات المتاحة للمستفيد بناءً على حالة الطلب الحالية */
+              /* 🚀 التعديل هنا: زر المحادثة يظهر فقط إذا لم يكتمل الطلب ولم يُرفض */
               const canCancel = b.provider_status === "pending";
-              const canChat = b.provider_status === "pending" || b.provider_status === "accepted";
+              const canChat = b.status !== "completed" && b.provider_status !== "declined";
               const canRate = b.status === "completed" && b.has_review !== true;
               
               return (

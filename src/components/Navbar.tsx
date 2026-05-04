@@ -87,7 +87,7 @@ const Navbar = ({ searchQuery = "", onSearchChange }: NavbarProps) => {
             className="text-xl font-extrabold text-primary cursor-pointer shrink-0"
             onClick={handleLogoClick}
           >
-            بوابة حائل
+            بوابة مجتمع حائل
           </h1>
 
           {/* خانة البحث.. دور لك على خدمة */}
