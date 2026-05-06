@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ArrowRight, Mail, Lock, User, Phone, ShieldAlert, KeyRound, CheckCircle2 } from "lucide-react";
-import { useAuth, translateError } from "@/hooks/useAuth"; // ✅ تأكد من استيراد translateError
+import { useAuth, translateError } from "@/hooks/useAuth"; 
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -28,7 +28,7 @@ const Auth = () => {
   const [otpCode, setOtpCode] = useState("");
   const [newPassword, setNewPassword] = useState("");
 
-  // ✅ التعديل 1: التوجيه يعتمد على وجود المستخدم ودوره فقط، دون انتظار التوثيق اليدوي
+  // ✅ التوجيه التلقائي بناءً على الدور (Role)
   useEffect(() => {
     if (authLoading) return;
     if (user && userRole) {
@@ -55,25 +55,57 @@ const Auth = () => {
       toast.error("يرجى ملء جميع الحقول المطلوبة");
       return;
     }
+
     setLoading(true);
     try {
+      // الفحص الاستباقي للإيميل المكرر
+      const { data: checkEmail } = await (supabase.from("profiles") as any)
+        .select("id")
+        .eq("email", email.trim().toLowerCase())
+        .maybeSingle();
+
+      if (checkEmail) {
+        toast.error("هذا البريد الإلكتروني مسجل مسبقاً، يرجى تسجيل الدخول.");
+        setLoading(false);
+        return;
+      }
+
       await signUp(email, password, name, phone, role);
       toast.success("تم إرسال رمز التحقق إلى بريدك الإلكتروني");
       setView("verify-otp");
+      
     } catch (err: any) {
-      toast.error(translateError(err.message));
+      if (err.message?.includes("User already registered")) {
+        toast.error("هذا البريد الإلكتروني مسجل مسبقاً، يرجى تسجيل الدخول.");
+      } else {
+        toast.error(translateError(err.message));
+      }
     } finally {
       setLoading(false);
     }
   };
 
+  // 🚀 الدالة المحدثة: توثيق تلقائي عند إدخال الـ OTP
   const handleVerifyOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     try {
+      // 1. تفعيل الحساب في Supabase Auth
       await verifyOtp(email, otpCode, 'signup');
-      toast.success("تم تفعيل حسابك بنجاح!");
-      // التوجيه سيتم تلقائياً عبر useEffect بالأعلى بمجرد تحديث حالة المستخدم
+      
+      // 2. جلب بيانات المستخدم الحالي للحصول على الـ ID
+      const { data: { user: authUser } } = await supabase.auth.getUser();
+      
+      if (authUser) {
+        // 3. تحديث جدول البروفايلات ليصبح "موثقاً" تلقائياً
+        await (supabase
+          .from("profiles")
+          .update({ is_verified: true } as any)
+          .eq("id", authUser.id));
+      }
+
+      toast.success("تم تفعيل وتوثيق حسابك بنجاح!");
+      // الـ useEffect بالأعلى سيتكفل بنقله للصفحة المناسبة فوراً
     } catch (err: any) {
       toast.error(translateError(err.message));
     } finally {
@@ -109,9 +141,6 @@ const Auth = () => {
       setLoading(false);
     }
   };
-
-  // ✅ التعديل 2: حذف واجهة "بانتظار التحقق" ليدخل الجميع فور تفعيل الإيميل
-  // (المراجعة ستكون للخدمات فقط وليس للحساب نفسه)
 
   return (
     <div className="min-h-screen bg-secondary flex items-center justify-center p-4" dir="rtl">
@@ -244,6 +273,7 @@ const Auth = () => {
               </div>
             )}
 
+            {/* باقي الواجهات (نسيت كلمة المرور / تعيين كلمة جديدة) تبقى كما هي */}
             {view === "forgot-password" && (
               <div className="p-8 space-y-6">
                 <div className="text-center space-y-2">

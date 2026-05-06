@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   CheckCircle2, XCircle, Users, Package, ClipboardList, Shield, UserCheck,
@@ -41,11 +41,19 @@ const AdminDashboard = () => {
   const [viewingDocUrl, setViewingDocUrl] = useState<string | null>(null);
   const [isDocLoading, setIsDocLoading] = useState(false);
 
+  // ✅ ref يمنع إعادة جلب البيانات عند تغيير مرجع الـ user object
+  const fetchedForUserId = useRef<string | null>(null);
+
   useEffect(() => {
     if (authLoading) return;
     if (!user || role !== "admin") { navigate(user ? "/permission-denied" : "/auth"); return; }
+
+    // ✅ لا تجلب البيانات إذا سبق جلبها لنفس المستخدم
+    if (fetchedForUserId.current === user.id) return;
+
+    fetchedForUserId.current = user.id;
     fetchData();
-  }, [user, role, authLoading]);
+  }, [user?.id, role, authLoading]); // ✅ user.id بدل user كاملاً
 
   const fetchData = async () => {
     setLoading(true);
@@ -94,6 +102,12 @@ const AdminDashboard = () => {
     }
   };
 
+  // ✅ التحديث اليدوي يتجاوز الـ ref
+  const handleManualRefresh = () => {
+    fetchedForUserId.current = null;
+    fetchData();
+  };
+
   const handleViewDocument = async (path: string) => {
     if (!path) {
       toast.error("لا توجد وثيقة مرفقة");
@@ -120,8 +134,17 @@ const AdminDashboard = () => {
   const handleModerate = async (id: string, action: "approved" | "rejected") => {
     const { error } = await supabase.from("services").update({ admin_status: action } as any).eq("id", id);
     if (!error) {
+      // إشعار للمزود بقرار المراجعة
+      const { data: service } = await supabase.from("services").select("provider_id, title").eq("id", id).single();
+      if (service) {
+        await supabase.from("notifications").insert({
+          recipient_id: service.provider_id,
+          sender_id: user?.id,
+          content: `تم ${action === 'approved' ? 'قبول' : 'رفض'} خدمة: ${service.title}`,
+        });
+      }
       toast.success("تم التحديث بنجاح");
-      fetchData();
+      handleManualRefresh();
       setViewingService(null);
     }
   };
@@ -130,19 +153,28 @@ const AdminDashboard = () => {
     const { error } = await supabase.from("support_tickets").update({ status: newStatus } as any).eq("id", id);
     if (!error) {
       toast.success("تم تحديث حالة التذكرة بنجاح");
-      fetchData();
+      handleManualRefresh();
       setViewingTicket(null);
     }
   };
 
   const handleToggleVerified = async (userId: string, current: boolean) => {
     const { error } = await supabase.from("profiles").update({ is_verified: !current } as any).eq("id", userId);
-    if (!error) { toast.success("تم التحديث"); fetchData(); }
+    if (!error) {
+      // إشعار للمستخدم بتغيير حالة التوثيق
+      await supabase.from("notifications").insert({
+        recipient_id: userId,
+        sender_id: user?.id,
+        content: `تم ${!current ? 'توثيق' : 'إلغاء توثيق'} حسابك من قبل الإدارة`,
+      });
+      toast.success("تم التحديث");
+      handleManualRefresh();
+    }
   };
 
   const handleToggleBlock = async (userId: string, current: boolean) => {
     const { error } = await supabase.from("profiles").update({ is_blocked: !current } as any).eq("id", userId);
-    if (!error) { toast.success("تم التحديث"); fetchData(); }
+    if (!error) { toast.success("تم التحديث"); handleManualRefresh(); }
   };
 
   const downloadCSV = () => {
@@ -176,7 +208,7 @@ const AdminDashboard = () => {
           <h1 className="text-4xl font-black text-primary flex items-center gap-3">
             <Shield className="w-10 h-10" /> إدارة بوابة حائل
           </h1>
-          <Button onClick={() => fetchData()} variant="outline" className="rounded-2xl gap-2 font-black mt-4 md:mt-0"><Clock className="w-5 h-5" /> تحديث البيانات</Button>
+          <Button onClick={handleManualRefresh} variant="outline" className="rounded-2xl gap-2 font-black mt-4 md:mt-0"><Clock className="w-5 h-5" /> تحديث البيانات</Button>
         </div>
 
         <Tabs defaultValue="verify" className="w-full">
@@ -285,7 +317,6 @@ const AdminDashboard = () => {
           <TabsContent value="orders" className="space-y-4">
             {bookings.map(b => {
               const linkedTicket = tickets.find(t => t.booking_id === b.id);
-              
               return (
                 <Card key={b.id} className="rounded-[2rem] p-6 border-2 hover:border-primary transition-all bg-card shadow-sm">
                   <div className="flex flex-col space-y-4">
@@ -298,50 +329,27 @@ const AdminDashboard = () => {
                         {b.status === 'completed' ? 'مكتمل بنجاح' : 'قيد التنفيذ / تحت المعالجة'}
                       </Badge>
                     </div>
-
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-muted/30 p-4 rounded-2xl border border-dashed">
                        <div className="flex flex-col gap-1">
-                          <span className="text-[10px] font-black text-muted-foreground flex items-center gap-1">
-                             <Clock className="w-3 h-3" /> وقت استلام الطلب من العميل:
-                          </span>
-                          <span className="text-sm font-bold" dir="ltr">
-                             {new Date(b.created_at).toLocaleString('ar-SA', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' })}
-                          </span>
+                          <span className="text-[10px] font-black text-muted-foreground flex items-center gap-1"><Clock className="w-3 h-3" /> وقت استلام الطلب من العميل:</span>
+                          <span className="text-sm font-bold" dir="ltr">{new Date(b.created_at).toLocaleString('ar-SA', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' })}</span>
                        </div>
                        <div className="flex flex-col gap-1">
-                          <span className="text-[10px] font-black text-primary flex items-center gap-1">
-                             <Calendar className="w-3 h-3" /> موعد التنفيذ المجدول:
-                          </span>
-                          <span className="text-sm font-black text-primary">
-                             {b.scheduled_date || "غير محدد"} | {b.scheduled_time || "--:--"}
-                          </span>
+                          <span className="text-[10px] font-black text-primary flex items-center gap-1"><Calendar className="w-3 h-3" /> موعد التنفيذ المجدول:</span>
+                          <span className="text-sm font-black text-primary">{b.scheduled_date || "غير محدد"} | {b.scheduled_time || "--:--"}</span>
                        </div>
                     </div>
-
                     <div className="flex flex-col md:flex-row justify-between items-center gap-4 border-t pt-4">
                       <div className="text-xs font-bold text-muted-foreground">
-                        المزود: <span className="text-foreground">{b.provider?.full_name}</span> | 
-                        العميل: <span className="text-foreground">{b.client?.full_name}</span>
+                        المزود: <span className="text-foreground">{b.provider?.full_name}</span> | العميل: <span className="text-foreground">{b.client?.full_name}</span>
                       </div>
-                      
                       <div className="flex flex-wrap items-center gap-2 justify-end w-full md:w-auto">
                         {linkedTicket && (
-                          <Button 
-                            variant="secondary"
-                            size="sm"
-                            className="rounded-xl gap-2 h-10 px-4 font-black bg-amber-100 text-amber-700 hover:bg-amber-200"
-                            onClick={() => setViewingTicket(linkedTicket)}
-                          >
+                          <Button variant="secondary" size="sm" className="rounded-xl gap-2 h-10 px-4 font-black bg-amber-100 text-amber-700 hover:bg-amber-200" onClick={() => setViewingTicket(linkedTicket)}>
                             <LifeBuoy className="w-4 h-4" /> استعراض البلاغ
                           </Button>
                         )}
-                        
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          className="rounded-xl gap-2 border-primary text-primary font-black h-10 px-4 hover:bg-primary/5"
-                          onClick={() => setViewingChat(b)}
-                        >
+                        <Button variant="outline" size="sm" className="rounded-xl gap-2 border-primary text-primary font-black h-10 px-4 hover:bg-primary/5" onClick={() => setViewingChat(b)}>
                           <MessageSquare className="w-4 h-4" /> مراقبة المحادثة
                         </Button>
                       </div>
@@ -352,18 +360,11 @@ const AdminDashboard = () => {
             })}
           </TabsContent>
 
-          {/* 🚀 قسم البلاغات (Tickets) المحدث */}
           <TabsContent value="tickets" className="space-y-4">
             {tickets.map(t => {
-              // ✅ التحقق هل التذكرة مغلقة؟
               const isClosed = t.status === 'closed';
-
               return (
-                <Card 
-                  key={t.id} 
-                  className={`rounded-3xl p-5 border-2 transition-all ${isClosed ? 'bg-muted/30 opacity-80 border-dashed' : 'bg-card cursor-pointer hover:border-primary/50'}`}
-                  onClick={() => !isClosed && setViewingTicket(t)}
-                >
+                <Card key={t.id} className={`rounded-3xl p-5 border-2 transition-all ${isClosed ? 'bg-muted/30 opacity-80 border-dashed' : 'bg-card cursor-pointer hover:border-primary/50'}`} onClick={() => !isClosed && setViewingTicket(t)}>
                    <div className="flex justify-between items-start">
                      <div className="space-y-1">
                        <div className="flex items-center gap-2">
@@ -373,27 +374,13 @@ const AdminDashboard = () => {
                        <p className="text-sm italic text-muted-foreground mt-2">"{t.message}"</p>
                        <p className="text-xs font-bold text-primary mt-3">المرسل: {t.user?.full_name}</p>
                      </div>
-                     
                      <div className="flex items-center gap-3">
-                       {/* ✅ زر الرد يختفي أو يتحول لزر استعراض إذا كانت مغلقة */}
-                       <Button 
-                         variant="outline" 
-                         size="sm" 
-                         className="rounded-xl font-bold border-primary/20 hover:bg-primary/5 h-10 px-4 gap-2 hidden md:flex"
-                         onClick={(e) => {
-                           e.stopPropagation(); 
-                           // نقوم بتمرير حالة القفل عبر الـ state
-                           navigate("/support", { state: { ticketId: t.id, readOnly: isClosed } });
-                         }}
-                       >
+                       <Button variant="outline" size="sm" className="rounded-xl font-bold border-primary/20 hover:bg-primary/5 h-10 px-4 gap-2 hidden md:flex"
+                         onClick={(e) => { e.stopPropagation(); navigate("/support", { state: { ticketId: t.id, readOnly: isClosed } }); }}>
                          {isClosed ? <Eye className="w-4 h-4" /> : <MessageCircle className="w-4 h-4" />}
                          {isClosed ? 'استعراض' : 'الرد'}
                        </Button>
-
-                       <Badge className={`px-4 py-1.5 rounded-full font-black border-none text-white shadow-sm ${
-                         t.status === 'open' ? 'bg-amber-500' : 
-                         t.status === 'in_progress' ? 'bg-blue-500' : 'bg-emerald-500'
-                       }`}>
+                       <Badge className={`px-4 py-1.5 rounded-full font-black border-none text-white shadow-sm ${t.status === 'open' ? 'bg-amber-500' : t.status === 'in_progress' ? 'bg-blue-500' : 'bg-emerald-500'}`}>
                          {t.status === 'open' ? 'تنتظر الرد' : t.status === 'in_progress' ? 'قيد المعالجة' : 'مكتملة ومقفلة'}
                        </Badge>
                      </div>
@@ -453,31 +440,22 @@ const AdminDashboard = () => {
               const targetTime = expiryDate ? expiryDate.getTime() : 0;
               const daysLeft = targetTime > now ? Math.ceil((targetTime - now) / (1000 * 60 * 60 * 24)) : 0;
               const isExpired = daysLeft === 0;
-              const isTrial = !s.expires_at && !isExpired; 
-
+              const isTrial = !s.expires_at && !isExpired;
               return (
                 <Card key={s.id} className="rounded-3xl border-2 p-6 shadow-sm space-y-4 bg-white">
                    <div className="flex justify-between items-start">
                      <div>
                        <p className="font-black text-lg text-primary">{s.provider?.full_name || 'مزود غير معروف'}</p>
-                       <p className="text-xs text-muted-foreground font-bold mt-1 flex items-center gap-1">
-                         <Calendar className="w-3 h-3" /> انضم في: {new Date(s.provider?.created_at || s.created_at).toLocaleDateString('ar-SA')}
-                       </p>
+                       <p className="text-xs text-muted-foreground font-bold mt-1 flex items-center gap-1"><Calendar className="w-3 h-3" /> انضم في: {new Date(s.provider?.created_at || s.created_at).toLocaleDateString('ar-SA')}</p>
                      </div>
-                     <Badge className={`px-3 py-1 rounded-xl font-bold border-none text-white ${
-                       isExpired ? "bg-destructive" : isTrial ? "bg-orange-500" : "bg-emerald-500" 
-                     }`}>
+                     <Badge className={`px-3 py-1 rounded-xl font-bold border-none text-white ${isExpired ? "bg-destructive" : isTrial ? "bg-orange-500" : "bg-emerald-500"}`}>
                        {isExpired ? "منتهي" : isTrial ? "فترة تجريبية" : "اشتراك نشط"}
                      </Badge>
                    </div>
-                   <div className={`p-4 rounded-2xl flex justify-between items-center border ${
-                     isTrial ? 'bg-orange-50/50 border-orange-100' : 'bg-muted/40 border-slate-100'
-                   }`}>
+                   <div className={`p-4 rounded-2xl flex justify-between items-center border ${isTrial ? 'bg-orange-50/50 border-orange-100' : 'bg-muted/40 border-slate-100'}`}>
                      <span className="text-sm font-bold text-muted-foreground">الأيام المتبقية:</span>
                      <div className="text-left">
-                       <span className={`font-black text-2xl ${isExpired ? 'text-red-500' : isTrial ? 'text-orange-600' : 'text-emerald-600'}`}>
-                         {daysLeft}
-                       </span>
+                       <span className={`font-black text-2xl ${isExpired ? 'text-red-500' : isTrial ? 'text-orange-600' : 'text-emerald-600'}`}>{daysLeft}</span>
                        <span className="text-[10px] font-bold text-slate-400 mr-1">يوم</span>
                      </div>
                    </div>
@@ -488,7 +466,6 @@ const AdminDashboard = () => {
         </Tabs>
       </div>
 
-      {/* مودال تفاصيل الخدمة */}
       <Dialog open={!!viewingService} onOpenChange={() => setViewingService(null)}>
         <DialogContent className="rounded-[2.5rem] text-right max-w-2xl" dir="rtl">
             <DialogHeader><DialogTitle className="text-2xl font-black text-center">معلومات الخدمة: {viewingService?.title}</DialogTitle></DialogHeader>
@@ -502,11 +479,7 @@ const AdminDashboard = () => {
                 <MapPin className="w-5 h-5 text-emerald-600" />
                 <p className="text-sm font-bold text-emerald-800">الموقع: {viewingService?.address_name}</p>
               </div>
-              <Button 
-                className="w-full h-12 rounded-2xl gap-2 font-black bg-secondary text-secondary-foreground hover:bg-secondary/80 shadow-sm" 
-                onClick={() => handleViewDocument(viewingService?.license_url)}
-                disabled={isDocLoading}
-              >
+              <Button className="w-full h-12 rounded-2xl gap-2 font-black bg-secondary text-secondary-foreground hover:bg-secondary/80 shadow-sm" onClick={() => handleViewDocument(viewingService?.license_url)} disabled={isDocLoading}>
                  {isDocLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />}
                  {isDocLoading ? "جاري جلب المستند..." : "عرض وثيقة الترخيص (داخل الموقع)"}
               </Button>
@@ -522,14 +495,11 @@ const AdminDashboard = () => {
         </DialogContent>
       </Dialog>
 
-      {/* المودال المحدث لعرض صورة الوثيقة */}
       <Dialog open={!!viewingDocUrl} onOpenChange={() => setViewingDocUrl(null)}>
         <DialogContent className="max-w-4xl p-0 overflow-hidden rounded-[2.5rem] border-none bg-transparent shadow-none" dir="rtl">
            <div className="relative bg-white/95 backdrop-blur-xl p-6 rounded-[2.5rem] flex flex-col items-center border shadow-2xl">
               <div className="w-full flex justify-between items-center mb-6 px-4">
-                 <h3 className="font-black text-primary flex items-center gap-2 text-xl">
-                    <Shield className="w-6 h-6" /> معاينة وثيقة الترخيص الرسمية
-                 </h3>
+                 <h3 className="font-black text-primary flex items-center gap-2 text-xl"><Shield className="w-6 h-6" /> معاينة وثيقة الترخيص الرسمية</h3>
                  <Button variant="ghost" className="rounded-full hover:bg-red-50 group" onClick={() => setViewingDocUrl(null)}>
                     <XCircle className="w-8 h-8 text-muted-foreground group-hover:text-red-500 transition-colors" />
                  </Button>
@@ -544,7 +514,6 @@ const AdminDashboard = () => {
         </DialogContent>
       </Dialog>
 
-      {/* مودال البلاغات */}
       <Dialog open={!!viewingTicket} onOpenChange={() => setViewingTicket(null)}>
         <DialogContent className="rounded-[2.5rem] text-right" dir="rtl">
             <DialogHeader><DialogTitle className="text-2xl font-black text-center">إدارة البلاغ</DialogTitle></DialogHeader>
@@ -569,13 +538,7 @@ const AdminDashboard = () => {
       </Dialog>
 
       {viewingChat && (
-        <ChatDialog 
-          open={!!viewingChat} 
-          onOpenChange={(open) => !open && setViewingChat(null)} 
-          bookingId={viewingChat.id} 
-          otherName={`${viewingChat.client?.full_name} ↔ ${viewingChat.provider?.full_name}`} 
-          readOnly={true} 
-        />
+        <ChatDialog open={!!viewingChat} onOpenChange={(open) => !open && setViewingChat(null)} bookingId={viewingChat.id} otherName={`${viewingChat.client?.full_name} ↔ ${viewingChat.provider?.full_name}`} readOnly={true} />
       )}
     </div>
   );

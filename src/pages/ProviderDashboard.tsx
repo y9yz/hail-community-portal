@@ -53,11 +53,19 @@ const ProviderDashboard = () => {
   const imageInputRef = useRef<HTMLInputElement>(null);
   const licenseInputRef = useRef<HTMLInputElement>(null);
 
+  // ✅ ref يمنع إعادة جلب البيانات عند تغيير مرجع الـ user object
+  const fetchedForUserId = useRef<string | null>(null);
+
   useEffect(() => {
     if (authLoading) return;
     if (!user || role !== "provider") { navigate("/"); return; }
+
+    // ✅ لا تجلب البيانات إذا سبق جلبها لنفس المستخدم
+    if (fetchedForUserId.current === user.id) return;
+
+    fetchedForUserId.current = user.id;
     fetchData();
-  }, [user, role, authLoading]);
+  }, [user?.id, role, authLoading]); // ✅ user.id بدل user كاملاً
 
   const fetchData = async () => {
     if (!user) return;
@@ -107,6 +115,12 @@ const ProviderDashboard = () => {
     }
   };
 
+  // ✅ fetchData اليدوي (زر التحديث) يسمح بإعادة الجلب
+  const handleManualRefresh = () => {
+    fetchedForUserId.current = null;
+    fetchData();
+  };
+
   const isFormValid = title && category && description && neighborhood && mapsLink && serviceImage && licenseFile;
 
   const handleSubmitService = async (e: React.FormEvent) => {
@@ -129,7 +143,7 @@ const ProviderDashboard = () => {
 
       if (error) throw error;
       toast.success("تم نشر الخدمة بنجاح وهي تحت المراجعة");
-      fetchData();
+      handleManualRefresh();
       setTitle(""); setCategory(""); setDescription(""); setNeighborhood(""); setMapsLink(""); setServiceImage(null); setLicenseFile(null);
     } catch (err: any) { toast.error(err.message); }
     finally { setAddingService(false); }
@@ -255,7 +269,6 @@ const ProviderDashboard = () => {
                       <h3 className="font-black text-xl flex items-center gap-2">
                         {b.service_title} <Badge variant="outline" className="text-xs font-mono">#{b.order_number}</Badge>
                       </h3>
-                      {/* 🚀 إضافة وقت وصول الطلب من العميل */}
                       <div className="flex flex-col items-end gap-1 text-[11px] font-bold text-muted-foreground">
                         <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> وقت الطلب:</span>
                         <span dir="ltr">{new Date(b.created_at).toLocaleString('ar-SA', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' })}</span>
@@ -267,8 +280,6 @@ const ProviderDashboard = () => {
                     <div className="flex flex-wrap items-center gap-3">
                       <Badge variant="secondary" className="px-3 py-1 font-bold">العميل: {b.client?.full_name}</Badge>
                       <Badge variant="outline" className="px-3 py-1 font-bold font-mono">{b.client?.phone}</Badge>
-                      
-                      {/* 🚀 إضافة الموعد الذي اختاره العميل للتنفيذ */}
                       <div className="flex items-center gap-2 bg-primary/10 text-primary px-3 py-1.5 rounded-xl border border-primary/20 shadow-sm">
                         <Calendar className="w-4 h-4" />
                         <span className="text-xs font-black">الموعد المطلوب: {b.scheduled_date || "قريباً"} | {b.scheduled_time || "--:--"}</span>
@@ -279,13 +290,49 @@ const ProviderDashboard = () => {
                   <div className="flex flex-col gap-2 min-w-[160px] justify-center border-t md:border-t-0 md:border-r pt-4 md:pt-0 md:pr-6 border-dashed">
                     {b.provider_status === 'pending' ? (
                       <>
-                        <Button onClick={() => supabase.from('bookings').update({provider_status:'accepted'}).eq('id', b.id).then(()=>fetchData())} className="rounded-2xl h-12 font-black bg-blue-500 hover:bg-blue-600">قبول الطلب</Button>
-                        <Button onClick={() => supabase.from('bookings').update({provider_status:'declined'}).eq('id', b.id).then(()=>fetchData())} variant="outline" className="rounded-2xl h-12 font-black text-destructive border-destructive hover:bg-destructive/10">رفض الطلب</Button>
+                        <Button onClick={async () => {
+                          const { error } = await supabase.from('bookings').update({provider_status:'accepted'}).eq('id', b.id);
+                          if (!error) {
+                            // إشعار للعميل بقبول الطلب
+                            await supabase.from("notifications").insert({
+                              recipient_id: b.client_id,
+                              sender_id: user?.id,
+                              booking_id: b.id,
+                              content: `تم قبول طلبك لخدمة: ${b.service_title}`,
+                            });
+                            handleManualRefresh();
+                          }
+                        }} className="rounded-2xl h-12 font-black bg-blue-500 hover:bg-blue-600">قبول الطلب</Button>
+                        <Button onClick={async () => {
+                          const { error } = await supabase.from('bookings').update({provider_status:'declined'}).eq('id', b.id);
+                          if (!error) {
+                            // إشعار للعميل برفض الطلب
+                            await supabase.from("notifications").insert({
+                              recipient_id: b.client_id,
+                              sender_id: user?.id,
+                              booking_id: b.id,
+                              content: `تم رفض طلبك لخدمة: ${b.service_title}`,
+                            });
+                            handleManualRefresh();
+                          }
+                        }} variant="outline" className="rounded-2xl h-12 font-black text-destructive border-destructive hover:bg-destructive/10">رفض الطلب</Button>
                       </>
                     ) : b.provider_status === 'declined' ? (
                        <Badge className="bg-destructive/10 text-destructive py-3 justify-center border-none font-black rounded-2xl text-sm">تم الرفض</Badge>
                     ) : b.status !== 'completed' ? (
-                      <Button onClick={() => supabase.from('bookings').update({status:'completed'}).eq('id', b.id).then(()=>fetchData())} className="rounded-2xl h-12 bg-emerald-500 hover:bg-emerald-600 font-black shadow-lg shadow-emerald-500/20">إكمال الخدمة</Button>
+                      <Button onClick={async () => {
+                        const { error } = await supabase.from('bookings').update({status:'completed'}).eq('id', b.id);
+                        if (!error) {
+                          // إشعار للعميل بإكمال الخدمة
+                          await supabase.from("notifications").insert({
+                            recipient_id: b.client_id,
+                            sender_id: user?.id,
+                            booking_id: b.id,
+                            content: `تم إكمال خدمة: ${b.service_title} بنجاح`,
+                          });
+                          handleManualRefresh();
+                        }
+                      }} className="rounded-2xl h-12 bg-emerald-500 hover:bg-emerald-600 font-black shadow-lg shadow-emerald-500/20">إكمال الخدمة</Button>
                     ) : (
                       <Badge className="bg-emerald-100 text-emerald-700 py-3 justify-center border-none font-black rounded-2xl text-sm">مكتمل بنجاح</Badge>
                     )}

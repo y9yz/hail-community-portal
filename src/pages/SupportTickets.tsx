@@ -177,6 +177,15 @@ const SupportTickets = () => {
       setNewMessage("");
       setPendingImage(null);
       if (fileInputRef.current) fileInputRef.current.value = "";
+
+      // إشعار للمستخدم برد جديد من الإدارة
+      if (role === "admin" && selectedTicket.user_id !== user.id) {
+        await supabase.from("notifications").insert({
+          recipient_id: selectedTicket.user_id,
+          sender_id: user.id,
+          content: `رد جديد على تذكرة الدعم: ${selectedTicket.subject}`,
+        });
+      }
     } catch (err: any) {
       toast.error("فشل إرسال الرد");
       console.error(err);

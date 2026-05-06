@@ -95,6 +95,22 @@ const ServiceDetail = () => {
   const categoryLabel = categories.find((c) => c.id === service.category)?.label ?? "";
   const canProceed = selectedDate && selectedTime && problemDescription.trim().length > 0;
 
+  /* التحقق من ما إذا كان الوقت المختار في الماضي */
+  const isTimePast = (time: string): boolean => {
+    if (!selectedDate) return false;
+    
+    const today = new Date();
+    const isToday = selectedDate.toDateString() === today.toDateString();
+    
+    if (!isToday) return false;
+    
+    const [hours, minutes] = time.split(":").map(Number);
+    const selectedDateTime = new Date(today);
+    selectedDateTime.setHours(hours, minutes, 0, 0);
+    
+    return selectedDateTime < today;
+  };
+
   /* معالجة إنشاء طلب حجز جديد وإرسال إشعار فوري للمزود المعني */
   const handleSubmitRequest = async () => {
     if (!user) { toast.error("يجب تسجيل الدخول أولاً"); navigate("/auth"); return; }
@@ -218,18 +234,20 @@ const ServiceDetail = () => {
                 <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
                   {timeSlots.map((time) => {
                     const isBooked = bookedTimes.includes(time);
+                    const isPast = isTimePast(time);
                     
                     return (
                       <Button 
                         key={time} 
                         variant={selectedTime === time ? "default" : "outline"} 
                         /* تعطيل الأوقات المحجوزة بالفعل من الداتابيس لنفس اليوم والمزود */
-                        disabled={isBooked || isCheckingTimes}
+                        disabled={isBooked || isCheckingTimes || isPast}
                         onClick={() => setSelectedTime(time)}
                         className={cn(
                           "rounded-xl text-sm h-12 font-bold border-2 transition-all",
                           selectedTime === time && "shadow-lg shadow-primary/20",
-                          isBooked && "opacity-40 bg-muted/50 text-muted-foreground line-through cursor-not-allowed border-dashed hover:bg-muted/50"
+                          isBooked && "opacity-40 bg-muted/50 text-muted-foreground line-through cursor-not-allowed border-dashed hover:bg-muted/50",
+                          isPast && "opacity-40 bg-muted/50 text-muted-foreground line-through cursor-not-allowed border-dashed hover:bg-muted/50"
                         )}
                       >
                         {time}
@@ -240,7 +258,7 @@ const ServiceDetail = () => {
                 
                 {bookedTimes.length > 0 && (
                    <p className="text-[10px] text-amber-600 font-bold bg-amber-50 p-2 rounded-lg inline-block">
-                     * الأوقات المشطوبة تم حجزها مسبقاً من قبل عملاء آخرين
+                     * الأوقات المشطوبة تم حجزها مسبقاً من قبل عملاء آخرين أو قد مضت
                    </p>
                 )}
               </div>

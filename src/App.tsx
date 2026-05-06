@@ -18,8 +18,7 @@ import SupportTickets from "./pages/SupportTickets";
 import PaymentPage from "./pages/PaymentPage";
 import Footer from "./components/Footer";
 
-/* 
-  🚀 التعديل الجوهري هنا: إعداد عميل البيانات للتعامل مع الـ Cache بذكاء 
+/* 🚀 إعداد عميل البيانات للتعامل مع الـ Cache بذكاء 
   هذا التعديل يمنع التهنيق عند العودة للتبويب ويجعل الموقع فائق السرعة
 */
 const queryClient = new QueryClient({
@@ -40,7 +39,13 @@ const ProtectedRoute = ({ children, allowedRoles }: { children: React.ReactNode,
   const { user, role, loading } = useAuth();
 
   /* منع التحويل العشوائي قبل اكتمال جلب بيانات المستخدم */
-  if (loading) return <div className="flex h-screen items-center justify-center">جاري التحميل...</div>;
+  if (loading) {
+    return (
+      <div className="flex h-screen items-center justify-center text-muted-foreground">
+        جاري التحميل...
+      </div>
+    );
+  }
 
   /* توجيه غير المسجلين لصفحة الدخول */
   if (!user) return <Navigate to="/auth" replace />;
@@ -60,7 +65,14 @@ const ProtectedRoute = ({ children, allowedRoles }: { children: React.ReactNode,
 const HomeRedirect = () => {
   const { user, role, loading } = useAuth();
 
-  if (loading) return null;
+  /* ✅ التعديل هنا: منعنا إرجاع null واستبدلناه بحالة تحميل حتى لا تظهر شاشة بيضاء مقطوعة */
+  if (loading) {
+    return (
+      <div className="flex h-[50vh] items-center justify-center text-muted-foreground">
+        جاري تهيئة الصفحة...
+      </div>
+    );
+  }
 
   if (user) {
     if (role === 'admin') return <Navigate to="/admin" replace />;
@@ -87,7 +99,11 @@ const App = () => (
                 <Route path="/service/:id" element={<ServiceDetail />} />
                 
                 {/* مسارات العميل المستفيد */}
-                <Route path="/my-bookings" element={<ProtectedRoute allowedRoles={['client']}><MyBookings /></ProtectedRoute>} />
+                <Route path="/my-bookings" element={
+                  <ProtectedRoute allowedRoles={['client']}>
+                    <MyBookings />
+                  </ProtectedRoute>
+                } />
                 <Route path="/support" element={<SupportTickets />} />
 
                 {/* مسارات مقدم الخدمة - تتطلب اشتراك وتحقق */}

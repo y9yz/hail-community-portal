@@ -144,6 +144,22 @@ const SupportTicketDialog = ({ open, onOpenChange, booking }: SupportTicketDialo
 
       if (msgError) throw msgError;
 
+      // إشعار للمدراء بتذكرة دعم جديدة
+      const { data: admins } = await supabase
+        .from("user_roles")
+        .select("user_id")
+        .eq("role", "admin");
+
+      if (admins) {
+        for (const admin of admins) {
+          await supabase.from("notifications").insert({
+            recipient_id: admin.user_id,
+            sender_id: user.id,
+            content: `تذكرة دعم جديدة: ${subject.trim()}`,
+          });
+        }
+      }
+
       toast.success("تم فتح التذكرة بنجاح، سيتم الرد عليك قريباً");
       setActiveTicket(newTicket);
       fetchMessages(newTicket.id);
