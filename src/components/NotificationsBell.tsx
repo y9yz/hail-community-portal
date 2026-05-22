@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { 
   Bell, Trash2, CheckCheck, BellOff, MessageCircle, 
   LifeBuoy, CheckCircle2, AlertCircle, Calendar, ArrowLeft
@@ -11,6 +12,7 @@ import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 
 const NotificationsBell = () => {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const navigate = useNavigate();
   const [notifications, setNotifications] = useState<any[]>([]);
@@ -92,17 +94,17 @@ const NotificationsBell = () => {
       .eq("is_read", false);
     
     if (!error) {
-      toast.success("تم تحديد الكل كمقروء");
+      toast.success(t('notifications.mark_all_read_success'));
       fetchNotifications();
     }
   };
 
   const clearAll = async () => {
     if (!user) return;
-    if (!confirm("هل أنت متأكد من حذف جميع الإشعارات؟")) return;
+    if (!confirm(t('notifications.clear_confirm'))) return;
     const { error } = await supabase.from("notifications").delete().eq("recipient_id", user.id);
     if (!error) {
-      toast.success("تم إفراغ صندوق الإشعارات");
+      toast.success(t('notifications.cleared'));
       fetchNotifications();
     }
   };
@@ -121,14 +123,16 @@ const NotificationsBell = () => {
       </PopoverTrigger>
       
       <PopoverContent className="w-[340px] p-0 rounded-3xl border-2 shadow-2xl overflow-hidden" align="end">
+        
+        {/* تم إضافة إغلاق الـ div هنا */}
         <div className="bg-primary text-primary-foreground p-4 flex items-center justify-between shadow-md">
           <div className="flex items-center gap-2">
             <Bell className="w-4 h-4 fill-current" />
-            <h4 className="font-black text-sm">مركز التنبيهات</h4>
+            <h4 className="font-black text-sm">{t('notifications.title')}</h4>
           </div>
           {unreadCount > 0 && (
             <button onClick={markAllRead} className="text-[10px] font-bold bg-white/20 px-2 py-1 rounded-lg hover:bg-white/30 transition-colors flex items-center gap-1">
-              <CheckCheck className="w-3 h-3" /> تحديد المقروء
+              <CheckCheck className="w-3 h-3" /> {t('notifications.mark_all_read')}
             </button>
           )}
         </div>
@@ -137,13 +141,13 @@ const NotificationsBell = () => {
           {notifications.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 text-muted-foreground opacity-30">
               <BellOff className="w-12 h-12 mb-3" />
-              <p className="text-xs font-black">صندوقك نظيف حالياً</p>
+              <p className="text-xs font-black">{t('notifications.empty')}</p>
             </div>
           ) : (
             <>
               <div className="p-2 bg-muted/30 flex justify-end border-b">
                  <Button variant="ghost" className="h-7 text-[10px] font-black text-destructive hover:bg-destructive/10 rounded-lg" onClick={clearAll}>
-                   <Trash2 className="w-3 h-3 me-1" /> مسح كافة الإشعارات
+                   <Trash2 className="w-3 h-3 me-1" /> {t('notifications.clear_all')}
                  </Button>
               </div>
               
@@ -167,7 +171,7 @@ const NotificationsBell = () => {
                           <Calendar className="w-2.5 h-2.5" />
                           {new Date(n.created_at).toLocaleDateString("ar-SA", { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
                         </p>
-                        {!n.is_read && <span className="text-[9px] font-black text-primary bg-primary/10 px-1.5 py-0.5 rounded">جديد</span>}
+                        {!n.is_read && <span className="text-[9px] font-black text-primary bg-primary/10 px-1.5 py-0.5 rounded">{t('notifications.new')}</span>}
                       </div>
                     </div>
                   </div>
@@ -178,7 +182,7 @@ const NotificationsBell = () => {
         </div>
         
         <div className="p-3 bg-muted/10 text-center border-t">
-          <p className="text-[9px] text-muted-foreground font-black tracking-tight">بوابة حائل الذكية — {new Date().getFullYear()}</p>
+          <p className="text-[9px] text-muted-foreground font-black tracking-tight">{t('notifications.footer')} — {new Date().getFullYear()}</p>
         </div>
       </PopoverContent>
     </Popover>

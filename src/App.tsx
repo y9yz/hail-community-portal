@@ -4,18 +4,20 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/hooks/useAuth"; 
-import Index from "./pages/Index";
-import Auth from "./pages/Auth";
-import ServiceDetail from "./pages/ServiceDetail";
-import MyBookings from "./pages/MyBookings";
-import ProviderDashboard from "./pages/ProviderDashboard";
-import EditServicePage from "./pages/EditServicePage";
-import AdminDashboard from "./pages/AdminDashboard";
-import PermissionDenied from "./pages/PermissionDenied";
-import NotFound from "./pages/NotFound";
-import SubscriptionPage from "./pages/SubscriptionPage"; 
-import SupportTickets from "./pages/SupportTickets"; 
-import PaymentPage from "./pages/PaymentPage";
+import { lazy, Suspense } from "react";
+
+const Index = lazy(() => import("./pages/Index"));
+const Auth = lazy(() => import("./pages/Auth"));
+const ServiceDetail = lazy(() => import("./pages/ServiceDetail"));
+const MyBookings = lazy(() => import("./pages/MyBookings"));
+const ProviderDashboard = lazy(() => import("./pages/ProviderDashboard"));
+const EditServicePage = lazy(() => import("./pages/EditServicePage"));
+const AdminDashboard = lazy(() => import("./pages/AdminDashboard"));
+const PermissionDenied = lazy(() => import("./pages/PermissionDenied"));
+const NotFound = lazy(() => import("./pages/NotFound"));
+const SubscriptionPage = lazy(() => import("./pages/SubscriptionPage"));
+const SupportTickets = lazy(() => import("./pages/SupportTickets"));
+const PaymentPage = lazy(() => import("./pages/PaymentPage"));
 import Footer from "./components/Footer";
 
 /* 🚀 إعداد عميل البيانات للتعامل مع الـ Cache بذكاء 
@@ -31,6 +33,21 @@ const queryClient = new QueryClient({
   },
 });
 
+const PageLoader = () => (
+  <div className="min-h-[60vh] p-6 md:p-8 animate-pulse bg-slate-50 dark:bg-slate-950">
+    <div className="mb-6 h-14 rounded-[28px] bg-slate-200/80 dark:bg-slate-800" />
+    <div className="grid gap-4 lg:grid-cols-3 mb-6">
+      <div className="h-40 rounded-3xl bg-slate-200/70 dark:bg-slate-800" />
+      <div className="h-40 rounded-3xl bg-slate-200/70 dark:bg-slate-800" />
+      <div className="h-40 rounded-3xl bg-slate-200/70 dark:bg-slate-800" />
+    </div>
+    <div className="grid gap-4 lg:grid-cols-2">
+      <div className="h-28 rounded-3xl bg-slate-200/70 dark:bg-slate-800" />
+      <div className="h-28 rounded-3xl bg-slate-200/70 dark:bg-slate-800" />
+    </div>
+  </div>
+);
+
 /**
  * حماية المسارات (RBAC)
  * تتحقق من تسجيل الدخول ومن مطابقة صلاحية المستخدم للمسار المطلوب
@@ -40,11 +57,7 @@ const ProtectedRoute = ({ children, allowedRoles }: { children: React.ReactNode,
 
   /* منع التحويل العشوائي قبل اكتمال جلب بيانات المستخدم */
   if (loading) {
-    return (
-      <div className="flex h-screen items-center justify-center text-muted-foreground">
-        جاري التحميل...
-      </div>
-    );
+    return <PageLoader />;
   }
 
   /* توجيه غير المسجلين لصفحة الدخول */
@@ -67,11 +80,7 @@ const HomeRedirect = () => {
 
   /* ✅ التعديل هنا: منعنا إرجاع null واستبدلناه بحالة تحميل حتى لا تظهر شاشة بيضاء مقطوعة */
   if (loading) {
-    return (
-      <div className="flex h-[50vh] items-center justify-center text-muted-foreground">
-        جاري تهيئة الصفحة...
-      </div>
-    );
+    return <PageLoader />;
   }
 
   if (user) {
@@ -92,53 +101,55 @@ const App = () => (
           {/* حاوية flex لضمان بقاء الفوتر في الأسفل دوماً */}
           <div className="min-h-screen flex flex-col bg-background">
             <main className="flex-1">
-              <Routes>
-                {/* المسارات العامة */}
-                <Route path="/" element={<HomeRedirect />} />
-                <Route path="/auth" element={<Auth />} />
-                <Route path="/service/:id" element={<ServiceDetail />} />
-                
-                {/* مسارات العميل المستفيد */}
-                <Route path="/my-bookings" element={
-                  <ProtectedRoute allowedRoles={['client']}>
-                    <MyBookings />
-                  </ProtectedRoute>
-                } />
-                <Route path="/support" element={<SupportTickets />} />
+              <Suspense fallback={<PageLoader />}>
+                <Routes>
+                  {/* المسارات العامة */}
+                  <Route path="/" element={<HomeRedirect />} />
+                  <Route path="/auth" element={<Auth />} />
+                  <Route path="/service/:id" element={<ServiceDetail />} />
+                  
+                  {/* مسارات العميل المستفيد */}
+                  <Route path="/my-bookings" element={
+                    <ProtectedRoute allowedRoles={['client']}>
+                      <MyBookings />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/support" element={<SupportTickets />} />
 
-                {/* مسارات مقدم الخدمة - تتطلب اشتراك وتحقق */}
-                <Route path="/provider" element={
-                  <ProtectedRoute allowedRoles={['provider']}>
-                    <ProviderDashboard />
-                  </ProtectedRoute>
-                } />
-                <Route path="/provider/service/:id" element={
-                  <ProtectedRoute allowedRoles={['provider']}>
-                    <EditServicePage />
-                  </ProtectedRoute>
-                } />
-                <Route path="/subscription" element={
-                  <ProtectedRoute allowedRoles={['provider']}>
-                    <SubscriptionPage />
-                  </ProtectedRoute>
-                } />
-                <Route path="/payment" element={
-                  <ProtectedRoute allowedRoles={['provider']}>
-                    <PaymentPage />
-                  </ProtectedRoute>
-                } />
+                  {/* مسارات مقدم الخدمة - تتطلب اشتراك وتحقق */}
+                  <Route path="/provider" element={
+                    <ProtectedRoute allowedRoles={['provider']}>
+                      <ProviderDashboard />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/provider/service/:id" element={
+                    <ProtectedRoute allowedRoles={['provider']}>
+                      <EditServicePage />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/subscription" element={
+                    <ProtectedRoute allowedRoles={['provider']}>
+                      <SubscriptionPage />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/payment" element={
+                    <ProtectedRoute allowedRoles={['provider']}>
+                      <PaymentPage />
+                    </ProtectedRoute>
+                  } />
 
-                {/* مسار الإدارة والمشرفين */}
-                <Route path="/admin" element={
-                  <ProtectedRoute allowedRoles={['admin']}>
-                    <AdminDashboard />
-                  </ProtectedRoute>
-                } />
+                  {/* مسار الإدارة والمشرفين */}
+                  <Route path="/admin" element={
+                    <ProtectedRoute allowedRoles={['admin']}>
+                      <AdminDashboard />
+                    </ProtectedRoute>
+                  } />
 
-                {/* صفحات الخطأ والمنع */}
-                <Route path="/permission-denied" element={<PermissionDenied />} />
-                <Route path="*" element={<NotFound />} />
-              </Routes>
+                  {/* صفحات الخطأ والمنع */}
+                  <Route path="/permission-denied" element={<PermissionDenied />} />
+                  <Route path="*" element={<NotFound />} />
+                </Routes>
+              </Suspense>
             </main>
             <Footer />
           </div>

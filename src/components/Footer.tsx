@@ -1,6 +1,8 @@
 import { Heart, GraduationCap, Users, Star } from "lucide-react";
+import { useTranslation } from 'react-i18next';
 
 const Footer = () => {
+  const { t } = useTranslation();
   // هنا قائمة بأسماء أعضاء الفريق عشان نعرضها في اسفل الصفحة، كل واحد فيهم ساهم في المشروع بشكل كبير ويستاهل الذكر
   const teamMembers = [
     "فواز زياد اللحيد",
@@ -21,10 +23,10 @@ const Footer = () => {
               <div className="bg-primary p-1.5 rounded-lg shadow-lg shadow-primary/20">
                 <GraduationCap className="w-5 h-5 text-white" />
               </div>
-              <h3 className="font-black text-xl text-primary tracking-tighter">بوابة مجتمع حائل</h3>
+              <h3 className="font-black text-xl text-primary tracking-tighter">{t('portal.name')}</h3>
             </div>
             <p className="text-sm font-bold text-muted-foreground leading-relaxed max-w-xs mx-auto md:mx-0">
-              مشروع تخرج علوم الحاسب.. صممناه لخدمة أهلنا في حائل بمعايير نظيفة.
+              {t('footer.project_description', 'A graduation project built for Hail community.')}
             </p>
           </div>
 
@@ -33,10 +35,10 @@ const Footer = () => {
             <div className="flex flex-col items-center justify-center gap-1">
               <div className="flex items-center gap-2 text-primary font-black mb-1">
                 <Users className="w-5 h-5" />
-                <span className="text-sm uppercase tracking-widest">فريق العمل</span>
+                <span className="text-sm uppercase tracking-widest">{t('footer.team')}</span>
               </div>
               <h4 className="text-lg font-black text-foreground bg-primary/5 px-6 py-2 rounded-full border-2 border-primary/20 shadow-sm">
-                طلاب <span className="text-primary">د. زياد المخلافي</span>
+                {t('footer.students_label')} <span className="text-primary">د. زياد المخلافي</span>
               </h4>
             </div>
             
@@ -55,11 +57,11 @@ const Footer = () => {
           {/* ثالث قسم: حقوق جامعة حائل   */}
           <div className="flex flex-col items-center justify-center space-y-4 h-full">
             <div className="bg-muted px-8 py-5 rounded-[2.5rem] border-2 border-dashed border-primary/20 shadow-inner">
-              <p className="text-[10px] font-black text-muted-foreground mb-1 uppercase tracking-[0.2em]">جميع الحقوق محفوظة © 2026</p>
-              <p className="text-sm font-black text-primary">جامعة حائل - كلية علوم الحاسب</p>
+              <p className="text-[10px] font-black text-muted-foreground mb-1 uppercase tracking-[0.2em]">{t('footer.copyright', 'All rights reserved © 2026')}</p>
+              <p className="text-sm font-black text-primary">{t('footer.university', 'University of Hail - CS Faculty')}</p>
             </div>
             <p className="flex items-center gap-1.5 text-xs font-black text-muted-foreground/60 tracking-wide">
-              صُنع في حائل <Heart className="w-4 h-4 text-red-500 fill-red-500 animate-pulse" />
+              {t('footer.made_in_hail', 'Made in Hail')} <Heart className="w-4 h-4 text-red-500 fill-red-500 animate-pulse" />
             </p>
           </div>
 

@@ -1,12 +1,12 @@
 export const categories = [
-  { id: "all", label: "الكل" },
-  { id: "plumbing", label: "سباكة" },
-  { id: "electrical", label: "كهرباء" },
-  { id: "cleaning", label: "تنظيف" },
-  { id: "painting", label: "دهان" },
-  { id: "ac", label: "تكييف" },
-  { id: "carpentry", label: "نجارة" },
-  { id: "other", label: "أخرى" },
+  { id: "all", label: "categories.all" },
+  { id: "plumbing", label: "categories.plumbing" },
+  { id: "electrical", label: "categories.electrical" },
+  { id: "cleaning", label: "categories.cleaning" },
+  { id: "painting", label: "categories.painting" },
+  { id: "ac", label: "categories.ac" },
+  { id: "carpentry", label: "categories.carpentry" },
+  { id: "other", label: "categories.other" },
 ];
 
 export const timeSlots = [

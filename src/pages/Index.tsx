@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import Navbar from "@/components/Navbar";
 import ServiceCard from "@/components/ServiceCard";
 import { categories } from "@/data/categories";
@@ -11,6 +12,7 @@ import type { Service } from "@/types/service";
 import heroImage from "@/assets/hero-hail.jpg";
 
 const Index = () => {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const { role, loading: authLoading } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
@@ -100,10 +102,10 @@ const Index = () => {
         <div className="absolute inset-0 bg-gradient-to-t from-background via-background/60 to-transparent" />
         <div className="absolute inset-0 flex flex-col items-center justify-center text-center px-4">
           <h1 className="text-3xl md:text-5xl font-extrabold text-foreground mb-3 drop-shadow-sm">
-            خدمات موثوقة في حائل
+            {t('home.hero_title')}
           </h1>
           <p className="text-lg md:text-xl text-muted-foreground max-w-lg">
-            اعثر على أفضل مقدمي الخدمات المحلية واحجز بسهولة
+            {t('home.hero_subtitle')}
           </p>
         </div>
       </section>
@@ -119,17 +121,17 @@ const Index = () => {
                 className="cursor-pointer text-sm px-4 py-2 rounded-xl transition-colors"
                 onClick={() => setActiveCategory(cat.id)}
               >
-                {cat.label}
+                {t(cat.label)}
               </Badge>
             ))}
           </div>
           <Select value={sortBy} onValueChange={setSortBy}>
             <SelectTrigger className="w-48 rounded-xl">
-              <SelectValue placeholder="ترتيب حسب" />
+              <SelectValue placeholder={t('home.sort_by_placeholder')} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="newest">الأحدث</SelectItem>
-              <SelectItem value="rating">الأعلى تقييماً</SelectItem>
+              <SelectItem value="newest">{t('home.sort_newest')}</SelectItem>
+              <SelectItem value="rating">{t('home.sort_rating')}</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -137,7 +139,7 @@ const Index = () => {
 
       <main className="container pb-16">
         {loading ? (
-          <p className="text-center text-muted-foreground py-16">جاري التحميل...</p>
+          <p className="text-center text-muted-foreground py-16">{t('home.loading')}</p>
         ) : (
           <>
             {/* عرض شبكة الخدمات المستجيبة (Responsive Grid) */}
@@ -150,7 +152,7 @@ const Index = () => {
             {/* حالة عدم وجود نتائج */}
             {filtered.length === 0 && (
               <p className="text-center text-muted-foreground py-16 text-lg">
-                لا توجد خدمات متاحة حالياً
+                {t('home.no_services')}
               </p>
             )}
           </>

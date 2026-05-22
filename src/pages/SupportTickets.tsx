@@ -7,16 +7,18 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import {
-  Send, MessageCircle, ArrowRight, User as UserIcon,
+  Send, MessageCircle, ArrowRight, ArrowLeft, User as UserIcon,
   LifeBuoy, Check, CheckCheck, ImagePlus, X, Loader2, Lock
 } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import { useNavigate, useLocation } from "react-router-dom";
+import { useTranslation } from 'react-i18next';
 
 const SupportTickets = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, role } = useAuth();
+  const { t } = useTranslation();
   const [tickets, setTickets] = useState<any[]>([]);
   const [selectedTicket, setSelectedTicket] = useState<any>(null);
   const [messages, setMessages] = useState<any[]>([]);
@@ -183,11 +185,11 @@ const SupportTickets = () => {
         await supabase.from("notifications").insert({
           recipient_id: selectedTicket.user_id,
           sender_id: user.id,
-          content: `رد جديد على تذكرة الدعم: ${selectedTicket.subject}`,
+          content: t('support.notification_admin_reply', { subject: selectedTicket.subject }),
         });
       }
     } catch (err: any) {
-      toast.error("فشل إرسال الرد");
+      toast.error(t('support.send_failed'));
       console.error(err);
     } finally {
       setSending(false);
@@ -206,19 +208,19 @@ const SupportTickets = () => {
             <CardHeader className="border-b bg-primary/5 p-6 shrink-0">
               <CardTitle className="flex items-center gap-2 text-primary font-black text-xl">
                 <LifeBuoy className="w-7 h-7" />
-                {role === "admin" ? "إدارة البلاغات" : "تذاكر الدعم الفني"}
+                {role === "admin" ? t('support.title_admin') : t('support.title')}
               </CardTitle>
             </CardHeader>
             <CardContent className="p-0 overflow-y-auto flex-1 scrollbar-thin">
-              {loading ? (
+                  {loading ? (
                 <div className="p-10 text-center space-y-4">
                   <Loader2 className="w-8 h-8 animate-spin mx-auto text-primary" />
-                  <p className="text-xs font-bold opacity-50 text-center">جاري تحميل البلاغات...</p>
+                  <p className="text-xs font-bold opacity-50 text-center">{t('support.loading_tickets')}</p>
                 </div>
               ) : tickets.length === 0 ? (
                 <div className="p-10 text-center space-y-4 opacity-20">
                   <MessageCircle className="w-16 h-16 mx-auto" />
-                  <p className="text-sm font-black">لا توجد بلاغات حالياً</p>
+                  <p className="text-sm font-black">{t('support.no_tickets')}</p>
                 </div>
               ) : (
                 tickets.map((ticket) => (
@@ -238,19 +240,19 @@ const SupportTickets = () => {
                           {ticket.subject}
                         </p>
                       </div>
-                      <Badge
+                        <Badge
                         className={`border-none text-[9px] px-2 rounded-full font-bold shadow-sm ${
                           ticket.status === "open"
                             ? "bg-amber-500 text-white"
                             : "bg-emerald-500 text-white"
                         }`}
                       >
-                        {ticket.status === "open" ? "نشطة" : "مغلقة"}
+                        {ticket.status === "open" ? t('support.status.active') : t('support.status.closed')}
                       </Badge>
                     </div>
                     <div className="flex justify-between items-center mt-3">
-                      <p className="text-[9px] text-muted-foreground font-black bg-muted/50 px-2 py-1 rounded-lg">
-                        {ticket.booking_id ? "بلاغ مرتبط بطلب" : "استفسار عام"}
+                        <p className="text-[9px] text-muted-foreground font-black bg-muted/50 px-2 py-1 rounded-lg">
+                        {ticket.booking_id ? t('support.linked_booking') : t('support.general_inquiry')}
                       </p>
                       <p className="text-[10px] text-muted-foreground font-medium">
                         {new Date(ticket.created_at).toLocaleDateString("ar-SA")}
@@ -268,7 +270,7 @@ const SupportTickets = () => {
               <>
                 <CardHeader className="border-b bg-white py-4 px-6 shrink-0">
                   <div className="flex justify-between items-center">
-                    <div className="flex items-center gap-4">
+                          <div className="flex items-center gap-4">
                       <Button
                         variant="ghost"
                         size="icon"
@@ -277,18 +279,26 @@ const SupportTickets = () => {
                       >
                         <ArrowRight />
                       </Button>
+                      <Button
+                        variant="ghost"
+                        className="gap-2 rounded-xl border hover:bg-secondary hidden md:inline-flex"
+                        onClick={() => navigate(-1)}
+                      >
+                        <ArrowLeft className="w-4 h-4 rtl:rotate-180" />
+                        <span className="hidden sm:inline">{t('common.back')}</span>
+                      </Button>
                       <div className="bg-primary/10 p-3 rounded-2xl hidden sm:flex">
                         <UserIcon className="w-6 h-6 text-primary" />
                       </div>
                       <div>
                         <div className="flex items-center gap-2">
                           {isReadOnly && <Lock className="w-4 h-4 text-muted-foreground" />}
-                          <CardTitle className="text-lg md:text-xl font-black line-clamp-1">{selectedTicket.subject}</CardTitle>
+                            <CardTitle className="text-lg md:text-xl font-black line-clamp-1">{selectedTicket.subject}</CardTitle>
                         </div>
                         <p className="text-[10px] md:text-xs font-bold text-muted-foreground mt-1">
                           {role === "admin"
-                            ? `المرسل: ${selectedTicket.user?.full_name}`
-                            : "فريق الدعم الفني - بوابة مجتمع حائل"}
+                            ? `${t('support.sender_label')}: ${selectedTicket.user?.full_name}`
+                            : t('support.default_sender')}
                         </p>
                       </div>
                     </div>
@@ -301,8 +311,8 @@ const SupportTickets = () => {
                 >
                   <div className="flex justify-center mb-8">
                     <div className="max-w-[90%] w-full p-5 rounded-[1.5rem] bg-white border-2 border-dashed border-amber-200 text-amber-900 shadow-sm relative">
-                      <div className="absolute -top-3 right-6 bg-amber-500 text-white px-3 py-1 rounded-full text-[9px] font-black">
-                        محتوى البلاغ الأصلي
+                        <div className="absolute -top-3 right-6 bg-amber-500 text-white px-3 py-1 rounded-full text-[9px] font-black">
+                        {t('support.original_message_label')}
                       </div>
                       <p className="text-sm font-bold leading-relaxed italic">
                         "{selectedTicket.message}"
@@ -333,7 +343,7 @@ const SupportTickets = () => {
                           >
                             <img
                               src={signedUrls[msg.image_url]}
-                              alt="مرفق دعم"
+                              alt={t('support.attachment_alt')}
                               className="w-full h-auto max-h-60 object-cover"
                             />
                           </a>
@@ -368,10 +378,10 @@ const SupportTickets = () => {
 
                 {/* ✅ تحديث صندوق الإدخال: يختفي إذا كانت التذكرة مغلقة */}
                 <div className="p-3 md:p-4 border-t bg-white shrink-0">
-                  {isReadOnly ? (
+                    {isReadOnly ? (
                     <div className="bg-muted/50 p-4 rounded-2xl border border-dashed text-center flex flex-col items-center gap-2">
-                       <Lock className="w-5 h-5 text-muted-foreground" />
-                       <p className="text-sm font-black text-muted-foreground">تم حل هذا البلاغ وإغلاق المحادثة.</p>
+                      <Lock className="w-5 h-5 text-muted-foreground" />
+                      <p className="text-sm font-black text-muted-foreground">{t('support.closed_message')}</p>
                     </div>
                   ) : (
                     <>
@@ -411,7 +421,7 @@ const SupportTickets = () => {
                           <ImagePlus className="w-5 h-5 text-muted-foreground" />
                         </Button>
                         <Input
-                          placeholder="اكتب ردك هنا..."
+                          placeholder={t('support.reply_placeholder')}
                           value={newMessage}
                           onChange={(e) => setNewMessage(e.target.value)}
                           onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && sendMessage()}
@@ -435,9 +445,9 @@ const SupportTickets = () => {
                   <MessageCircle className="w-20 h-20 text-primary/20" />
                 </div>
                 <div className="space-y-2">
-                  <h3 className="text-2xl font-black text-primary">بوابة مجتمع حائل للدعم</h3>
+                  <h3 className="text-2xl font-black text-primary">{t('support.portal_name')}</h3>
                   <p className="text-sm font-bold text-muted-foreground/60 max-w-xs mx-auto">
-                    يسعدنا خدمتك! اختر إحدى التذاكر من القائمة لبدء المحادثة مع فريقنا
+                    {t('support.select_ticket_prompt')}
                   </p>
                 </div>
               </div>

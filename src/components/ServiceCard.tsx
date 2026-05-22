@@ -2,6 +2,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import type { Service } from "@/types/service";
 import { categories } from "@/data/categories";
 import StarRating from "./StarRating";
@@ -9,11 +10,12 @@ import { useAuth } from "@/hooks/useAuth";
 import { Edit, Eye, CalendarCheck, MapPin } from "lucide-react";
 
 const ServiceCard = ({ service }: { service: Service }) => {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const { user, role } = useAuth();
   
   // استخراج اسم التصنيف من ملف البيانات بناءً على معرف التصنيف
-  const categoryLabel = categories.find((c) => c.id === service.category)?.label ?? service.category;
+  const categoryLabel = t(`categories.${service.category}`) || service.category;
 
   // التحقق مما إذا كان المستخدم المسجل هو نفسه صاحب الخدمة
   const isOwner = user?.id === service.provider_id;
@@ -42,7 +44,7 @@ const ServiceCard = ({ service }: { service: Service }) => {
           </h3>
           <div className="flex flex-col gap-1">
             <p className="text-[11px] text-muted-foreground flex items-center gap-1">
-              بواسطة: <span className="font-bold text-foreground/80">{service.provider?.full_name || "مزود موثق"}</span>
+              {t('service.by')} <span className="font-bold text-foreground/80">{service.provider?.full_name || t('service.verified_provider')}</span>
             </p>
             {service.address_name && (
               <p className="text-[11px] text-primary font-bold flex items-center gap-1">
@@ -63,7 +65,7 @@ const ServiceCard = ({ service }: { service: Service }) => {
           
           {service.admin_status === 'approved' && (
              <Badge className="text-[9px] bg-emerald-500 text-white border-none px-2 py-0.5 rounded-full">
-               موثق ✓
+               {t('service.verified_badge')}
              </Badge>
           )}
         </div>
@@ -81,7 +83,7 @@ const ServiceCard = ({ service }: { service: Service }) => {
               onClick={() => navigate(`/provider/service/${service.id}`)}
             >
               <Edit className="w-4 h-4" />
-              تعديل الخدمة
+              {t('service.edit_service')}
             </Button>
           ) : role === 'admin' ? (
             <Button 
@@ -90,7 +92,7 @@ const ServiceCard = ({ service }: { service: Service }) => {
               onClick={() => navigate(`/service/${service.id}`)}
             >
               <Eye className="w-4 h-4" />
-              إدارة الخدمة
+              {t('service.manage_service')}
             </Button>
           ) : (
             <Button 
@@ -98,17 +100,15 @@ const ServiceCard = ({ service }: { service: Service }) => {
               onClick={() => navigate(`/service/${service.id}`)}
             >
               <CalendarCheck className="w-4 h-4" />
-              حجز الخدمة الآن
+              {t('service.book_now')}
             </Button>
           )}
-          
-          {/* نص توضيحي بأسفل البطاقة حول آلية الدفع */}
           <div className="flex items-center justify-center gap-1.5 opacity-60">
-             <div className="h-px w-4 bg-muted-foreground/30"></div>
-             <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-tighter">
-               دفع مباشر لمقدم الخدمة
-             </p>
-             <div className="h-px w-4 bg-muted-foreground/30"></div>
+            <div className="h-px w-4 bg-muted-foreground/30"></div>
+            <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-tighter">
+              {t('service.payment_note')}
+            </p>
+            <div className="h-px w-4 bg-muted-foreground/30"></div>
           </div>
         </div>
       </CardContent>

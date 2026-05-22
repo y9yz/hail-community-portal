@@ -5,6 +5,7 @@ import StarRating from "./StarRating";
 import type { Review } from "@/types/service";
 import { formatDistanceToNow } from "date-fns";
 import { ar } from "date-fns/locale";
+import { useTranslation } from "react-i18next";
 
 interface ReviewSectionProps {
   serviceId: string;
@@ -12,6 +13,7 @@ interface ReviewSectionProps {
 
 /* مكون عرض قائمة التقييمات العامة للخدمة */
 const ReviewSection = ({ serviceId }: ReviewSectionProps) => {
+  const { t } = useTranslation();
   const [reviews, setReviews] = useState<Review[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -32,14 +34,14 @@ const ReviewSection = ({ serviceId }: ReviewSectionProps) => {
 
   return (
     <div className="space-y-4">
-      <h3 className="font-bold text-lg">التقييمات ({reviews.length})</h3>
+      <h3 className="font-bold text-lg">{t('review.title_count', { count: reviews.length })}</h3>
       
       {/* معالجة حالة التحميل */}
       {loading ? (
-        <p className="text-muted-foreground text-sm">جاري التحميل...</p>
+        <p className="text-muted-foreground text-sm">{t('review.loading')}</p>
       ) : reviews.length === 0 ? (
         /* حالة عدم وجود بيانات */
-        <p className="text-muted-foreground text-sm">لا توجد تقييمات بعد</p>
+        <p className="text-muted-foreground text-sm">{t('review.empty')}</p>
       ) : (
         /* عرض قائمة التقييمات */
         <div className="space-y-3">
@@ -47,7 +49,7 @@ const ReviewSection = ({ serviceId }: ReviewSectionProps) => {
             <Card key={r.id} className="rounded-xl">
               <CardContent className="p-4 space-y-2">
                 <div className="flex items-center justify-between">
-                  <span className="font-semibold text-sm">{r.client?.full_name || "عميل"}</span>
+                  <span className="font-semibold text-sm">{r.client?.full_name || t('review.client_fallback')}</span>
                   <span className="text-xs text-muted-foreground">
                     {/* تحويل التاريخ إلى صيغة نسبية (مثل: منذ يومين) */}
                     {formatDistanceToNow(new Date(r.created_at), { addSuffix: true, locale: ar })}

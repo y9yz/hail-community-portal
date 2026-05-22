@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ArrowRight, Mail, Lock, User, Phone, ShieldAlert, KeyRound, CheckCircle2 } from "lucide-react";
 import { useAuth, translateError } from "@/hooks/useAuth"; 
 import { toast } from "sonner";
+import { useTranslation } from 'react-i18next';
 import { supabase } from "@/integrations/supabase/client";
 
 const Auth = () => {
@@ -16,6 +17,7 @@ const Auth = () => {
     signIn, signUp, verifyOtp, resetPasswordEmail, updatePassword, 
     user, profile, role: userRole, loading: authLoading 
   } = useAuth();
+  const { t } = useTranslation();
   
   const [view, setView] = useState<"login" | "signup" | "verify-otp" | "forgot-password" | "reset-password">("login");
   const [role, setRole] = useState<"client" | "provider">("client");
@@ -52,7 +54,7 @@ const Auth = () => {
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim() || !email.trim() || !password.trim()) {
-      toast.error("يرجى ملء جميع الحقول المطلوبة");
+      toast.error(t('auth.fill_required'));
       return;
     }
 
@@ -65,18 +67,18 @@ const Auth = () => {
         .maybeSingle();
 
       if (checkEmail) {
-        toast.error("هذا البريد الإلكتروني مسجل مسبقاً، يرجى تسجيل الدخول.");
+        toast.error(t('auth.email_already_registered'));
         setLoading(false);
         return;
       }
 
       await signUp(email, password, name, phone, role);
-      toast.success("تم إرسال رمز التحقق إلى بريدك الإلكتروني");
+      toast.success(t('auth.verification_sent'));
       setView("verify-otp");
       
     } catch (err: any) {
       if (err.message?.includes("User already registered")) {
-        toast.error("هذا البريد الإلكتروني مسجل مسبقاً، يرجى تسجيل الدخول.");
+        toast.error(t('auth.email_already_registered'));
       } else {
         toast.error(translateError(err.message));
       }
@@ -104,7 +106,7 @@ const Auth = () => {
           .eq("id", authUser.id));
       }
 
-      toast.success("تم تفعيل وتوثيق حسابك بنجاح!");
+      toast.success(t('auth.verified_success'));
       // الـ useEffect بالأعلى سيتكفل بنقله للصفحة المناسبة فوراً
     } catch (err: any) {
       toast.error(translateError(err.message));
@@ -118,7 +120,7 @@ const Auth = () => {
     setLoading(true);
     try {
       await resetPasswordEmail(email);
-      toast.success("تم إرسال رمز استعادة كلمة المرور لبريدك الإلكتروني");
+      toast.success(t('auth.password_recovery_sent'));
       setView("reset-password");
     } catch (err: any) {
       toast.error(translateError(err.message));
@@ -133,7 +135,7 @@ const Auth = () => {
     try {
       await verifyOtp(email, otpCode, 'recovery');
       await updatePassword(newPassword);
-      toast.success("تم تحديث كلمة المرور بنجاح");
+      toast.success(t('auth.password_updated'));
       setView("login");
     } catch (err: any) {
       toast.error(translateError(err.message));
@@ -146,43 +148,43 @@ const Auth = () => {
     <div className="min-h-screen bg-secondary flex items-center justify-center p-4" dir="rtl">
       <div className="w-full max-w-md animate-fade-in">
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-black text-primary tracking-tighter">بوابة مجتمع حائل</h1>
-          <p className="text-muted-foreground mt-2">نظام الخدمات الذكي لمنطقة حائل</p>
+          <h1 className="text-3xl font-black text-primary tracking-tighter">{t('portal.name')}</h1>
+          <p className="text-muted-foreground mt-2">{t('portal.subtitle')}</p>
         </div>
 
         <Card className="rounded-[2rem] shadow-xl overflow-hidden border-none bg-white/80 backdrop-blur-sm">
           <CardContent className="p-0">
             {(view === "login" || view === "signup") && (
               <Tabs value={view} onValueChange={(v) => setView(v as any)} className="w-full">
-                <TabsList className="grid w-full grid-cols-2 rounded-none h-14 bg-muted/10 p-1">
-                  <TabsTrigger value="login" className="text-base font-bold data-[state=active]:bg-white data-[state=active]:text-primary rounded-xl transition-all">تسجيل الدخول</TabsTrigger>
-                  <TabsTrigger value="signup" className="text-base font-bold data-[state=active]:bg-white data-[state=active]:text-primary rounded-xl transition-all">حساب جديد</TabsTrigger>
+                  <TabsList className="grid w-full grid-cols-2 rounded-none h-14 bg-muted/10 p-1">
+                  <TabsTrigger value="login" className="text-base font-bold data-[state=active]:bg-white data-[state=active]:text-primary rounded-xl transition-all">{t('auth.login_tab')}</TabsTrigger>
+                  <TabsTrigger value="signup" className="text-base font-bold data-[state=active]:bg-white data-[state=active]:text-primary rounded-xl transition-all">{t('auth.signup_tab')}</TabsTrigger>
                 </TabsList>
 
                 <div className="p-6">
                   <TabsContent value="login" className="mt-0 space-y-4">
                     <form className="space-y-4" onSubmit={handleLogin}>
                       <div className="space-y-2">
-                        <Label className="font-bold">البريد الإلكتروني</Label>
+                        <Label className="font-bold">{t('auth.email_label')}</Label>
                         <div className="relative">
                           <Mail className="absolute start-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                          <Input type="email" placeholder="أدخل بريدك الإلكتروني" className="ps-10 h-11 rounded-xl" dir="ltr" value={email} onChange={e => setEmail(e.target.value)} required />
+                          <Input type="email" placeholder={t('auth.email_placeholder')} className="ps-10 h-11 rounded-xl" dir="ltr" value={email} onChange={e => setEmail(e.target.value)} required />
                         </div>
                       </div>
                       <div className="space-y-2">
-                        <Label className="font-bold">كلمة المرور</Label>
+                        <Label className="font-bold">{t('auth.password_label')}</Label>
                         <div className="relative">
                           <Lock className="absolute start-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                          <Input type="password" placeholder="••••••••" className="ps-10 h-11 rounded-xl" dir="ltr" value={password} onChange={e => setPassword(e.target.value)} required />
+                          <Input type="password" placeholder={t('auth.password_placeholder')} className="ps-10 h-11 rounded-xl" dir="ltr" value={password} onChange={e => setPassword(e.target.value)} required />
                         </div>
                       </div>
                       <div className="flex justify-start">
                         <Button type="button" variant="link" className="px-0 h-auto text-primary text-xs font-bold" onClick={() => setView("forgot-password")}>
-                          هل نسيت كلمة المرور؟
+                          {t('auth.forgot_password')}
                         </Button>
                       </div>
                       <Button className="w-full h-12 text-base font-black rounded-xl bg-primary hover:bg-primary/90 shadow-lg shadow-primary/20" type="submit" disabled={loading}>
-                        {loading ? "جاري التحقق..." : "تسجيل الدخول"}
+                        {loading ? t('auth.loading') : t('auth.sign_in')}
                       </Button>
                     </form>
                   </TabsContent>
@@ -190,50 +192,50 @@ const Auth = () => {
                   <TabsContent value="signup" className="mt-0 space-y-4">
                     <form className="space-y-4" onSubmit={handleSignup}>
                       <div className="space-y-2">
-                        <Label className="font-bold">نوع الحساب</Label>
+                        <Label className="font-bold">{t('auth.account_type')}</Label>
                         <div className="grid grid-cols-2 gap-2">
-                          <Button type="button" variant={role === "client" ? "default" : "outline"} className="rounded-xl h-10 font-bold" onClick={() => setRole("client")}>عميل</Button>
-                          <Button type="button" variant={role === "provider" ? "default" : "outline"} className="rounded-xl h-10 font-bold" onClick={() => setRole("provider")}>مقدم خدمة</Button>
+                          <Button type="button" variant={role === "client" ? "default" : "outline"} className="rounded-xl h-10 font-bold" onClick={() => setRole("client")}>{t('roles.client')}</Button>
+                          <Button type="button" variant={role === "provider" ? "default" : "outline"} className="rounded-xl h-10 font-bold" onClick={() => setRole("provider")}>{t('roles.provider')}</Button>
                         </div>
                         {role === "provider" && (
                           <div className="bg-amber-50 border border-amber-100 rounded-xl p-3 mt-2 flex items-start gap-2 animate-in fade-in slide-in-from-top-1">
                             <ShieldAlert className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
                             <p className="text-xs font-bold text-amber-800 leading-relaxed">
-                              سياسة الاشتراك: 100 ريال سنوياً مع <span className="text-primary font-black">شهر تجريبي مجاني</span> عند التسجيل.
+                              {t('auth.subscription_policy')}
                             </p>
                           </div>
                         )}
                       </div>
                       <div className="space-y-2">
-                        <Label className="font-bold">الاسم الكامل</Label>
+                        <Label className="font-bold">{t('auth.full_name_label')}</Label>
                         <div className="relative">
                           <User className="absolute start-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                          <Input placeholder="الاسم ثلاثي" className="ps-10 h-11 rounded-xl" value={name} onChange={e => setName(e.target.value)} required />
+                          <Input placeholder={t('auth.full_name_placeholder')} className="ps-10 h-11 rounded-xl" value={name} onChange={e => setName(e.target.value)} required />
                         </div>
                       </div>
                       <div className="space-y-2">
-                        <Label className="font-bold">رقم الجوال</Label>
+                        <Label className="font-bold">{t('auth.phone_label')}</Label>
                         <div className="relative">
                           <Phone className="absolute start-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                          <Input type="tel" placeholder="05XXXXXXXX" className="ps-10 h-11 rounded-xl" dir="ltr" value={phone} onChange={e => setPhone(e.target.value)} />
+                          <Input type="tel" placeholder={t('auth.phone_placeholder')} className="ps-10 h-11 rounded-xl" dir="ltr" value={phone} onChange={e => setPhone(e.target.value)} />
                         </div>
                       </div>
                       <div className="space-y-2">
-                        <Label className="font-bold">البريد الإلكتروني</Label>
+                        <Label className="font-bold">{t('auth.email_label')}</Label>
                         <div className="relative">
                           <Mail className="absolute start-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                          <Input type="email" placeholder="example@mail.com" className="ps-10 h-11 rounded-xl" dir="ltr" value={email} onChange={e => setEmail(e.target.value)} required />
+                          <Input type="email" placeholder={t('auth.email_placeholder')} className="ps-10 h-11 rounded-xl" dir="ltr" value={email} onChange={e => setEmail(e.target.value)} required />
                         </div>
                       </div>
                       <div className="space-y-2">
-                        <Label className="font-bold">كلمة المرور</Label>
+                        <Label className="font-bold">{t('auth.password_label')}</Label>
                         <div className="relative">
                           <Lock className="absolute start-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                          <Input type="password" placeholder="••••••••" className="ps-10 h-11 rounded-xl" dir="ltr" value={password} onChange={e => setPassword(e.target.value)} required />
+                          <Input type="password" placeholder={t('auth.password_placeholder')} className="ps-10 h-11 rounded-xl" dir="ltr" value={password} onChange={e => setPassword(e.target.value)} required />
                         </div>
                       </div>
                       <Button className="w-full h-12 text-base font-black rounded-xl bg-primary hover:bg-primary/90 shadow-lg shadow-primary/20" type="submit" disabled={loading}>
-                        {loading ? "جاري معالجة الطلب..." : "إنشاء حساب جديد"}
+                        {loading ? t('auth.processing') : t('auth.create_account')}
                       </Button>
                     </form>
                   </TabsContent>
@@ -247,9 +249,9 @@ const Auth = () => {
                     <CheckCircle2 className="w-10 h-10 text-primary" />
                 </div>
                 <div className="space-y-2">
-                  <h2 className="text-2xl font-black">تأكيد الحساب</h2>
+                  <h2 className="text-2xl font-black">{t('auth.verify_account_title')}</h2>
                   <p className="text-sm text-muted-foreground leading-relaxed">
-                    أدخل رمز التحقق المكون من <span className="font-bold text-primary">6 أرقام</span> المرسل إلى بريدك الإلكتروني
+                    {t('auth.verify_account_instructions', { digits: 6 })}
                   </p>
                 </div>
                 <form onSubmit={handleVerifyOtp} className="space-y-6">
@@ -264,10 +266,10 @@ const Auth = () => {
                     required
                   />
                   <Button className="w-full h-12 font-black rounded-xl text-lg shadow-lg shadow-primary/20" type="submit" disabled={loading}>
-                    تفعيل الحساب
+                    {t('auth.activate_account_btn')}
                   </Button>
-                  <Button type="button" variant="ghost" className="text-sm font-bold text-muted-foreground hover:text-primary" onClick={() => setView("signup")}>
-                    العودة لتعديل البيانات
+                  <Button type="button" variant="ghost" className="text-sm font-bold text-muted-foreground hover:text-primary" onClick={() => setView("signup") }>
+                    {t('auth.back_edit_details')}
                   </Button>
                 </form>
               </div>
@@ -280,13 +282,13 @@ const Auth = () => {
                   <div className="bg-primary/10 w-16 h-16 rounded-full flex items-center justify-center mx-auto">
                     <KeyRound className="w-10 h-10 text-primary" />
                   </div>
-                  <h2 className="text-2xl font-black">استعادة كلمة المرور</h2>
-                  <p className="text-sm text-muted-foreground">أدخل بريدك الإلكتروني لنرسل لك رمز الأمان</p>
+                  <h2 className="text-2xl font-black">{t('auth.recover_password_title')}</h2>
+                  <p className="text-sm text-muted-foreground">{t('auth.forgot_password_instructions')}</p>
                 </div>
                 <form onSubmit={handleForgotPassword} className="space-y-4">
-                  <Input type="email" placeholder="example@mail.com" className="h-12 text-center text-lg rounded-xl" dir="ltr" value={email} onChange={e => setEmail(e.target.value)} required />
-                  <Button className="w-full h-12 font-black rounded-xl shadow-lg shadow-primary/20" type="submit" disabled={loading}>إرسال الرمز</Button>
-                  <Button type="button" variant="ghost" className="w-full font-bold" onClick={() => setView("login")}>العودة للدخول</Button>
+                  <Input type="email" placeholder={t('auth.email_placeholder')} className="h-12 text-center text-lg rounded-xl" dir="ltr" value={email} onChange={e => setEmail(e.target.value)} required />
+                  <Button className="w-full h-12 font-black rounded-xl shadow-lg shadow-primary/20" type="submit" disabled={loading}>{t('auth.send_code_btn')}</Button>
+                  <Button type="button" variant="ghost" className="w-full font-bold" onClick={() => setView("login")}>{t('auth.back_to_login')}</Button>
                 </form>
               </div>
             )}
@@ -294,11 +296,11 @@ const Auth = () => {
             {view === "reset-password" && (
               <div className="p-8 space-y-6">
                 <div className="text-center space-y-2">
-                  <h2 className="text-2xl font-black text-primary">تعيين كلمة جديدة</h2>
-                  <p className="text-sm text-muted-foreground">أدخل الرمز المكون من 6 أرقام وكلمتك الجديدة</p>
+                  <h2 className="text-2xl font-black text-primary">{t('auth.reset_password_title')}</h2>
+                  <p className="text-sm text-muted-foreground">{t('auth.reset_password_instructions')}</p>
                 </div>
                 <form onSubmit={handleResetPassword} className="space-y-4">
-                  <Label className="text-xs font-bold text-muted-foreground">رمز التحقق (6 أرقام)</Label>
+                  <Label className="text-xs font-bold text-muted-foreground">{t('auth.otp_label')}</Label>
                   <Input 
                     maxLength={6} 
                     placeholder="000000"
@@ -309,18 +311,18 @@ const Auth = () => {
                     onChange={e => setOtpCode(e.target.value.replace(/\D/g, ""))} 
                     required 
                   />
-                  <Label className="text-xs font-bold text-muted-foreground">كلمة المرور الجديدة</Label>
-                  <Input type="password" placeholder="••••••••" className="h-12 rounded-xl" dir="ltr" value={newPassword} onChange={e => setNewPassword(e.target.value)} required />
-                  <Button className="w-full h-12 font-black rounded-xl mt-2 shadow-lg shadow-primary/20" type="submit" disabled={loading}>تحديث كلمة المرور</Button>
+                  <Label className="text-xs font-bold text-muted-foreground">{t('auth.new_password_label')}</Label>
+                  <Input type="password" placeholder={t('auth.password_placeholder')} className="h-12 rounded-xl" dir="ltr" value={newPassword} onChange={e => setNewPassword(e.target.value)} required />
+                  <Button className="w-full h-12 font-black rounded-xl mt-2 shadow-lg shadow-primary/20" type="submit" disabled={loading}>{t('auth.update_password_btn')}</Button>
                 </form>
               </div>
             )}
           </CardContent>
         </Card>
 
-        <Button variant="ghost" className="w-full mt-6 text-muted-foreground font-bold hover:text-primary transition-colors" onClick={() => navigate("/")}>
+        <Button variant="ghost" className="w-full mt-6 text-muted-foreground font-bold hover:text-primary transition-colors" onClick={() => navigate("/") }>
           <ArrowRight className="w-4 h-4 ms-2" />
-          العودة للرئيسية
+          {t('common.back_home')}
         </Button>
       </div>
     </div>

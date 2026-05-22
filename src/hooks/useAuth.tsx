@@ -2,17 +2,18 @@ import { useState, useEffect, useRef, createContext, useContext, ReactNode, useM
 import { supabase } from "@/integrations/supabase/client";
 import type { User, Session } from "@supabase/supabase-js";
 import { toast } from "sonner";
+import i18n from "@/i18n/config";
 
-// دالة ترجمة الأخطاء
+// Map server error messages to i18n keys (uses i18n directly so this works outside React components)
 const getArabicError = (errorMsg: string) => {
   console.log("Raw Server Error:", errorMsg);
-  if (errorMsg.includes("Invalid login credentials")) return "بيانات الدخول غير صحيحة، يرجى التأكد والمحاولة مجدداً.";
-  if (errorMsg.includes("User already registered")) return "هذا البريد الإلكتروني مسجل مسبقاً لدينا.";
-  if (errorMsg.includes("Password should be at least")) return "يجب أن تكون كلمة المرور مكونة من 6 رموز على الأقل.";
-  if (errorMsg.includes("Token has expired or is invalid")) return "رمز التحقق غير صحيح أو قد انتهت صلاحيته.";
-  if (errorMsg.includes("Email not confirmed")) return "يرجى تفعيل الحساب عبر بريدك الإلكتروني أولاً.";
-  if (errorMsg.includes("rate limit")) return "لقد تجاوزت الحد المسموح، يرجى الانتظار قليلاً قبل المحاولة مجدداً.";
-  return `خطأ تقني: ${errorMsg}`;
+  if (errorMsg.includes("Invalid login credentials")) return i18n.t("errors.invalid_login_credentials");
+  if (errorMsg.includes("User already registered")) return i18n.t("errors.user_already_registered");
+  if (errorMsg.includes("Password should be at least")) return i18n.t("errors.password_too_short");
+  if (errorMsg.includes("Token has expired or is invalid")) return i18n.t("errors.invalid_or_expired_token");
+  if (errorMsg.includes("Email not confirmed")) return i18n.t("errors.email_not_confirmed");
+  if (errorMsg.includes("rate limit")) return i18n.t("errors.rate_limited");
+  return i18n.t("errors.technical_error", { message: errorMsg });
 };
 
 interface AuthContextType {
@@ -317,7 +318,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setRole(null);
       setProfile(null);
       fetchedForUserId.current = null;
-      toast.info("تم تسجيل الخروج بنجاح");
+      toast.info(i18n.t("auth.logged_out"));
     } finally {
       setLoading(false);
     }

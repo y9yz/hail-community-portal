@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import { useTranslation } from "react-i18next";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,6 +17,7 @@ interface ChatDialogProps {
 }
 
 const ChatDialog = ({ open, onOpenChange, bookingId, otherName, readOnly = false }: ChatDialogProps) => {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const [messages, setMessages] = useState<any[]>([]);
   const [signedUrls, setSignedUrls] = useState<Record<string, string>>({});
@@ -47,8 +49,8 @@ const ChatDialog = ({ open, onOpenChange, bookingId, otherName, readOnly = false
       if (data) {
         setChatRoles({ clientId: data.client_id, providerId: data.provider_id });
         setParticipants({
-          [data.client_id]: data.client?.full_name || "العميل",
-          [data.provider_id]: data.provider?.full_name || "المزود",
+          [data.client_id]: data.client?.full_name || t('chat.client'),
+          [data.provider_id]: data.provider?.full_name || t('chat.provider'),
         });
         // تحديث حالة الطلب
         setBookingState({ status: data.status, providerStatus: data.provider_status });
@@ -162,7 +164,7 @@ const ChatDialog = ({ open, onOpenChange, bookingId, otherName, readOnly = false
       setPendingImage(null);
       if (fileInputRef.current) fileInputRef.current.value = "";
     } catch (err: any) {
-      toast.error("تعذر إرسال الرسالة");
+      toast.error(t('chat.send_error'));
     } finally {
       setSending(false);
     }
@@ -180,10 +182,10 @@ const ChatDialog = ({ open, onOpenChange, bookingId, otherName, readOnly = false
         <DialogHeader className={`p-5 border-b shrink-0 ${readOnly ? "bg-amber-50/50" : "bg-white"}`}>
           <DialogTitle className="font-black text-xl text-primary px-2 flex items-center gap-2">
             {readOnly && <ShieldAlert className="w-5 h-5 text-amber-600" />}
-            {readOnly ? "مراقبة المحادثة" : `محادثة ${otherName}`}
+            {readOnly ? t('chat.monitoring_chat') : t('chat.conversation_with', { name: otherName })}
           </DialogTitle>
           {readOnly && (
-            <p className="text-[10px] font-bold text-amber-600 px-2 mt-1 italic">وضع المشرف العام</p>
+            <p className="text-[10px] font-bold text-amber-600 px-2 mt-1 italic">{t('chat.supervisor_mode')}</p>
           )}
         </DialogHeader>
 
@@ -191,12 +193,12 @@ const ChatDialog = ({ open, onOpenChange, bookingId, otherName, readOnly = false
           {messages.length === 0 && (
             <div className="h-full flex flex-col items-center justify-center opacity-30 gap-2">
               <MessageSquare className="w-12 h-12" />
-              <p className="text-center font-black">ابدأ المحادثة الآن..</p>
+              <p className="text-center font-black">{t('chat.start_conversation')}</p>
             </div>
           )}
           {messages.map((m) => {
             const isRightSide = readOnly ? m.sender_id === chatRoles.clientId : m.sender_id === user?.id;
-            const senderName = participants[m.sender_id] || (isRightSide ? "العميل" : "المزود");
+            const senderName = participants[m.sender_id] || (isRightSide ? t('chat.client') : t('chat.provider'));
 
             return (
               <div
@@ -209,7 +211,7 @@ const ChatDialog = ({ open, onOpenChange, bookingId, otherName, readOnly = false
               >
                 {readOnly && (
                   <span className={`text-[10px] font-black mb-1.5 opacity-80 flex items-center gap-1 ${isRightSide ? "text-primary-foreground" : "text-primary"}`}>
-                    {senderName} {m.sender_id === chatRoles.providerId && "(المزود)"}
+                    {senderName} {m.sender_id === chatRoles.providerId && `(${t('chat.provider')})`}
                   </span>
                 )}
 
@@ -222,7 +224,7 @@ const ChatDialog = ({ open, onOpenChange, bookingId, otherName, readOnly = false
                   >
                     <img
                       src={signedUrls[m.image_url]}
-                      alt="مرفق"
+                      alt={t('chat.attachment_alt')}
                       className="w-full h-auto max-h-64 object-cover"
                     />
                   </a>
@@ -257,12 +259,12 @@ const ChatDialog = ({ open, onOpenChange, bookingId, otherName, readOnly = false
         <div className="shrink-0 bg-white border-t p-4">
           {readOnly ? (
             <div className="bg-amber-50 p-3 rounded-xl border border-amber-200 text-center">
-              <p className="text-xs font-black text-amber-700">أنت في وضع العرض فقط</p>
+              <p className="text-xs font-black text-amber-700">{t('chat.view_only')}</p>
             </div>
           ) : isChatClosed ? (
             // 🚀 التعديل: إخفاء حقل الكتابة واستبداله برسالة الإغلاق
             <div className="bg-muted/50 p-4 rounded-xl border border-dashed text-center">
-              <p className="text-sm font-black text-muted-foreground">تم إغلاق هذه المحادثة لانتهاء الخدمة.</p>
+              <p className="text-sm font-black text-muted-foreground">{t('chat.closed_chat')}</p>
             </div>
           ) : (
             <>
@@ -304,7 +306,7 @@ const ChatDialog = ({ open, onOpenChange, bookingId, otherName, readOnly = false
                   <ImagePlus className="w-5 h-5 text-muted-foreground" />
                 </Button>
                 <Input
-                  placeholder="اكتب ردك هنا..."
+                  placeholder={t('chat.write_reply_placeholder')}
                   value={newMessage}
                   onChange={(e) => setNewMessage(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && handleSend()}

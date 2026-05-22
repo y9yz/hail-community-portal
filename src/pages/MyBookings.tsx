@@ -1,4 +1,6 @@
 import { useEffect, useState } from "react";
+import i18n from "@/i18n/config";
+import { useTranslation } from 'react-i18next';
 import { useNavigate } from "react-router-dom";
 import { ClipboardList, ArrowRight, Clock, CheckCircle2, XCircle, MessageCircle, Ban, LifeBuoy, Star, CheckCheck, MapPin } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -17,16 +19,17 @@ import { toast } from "sonner";
  * يتم دمج حالة الخدمة النهائية وحالة قبول المزود لتحديد المظهر المناسب
  */
 const getBookingStatus = (b: any) => {
-  if (b.status === "completed") return { label: "مكتمل", color: "bg-green-500 text-white border-none", icon: CheckCheck };
-  if (b.provider_status === "declined") return { label: "مرفوض", color: "bg-destructive text-white border-none", icon: XCircle };
-  if (b.provider_status === "pending") return { label: "قيد الانتظار", color: "bg-amber-500 text-white border-none", icon: Clock };
-  if (b.provider_status === "accepted") return { label: "مقبول — الدفع ميداني", color: "bg-blue-500 text-white border-none", icon: CheckCircle2 };
+  if (b.status === "completed") return { label: i18n.t('bookings.status.completed'), color: "bg-green-500 text-white border-none", icon: CheckCheck };
+  if (b.provider_status === "declined") return { label: i18n.t('bookings.status.declined'), color: "bg-destructive text-white border-none", icon: XCircle };
+  if (b.provider_status === "pending") return { label: i18n.t('bookings.status.pending'), color: "bg-amber-500 text-white border-none", icon: Clock };
+  if (b.provider_status === "accepted") return { label: i18n.t('bookings.status.accepted'), color: "bg-blue-500 text-white border-none", icon: CheckCircle2 };
   return { label: "—", color: "bg-secondary", icon: Clock };
 };
 
 const MyBookings = () => {
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
+  const { t } = useTranslation();
   const [bookings, setBookings] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [chatBooking, setChatBooking] = useState<any>(null);
@@ -70,7 +73,7 @@ const MyBookings = () => {
 
   /* معالجة إلغاء الطلب عبر تحديث الحالة في قاعدة البيانات */
   const handleCancel = async (booking: any) => {
-    if (!confirm("هل أنت متأكد من إلغاء هذا الطلب؟")) return;
+    if (!window.confirm(i18n.t('bookings.cancel_confirm'))) return;
     try {
       const { error } = await supabase
         .from("bookings")
@@ -78,18 +81,18 @@ const MyBookings = () => {
         .eq("id", booking.id);
       if (error) throw error;
       
-      toast.success("تم إلغاء الطلب بنجاح");
+      toast.success(t('bookings.cancelled_success'));
       fetchBookings();
     } catch (err: any) {
-      toast.error("فشل الإلغاء");
+      toast.error(t('bookings.cancel_failed'));
     }
   };
 
-  if (authLoading || loading) {
+    if (authLoading || loading) {
     return (
       <div className="min-h-screen bg-background">
         <Navbar />
-        <div className="container py-16 text-center font-bold">جاري تحديث طلباتك...</div>
+        <div className="container py-16 text-center font-bold">{t('bookings.updating')}</div>
       </div>
     );
   }
@@ -102,15 +105,15 @@ const MyBookings = () => {
           <Button variant="ghost" size="icon" onClick={() => navigate("/")} className="rounded-full">
             <ArrowRight className="w-5 h-5 text-primary" />
           </Button>
-          <h1 className="text-3xl font-black text-foreground tracking-tighter">سجل طلباتي</h1>
+          <h1 className="text-3xl font-black text-foreground tracking-tighter">{t('bookings.title')}</h1>
         </div>
 
         {bookings.length === 0 ? (
           <Card className="rounded-3xl border-dashed border-2 py-20 bg-muted/5">
             <CardContent className="text-center space-y-4">
               <ClipboardList className="w-12 h-12 mx-auto opacity-20 text-primary" />
-              <p className="text-muted-foreground font-medium">لم تقم بطلب أي خدمات حتى الآن</p>
-              <Button onClick={() => navigate("/")} className="rounded-2xl px-8 h-12 font-bold">ابدأ الآن</Button>
+              <p className="text-muted-foreground font-medium">{t('bookings.empty')}</p>
+              <Button onClick={() => navigate("/")} className="rounded-2xl px-8 h-12 font-bold">{t('bookings.start_now')}</Button>
             </CardContent>
           </Card>
         ) : (
@@ -132,7 +135,7 @@ const MyBookings = () => {
                       <h3 className="font-black text-lg">{b.service_title}</h3>
                       <Badge variant="outline" className="text-[10px] font-mono tracking-tighter bg-background">#{b.order_number}</Badge>
                     </div>
-                    <Badge className={`${status.color} px-4 py-1.5 rounded-full text-[10px] font-black flex items-center gap-1.5 shadow-sm`}>
+                      <Badge className={`${status.color} px-4 py-1.5 rounded-full text-[10px] font-black flex items-center gap-1.5 shadow-sm`}>
                       <StatusIcon className="w-3.5 h-3.5" />
                       {status.label}
                     </Badge>
@@ -141,18 +144,18 @@ const MyBookings = () => {
                   <div className="p-5 space-y-4">
                     {/* تفاصيل وصف المشكلة المكتوبة من العميل */}
                     <div className="bg-muted/30 p-4 rounded-2xl border-r-4 border-primary/20">
-                       <p className="text-sm text-muted-foreground italic leading-relaxed">"{b.problem_description}"</p>
+                        <p className="text-sm text-muted-foreground italic leading-relaxed">"{b.problem_description}"</p>
                     </div>
                     
                     {/* معلومات مقدم الخدمة وآلية الدفع الميدانية */}
                     <div className="grid grid-cols-2 gap-4 text-xs">
                       <div className="bg-secondary/30 p-3 rounded-xl">
-                        <p className="text-muted-foreground mb-1">مقدم الخدمة:</p>
+                        <p className="text-muted-foreground mb-1">{t('bookings.provider_label')}:</p>
                         <p className="font-black text-sm">{b.provider?.full_name || "—"}</p>
                       </div>
                       <div className="bg-emerald-50/50 p-3 rounded-xl">
-                        <p className="text-emerald-700/60 mb-1">طريقة الدفع:</p>
-                        <p className="font-black text-sm text-emerald-700">ميداني (كاش/شبكة)</p>
+                        <p className="text-emerald-700/60 mb-1">{t('bookings.payment_method_label')}:</p>
+                        <p className="font-black text-sm text-emerald-700">{t('bookings.payment_method_local')}</p>
                       </div>
                     </div>
 
@@ -160,7 +163,7 @@ const MyBookings = () => {
                     {b.scheduled_date && (
                       <div className="flex items-center gap-2 text-[11px] font-bold text-muted-foreground bg-muted/20 p-2 rounded-lg">
                         <Clock className="w-4 h-4 text-primary" />
-                        <span>الموعد: {b.scheduled_date} | {b.scheduled_time}</span>
+                        <span>{t('bookings.appointment')}: {b.scheduled_date} | {b.scheduled_time}</span>
                       </div>
                     )}
 
@@ -168,23 +171,23 @@ const MyBookings = () => {
                     <div className="flex gap-2 flex-wrap pt-2">
                       {canRate && (
                         <Button className="rounded-2xl gap-2 flex-1 h-12 text-md font-black shadow-xl shadow-primary/20 bg-primary hover:bg-primary/90" onClick={() => setRatingBooking(b)}>
-                          <Star className="w-5 h-5 fill-white" /> قيّم الخدمة الآن
+                          <Star className="w-5 h-5 fill-white" /> {t('bookings.rate_now')}
                         </Button>
                       )}
                       
                       {canChat && (
                         <Button variant="outline" className="rounded-2xl gap-2 flex-1 h-12 border-2 border-primary text-primary font-bold" onClick={() => setChatBooking(b)}>
-                          <MessageCircle className="w-5 h-5" /> محادثة
+                          <MessageCircle className="w-5 h-5" /> {t('bookings.chat')}
                         </Button>
                       )}
                       
-                      <Button variant="secondary" className="rounded-2xl gap-2 flex-1 h-12 font-bold" onClick={() => setSupportBooking(b)}>
-                        <LifeBuoy className="w-5 h-5" /> دعم فني
+                        <Button variant="secondary" className="rounded-2xl gap-2 flex-1 h-12 font-bold" onClick={() => setSupportBooking(b)}>
+                        <LifeBuoy className="w-5 h-5" /> {t('bookings.support')}
                       </Button>
 
                       {canCancel && (
                         <Button variant="ghost" className="rounded-2xl gap-2 flex-1 h-12 text-destructive font-bold hover:bg-destructive/5" onClick={() => handleCancel(b)}>
-                          <Ban className="w-5 h-5" /> إلغاء
+                          <Ban className="w-5 h-5" /> {t('bookings.cancel')}
                         </Button>
                       )}
                     </div>
@@ -212,7 +215,7 @@ const MyBookings = () => {
       )}
 
       {chatBooking && (
-        <ChatDialog open={!!chatBooking} onOpenChange={(open) => !open && setChatBooking(null)} bookingId={chatBooking.id} otherName={chatBooking.provider?.full_name || "مقدم الخدمة"} />
+        <ChatDialog open={!!chatBooking} onOpenChange={(open) => !open && setChatBooking(null)} bookingId={chatBooking.id} otherName={chatBooking.provider?.full_name || t('roles.provider')} />
       )}
 
       <SupportTicketDialog

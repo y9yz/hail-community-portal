@@ -1,4 +1,4 @@
-import { Search, User, LogOut, ClipboardList, Moon, Sun, Edit, MessageCircle } from "lucide-react";
+import { Search, User, LogOut, ClipboardList, Moon, Sun, Edit, MessageCircle, Globe } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -9,10 +9,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Label } from "@/components/ui/label";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
+import useDebounce from "@/hooks/useDebounce";
 import NotificationsBell from "@/components/NotificationsBell";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next"; // 🌍 استدعاء مكتبة الترجمة
 
 interface NavbarProps {
   searchQuery?: string;
@@ -22,7 +24,11 @@ interface NavbarProps {
 const Navbar = ({ searchQuery = "", onSearchChange }: NavbarProps) => {
   const navigate = useNavigate();
   const { user, role, profile, signOut } = useAuth();
-  
+  const { t, i18n } = useTranslation(); // 🌍 استخدام الترجمة واللغة الحالية
+
+  const [localSearch, setLocalSearch] = useState(searchQuery);
+  const debouncedSearch = useDebounce(localSearch, 500);
+
   /* شيك على الثيم.. ليل ولا نهار */
   const [dark, setDark] = useState(() => document.documentElement.classList.contains("dark"));
   const [editOpen, setEditOpen] = useState(false);
@@ -36,10 +42,26 @@ const Navbar = ({ searchQuery = "", onSearchChange }: NavbarProps) => {
     setReqPhone(profile?.phone || "");
   }, [profile]);
 
+  useEffect(() => {
+    setLocalSearch(searchQuery);
+  }, [searchQuery]);
+
+  useEffect(() => {
+    if (onSearchChange && debouncedSearch !== searchQuery) {
+      onSearchChange(debouncedSearch);
+    }
+  }, [debouncedSearch, onSearchChange, searchQuery]);
+
   /* اقلب اللمبة.. فاتح ولا داكن */
   const toggleDark = () => {
     document.documentElement.classList.toggle("dark");
     setDark(!dark);
+  };
+
+  /* 🌍 تبديل اللغة بين عربي وإنجليزي */
+  const toggleLanguage = () => {
+    const nextLang = i18n.language === 'ar' ? 'en' : 'ar';
+    i18n.changeLanguage(nextLang);
   };
 
   /* تسجيل الخروج.. ودعناهم */
@@ -66,10 +88,10 @@ const Navbar = ({ searchQuery = "", onSearchChange }: NavbarProps) => {
         requested_phone: reqPhone.trim() || null,
       } as any);
       if (error) throw error;
-      toast.success("تم إرسال طلب تعديل البيانات للمراجعة");
+      toast.success(t('edit_success')); // 🌍 رسالة مترجمة
       setEditOpen(false);
     } catch (err: any) {
-      toast.error(err.message || "حدث خطأ");
+      toast.error(err.message || t('error_occurred')); // 🌍 رسالة مترجمة
     } finally {
       setSubmitting(false);
     }
@@ -87,7 +109,7 @@ const Navbar = ({ searchQuery = "", onSearchChange }: NavbarProps) => {
             className="text-xl font-extrabold text-primary cursor-pointer shrink-0"
             onClick={handleLogoClick}
           >
-            بوابة مجتمع حائل
+            {t("portal.name")}
           </h1>
 
           {/* خانة البحث.. دور لك على خدمة */}
@@ -95,9 +117,9 @@ const Navbar = ({ searchQuery = "", onSearchChange }: NavbarProps) => {
             <div className="relative flex-1 max-w-md">
               <Search className="absolute start-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input
-                placeholder="ابحث عن خدمة..."
-                value={searchQuery}
-                onChange={(e) => onSearchChange?.(e.target.value)}
+                placeholder={t('search_placeholder')} // 🌍
+                value={localSearch}
+                onChange={(e) => setLocalSearch(e.target.value)}
                 className="ps-10 rounded-xl bg-secondary border-0"
               />
             </div>
@@ -105,7 +127,13 @@ const Navbar = ({ searchQuery = "", onSearchChange }: NavbarProps) => {
 
           {/* أزرار التحكم والبروفايل */}
           <div className="flex items-center gap-1">
-            <Button variant="ghost" size="icon" onClick={toggleDark} title={dark ? "الوضع الفاتح" : "الوضع الداكن"}>
+            
+            {/* 🌍 زر تبديل اللغة */}
+            <Button variant="ghost" size="icon" onClick={toggleLanguage} title={i18n.language === 'ar' ? "English" : "العربية"}>
+              <Globe className="w-5 h-5" />
+            </Button>
+
+            <Button variant="ghost" size="icon" onClick={toggleDark} title={dark ? t('light_mode') : t('dark_mode')}>
               {dark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
             </Button>
 
@@ -113,13 +141,13 @@ const Navbar = ({ searchQuery = "", onSearchChange }: NavbarProps) => {
 
             {/* الدعم الفني.. تواصل معهم بأي وقت */}
             {user && (
-              <Button variant="ghost" size="icon" onClick={() => navigate("/support")} title="الدعم الفني">
+              <Button variant="ghost" size="icon" onClick={() => navigate("/support")} title={t('support')}>
                 <MessageCircle className="w-5 h-5" /> 
               </Button>
             )}
 
             {user && profile?.is_verified && role === "client" && (
-              <Button variant="ghost" size="icon" onClick={() => navigate("/my-bookings")} title="طلباتي">
+              <Button variant="ghost" size="icon" onClick={() => navigate("/my-bookings")} title={t('my_bookings')}>
                 <ClipboardList className="w-5 h-5" />
               </Button>
             )}
@@ -128,32 +156,32 @@ const Navbar = ({ searchQuery = "", onSearchChange }: NavbarProps) => {
               /* قائمة المستخدم.. إعدادات وخروج */
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" title="الاعدادات">
+                  <Button variant="ghost" size="icon" title={t('settings')}>
                     <User className="w-5 h-5" />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-52">
                   <div className="px-3 py-2">
-                    <p className="font-bold text-sm">{profile?.full_name || "مستخدم"}</p>
+                    <p className="font-bold text-sm">{profile?.full_name || t('user')}</p>
                     <p className="text-xs text-muted-foreground">
-                      {role === "provider" ? "مقدم خدمة موثق" : role === "admin" ? "مسؤول النظام" : "عميل"}
+                      {role === "provider" ? t('verified_provider') : role === "admin" ? t('admin_role') : t('client_role')}
                     </p>
                   </div>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={() => setEditOpen(true)} className="gap-2 cursor-pointer">
                     <Edit className="w-4 h-4" />
-                    تعديل البيانات
+                    {t('edit_profile')}
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={handleSignOut} className="gap-2 cursor-pointer text-destructive">
                     <LogOut className="w-4 h-4" />
-                    تسجيل الخروج
+                    {t('logout')}
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
             ) : (
               <Button variant="outline" className="rounded-xl px-5" onClick={() => navigate("/auth")}>
-                تسجيل الدخول
+                {t('login')}
               </Button>
             )}
           </div>
@@ -164,20 +192,20 @@ const Navbar = ({ searchQuery = "", onSearchChange }: NavbarProps) => {
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>تعديل البيانات</DialogTitle>
+            <DialogTitle>{t('edit_dialog_title')}</DialogTitle>
           </DialogHeader>
-          <p className="text-sm text-muted-foreground">سيتم إرسال طلب تعديل بياناتك للإدارة للمراجعة</p>
+          <p className="text-sm text-muted-foreground">{t('edit_dialog_desc')}</p>
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label>الاسم الكامل</Label>
-              <Input value={reqName} onChange={(e) => setReqName(e.target.value)} dir="rtl" className="rounded-xl" />
+              <Label>{t('full_name')}</Label>
+              <Input value={reqName} onChange={(e) => setReqName(e.target.value)} dir={i18n.language === 'ar' ? "rtl" : "ltr"} className="rounded-xl" />
             </div>
             <div className="space-y-2">
-              <Label>رقم الجوال</Label>
+              <Label>{t('phone_number')}</Label>
               <Input value={reqPhone} onChange={(e) => setReqPhone(e.target.value)} dir="ltr" className="rounded-xl" />
             </div>
             <Button onClick={handleProfileEditRequest} disabled={submitting} className="w-full rounded-xl">
-              {submitting ? "جاري الإرسال..." : "تأكيد التعديل"}
+              {submitting ? t('sending') : t('confirm_edit')}
             </Button>
           </div>
         </DialogContent>

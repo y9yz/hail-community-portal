@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -36,6 +37,7 @@ const SubscriptionPage = () => {
   }, [user]);
 
   /* معالجة عملية الاشتراك وتحديث التاريخ لعام كامل */
+  const { t } = useTranslation();
   const handleSubscribe = async () => {
     if (!user) return;
     try {
@@ -50,46 +52,46 @@ const SubscriptionPage = () => {
         });
 
       if (error) throw error;
-      toast.success("تم تفعيل الاشتراك السنوي بنجاح!");
+      toast.success(t('subscription.activated'));
       fetchSubscription();
     } catch (err: any) {
-      toast.error("فشل تفعيل الاشتراك");
+      toast.error(t('subscription.failed'));
     }
   };
 
-  if (loading) return <div className="p-10 text-center">جاري التحميل...</div>;
+  if (loading) return <div className="p-10 text-center">{t('subscription.loading')}</div>;
 
   return (
     <div className="container py-10 max-w-2xl">
-      <h1 className="text-3xl font-bold mb-8 text-center">الاشتراك السنوي للمزودين</h1>
+      <h1 className="text-3xl font-bold mb-8 text-center">{t('subscription.title')}</h1>
       
       <Card className="border-primary/50 shadow-xl overflow-hidden">
         <div className="bg-primary p-4 text-white text-center">
-          <p className="text-sm font-medium uppercase tracking-wider">الخطة الاحترافية</p>
+          <p className="text-sm font-medium uppercase tracking-wider">{t('subscription.professional_plan')}</p>
         </div>
         <CardHeader className="text-center pb-2">
           <CardTitle className="text-4xl font-extrabold text-primary">
             100 ريال <span className="text-lg text-muted-foreground font-normal">/ سنة</span>
           </CardTitle>
-          <p className="text-muted-foreground">أول شهر مجاناً كفترة تجريبية</p>
+          <p className="text-muted-foreground">{t('subscription.trial_offer')}</p>
         </CardHeader>
         
         <CardContent className="space-y-4 py-6">
           <div className="flex items-center gap-3">
             <Check className="text-primary w-5 h-5" />
-            <span>نشر عدد غير محدود من الخدمات</span>
+            <span>{t('subscription.benefits.unlimited_services')}</span>
           </div>
           <div className="flex items-center gap-3">
             <Check className="text-primary w-5 h-5" />
-            <span>الحصول على علامة "موثق" في الموقع</span>
+            <span>{t('subscription.benefits.verified_badge')}</span>
           </div>
           <div className="flex items-center gap-3">
             <Check className="text-primary w-5 h-5" />
-            <span>تواصل مباشر مع العملاء عبر الشات</span>
+            <span>{t('subscription.benefits.direct_chat')}</span>
           </div>
           <div className="flex items-center gap-3">
             <Gift className="text-primary w-5 h-5" />
-            <span>فترة تجربة مجانية لمدة 30 يوم</span>
+            <span>{t('subscription.benefits.free_trial')}</span>
           </div>
         </CardContent>
 
@@ -101,7 +103,7 @@ const SubscriptionPage = () => {
             disabled={subscription?.status === 'active'}
           >
             <CreditCard className="ml-2 w-5 h-5" />
-            {subscription?.status === 'active' ? "اشتراكك مفعل حالياً" : "اشترك الآن"}
+            {subscription?.status === 'active' ? t('subscription.active_subscription') : t('subscription.subscribe_now')}
           </Button>
         </CardFooter>
       </Card>
@@ -109,8 +111,8 @@ const SubscriptionPage = () => {
       {/* عرض تفاصيل تاريخ الانتهاء إذا وجد اشتراك */}
       {subscription && (
         <p className="mt-6 text-center text-sm text-muted-foreground">
-          حالة الاشتراك: {subscription.status === 'trial' ? "فترة تجريبية" : "نشط"} | 
-          ينتهي في: {new Date(subscription.expires_at || subscription.trial_ends_at).toLocaleDateString('ar-SA')}
+          {t('subscription.status_label')} {subscription.status === 'trial' ? t('subscription.status_trial') : t('subscription.status_active')} | 
+          {t('subscription.expires_at', { date: new Date(subscription.expires_at || subscription.trial_ends_at).toLocaleDateString('ar-SA') })}
         </p>
       )}
     </div>

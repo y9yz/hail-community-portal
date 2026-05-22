@@ -10,6 +10,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
 import { categories, timeSlots } from "@/data/categories";
 import { useAuth } from "@/hooks/useAuth";
@@ -21,6 +22,7 @@ import ReviewSection from "@/components/ReviewSection";
 const ServiceDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const { user, role, loading: authLoading } = useAuth();
   const [service, setService] = useState<Service | null>(null);
   const [loading, setLoading] = useState(true);
@@ -89,8 +91,8 @@ const ServiceDetail = () => {
     }
   }, [selectedDate, service?.provider_id]);
 
-  if (loading) return <div className="min-h-screen flex items-center justify-center text-muted-foreground font-black">جاري التحميل...</div>;
-  if (!service) return <div className="min-h-screen flex items-center justify-center text-muted-foreground font-black">الخدمة غير موجودة</div>;
+  if (loading) return <div className="min-h-screen flex items-center justify-center text-muted-foreground font-black">{t('serviceDetail.loading')}</div>;
+  if (!service) return <div className="min-h-screen flex items-center justify-center text-muted-foreground font-black">{t('serviceDetail.not_found')}</div>;
 
   const categoryLabel = categories.find((c) => c.id === service.category)?.label ?? "";
   const canProceed = selectedDate && selectedTime && problemDescription.trim().length > 0;
@@ -113,8 +115,8 @@ const ServiceDetail = () => {
 
   /* معالجة إنشاء طلب حجز جديد وإرسال إشعار فوري للمزود المعني */
   const handleSubmitRequest = async () => {
-    if (!user) { toast.error("يجب تسجيل الدخول أولاً"); navigate("/auth"); return; }
-    if (role !== "client") { toast.error("فقط العملاء يمكنهم إنشاء طلبات"); return; }
+    if (!user) { toast.error(t('serviceDetail.login_required')); navigate("/auth"); return; }
+    if (role !== "client") { toast.error(t('serviceDetail.clients_only')); return; }
 
     setSubmitting(true);
     try {
@@ -138,13 +140,13 @@ const ServiceDetail = () => {
         recipient_id: service.provider_id,
         sender_id: user.id,
         booking_id: booking.id,
-        content: `طلب خدمة جديد: ${service.title}`,
+        content: t('serviceDetail.notification_new_request', { title: service.title }),
       });
 
-      toast.success("تم إرسال طلبك بنجاح! الدفع كاش/شبكة عند المزود");
+      toast.success(t('serviceDetail.request_success'));
       navigate("/my-bookings");
     } catch (err: any) {
-      toast.error(err.message || "حدث خطأ أثناء إرسال الطلب");
+      toast.error(err.message || t('serviceDetail.request_failed'));
     } finally {
       setSubmitting(false);
     }
@@ -157,7 +159,7 @@ const ServiceDetail = () => {
           <Button variant="ghost" size="icon" onClick={() => navigate(-1)} className="rounded-full hover:bg-muted">
             <ArrowRight className="w-6 h-6 text-primary" />
           </Button>
-          <h1 className="font-black text-xl text-primary tracking-tighter">تفاصيل الخدمة</h1>
+          <h1 className="font-black text-xl text-primary tracking-tighter">{t('serviceDetail.title')}</h1>
         </div>
       </header>
 
@@ -172,7 +174,7 @@ const ServiceDetail = () => {
           <p className="text-muted-foreground leading-relaxed text-sm md:text-base font-medium">{service.description}</p>
           
           <div className="flex flex-wrap gap-4 text-sm bg-muted/30 p-4 rounded-2xl border">
-            <span className="font-bold">المزود: <span className="text-primary">{service.provider?.full_name || "—"}</span></span>
+            <span className="font-bold">{t('serviceDetail.provider_label')}: <span className="text-primary">{service.provider?.full_name || "—"}</span></span>
             {service.address_name && (
               <div className="flex items-center gap-1.5 font-bold text-muted-foreground">
                 <MapPin className="w-4 h-4 text-emerald-600" />
@@ -183,39 +185,39 @@ const ServiceDetail = () => {
 
           {service.maps_link && (
             <a href={service.maps_link} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 text-primary underline text-sm font-bold bg-primary/5 px-4 py-2 rounded-xl hover:bg-primary/10 transition-colors">
-              <ExternalLink className="w-4 h-4" /> عرض الموقع بدقة على الخريطة
+              <ExternalLink className="w-4 h-4" /> {t('serviceDetail.view_location')}
             </a>
           )}
           <div className="pt-2">
-            <Badge variant="outline" className="text-xs px-3 py-1.5 rounded-lg border-amber-200 bg-amber-50 text-amber-700 font-bold">💵 الدفع كاش أو شبكة في الموقع</Badge>
+            <Badge variant="outline" className="text-xs px-3 py-1.5 rounded-lg border-amber-200 bg-amber-50 text-amber-700 font-bold">{t('serviceDetail.payment_badge')}</Badge>
           </div>
         </div>
 
         <Card className="rounded-[2rem] border-2 shadow-sm">
           <CardContent className="p-6 space-y-4">
-            <Label htmlFor="problem" className="font-black text-lg">اشرح المشكلة أو طلبك بالتفصيل</Label>
+            <Label htmlFor="problem" className="font-black text-lg">{t('serviceDetail.request_details')}</Label>
             <Textarea
               id="problem"
-              placeholder="اكتب هنا ليفهم المزود ما تحتاجه بالضبط..."
+              placeholder={t('serviceDetail.request_placeholder')}
               className="min-h-[140px] rounded-2xl bg-muted/20 border-2 focus-visible:ring-primary resize-none p-4"
               value={problemDescription}
               onChange={(e) => setProblemDescription(e.target.value)}
               dir="rtl"
               maxLength={1000}
             />
-            <p className="text-xs text-muted-foreground font-bold">{problemDescription.length} / 1000 حرف</p>
+            <p className="text-xs text-muted-foreground font-bold">{t('serviceDetail.char_count', { count: problemDescription.length })}</p>
           </CardContent>
         </Card>
 
         <Card className="rounded-[2rem] border-2 shadow-sm">
           <CardContent className="p-6 space-y-6">
             <div className="space-y-2">
-              <h3 className="font-black text-lg">حدد اليوم المناسب لك</h3>
+              <h3 className="font-black text-lg">{t('serviceDetail.choose_date')}</h3>
               <Popover>
                 <PopoverTrigger asChild>
                   <Button variant="outline" className={cn("w-full justify-start text-start rounded-2xl h-14 border-2 font-bold", !selectedDate && "text-muted-foreground")}>
                     <CalendarIcon className="ms-0 me-3 h-5 w-5 text-primary" />
-                    {selectedDate ? format(selectedDate, "PPP", { locale: ar }) : "انقر لاختيار التاريخ من التقويم"}
+                    {selectedDate ? format(selectedDate, "PPP", { locale: ar }) : t('serviceDetail.select_date_prompt')}
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0 rounded-2xl border-2" align="start">
@@ -227,8 +229,8 @@ const ServiceDetail = () => {
             {selectedDate && (
               <div className="space-y-3 animate-in fade-in slide-in-from-bottom-2 duration-300">
                 <h4 className="font-black text-sm text-foreground flex items-center gap-2">
-                  الأوقات المتاحة للمزود
-                  {isCheckingTimes && <span className="text-[10px] text-muted-foreground font-normal animate-pulse">(جاري فحص المواعيد...)</span>}
+                  {t('serviceDetail.available_times')}
+                  {isCheckingTimes && <span className="text-[10px] text-muted-foreground font-normal animate-pulse">({t('serviceDetail.checking_times')})</span>}
                 </h4>
                 
                 <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
@@ -268,7 +270,7 @@ const ServiceDetail = () => {
 
         <Button className="w-full h-16 text-xl font-black rounded-[1.5rem] gap-2 shadow-xl shadow-primary/20 hover:scale-[1.01] transition-transform" disabled={!canProceed || submitting || isCheckingTimes} onClick={handleSubmitRequest}>
           <Send className="w-6 h-6 rtl:-scale-x-100" />
-          {submitting ? "جاري تثبيت حجزك..." : "تأكيد وإرسال الطلب"}
+          {submitting ? t('serviceDetail.submitting') : t('serviceDetail.submit_button')}
         </Button>
 
         <div className="pt-8 border-t-2 border-dashed">

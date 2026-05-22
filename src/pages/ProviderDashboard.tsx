@@ -12,6 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useTranslation } from "react-i18next";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import Navbar from "@/components/Navbar";
@@ -26,6 +27,7 @@ const COLORS = ["#10b981", "#f59e0b", "#3b82f6", "#ef4444"];
 
 const ProviderDashboard = () => {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const { user, role, loading: authLoading } = useAuth();
   const [services, setServices] = useState<Service[]>([]);
   const [bookings, setBookings] = useState<any[]>([]);
@@ -96,7 +98,7 @@ const ProviderDashboard = () => {
         .map((r: any) => ({
           rating: r.rating,
           comment: r.comment,
-          serviceTitle: (svc as any)?.find((s: any) => s.id === r.service_id)?.title || "خدمة"
+          serviceTitle: (svc as any)?.find((s: any) => s.id === r.service_id)?.title || t('service.default_title')
         }));
       setRecentReviews(commentsWithTitles);
 
@@ -109,7 +111,7 @@ const ProviderDashboard = () => {
         avgRating: Math.round(avg * 10) / 10
       });
     } catch (err: any) {
-      toast.error("حدث خطأ أثناء جلب البيانات");
+      toast.error(t('provider.fetch_error'));
     } finally {
       setLoading(false);
     }
@@ -142,7 +144,7 @@ const ProviderDashboard = () => {
       } as any);
 
       if (error) throw error;
-      toast.success("تم نشر الخدمة بنجاح وهي تحت المراجعة");
+      toast.success(t('provider.service_published'));
       handleManualRefresh();
       setTitle(""); setCategory(""); setDescription(""); setNeighborhood(""); setMapsLink(""); setServiceImage(null); setLicenseFile(null);
     } catch (err: any) { toast.error(err.message); }
@@ -162,12 +164,12 @@ const ProviderDashboard = () => {
 
   const trialDaysLeft = calculateTrialDays();
   const chartData = [
-    { name: 'مكتملة', value: providerStats.completed },
-    { name: 'معلقة', value: providerStats.pending },
-    { name: 'مرفوضة', value: providerStats.declined },
+    { name: t('provider.status.completed'), value: providerStats.completed },
+    { name: t('provider.status.pending'), value: providerStats.pending },
+    { name: t('provider.status.declined'), value: providerStats.declined },
   ];
 
-  if (loading) return <div className="p-20 text-center font-bold">جاري تحميل لوحة التحكم...</div>;
+  if (loading) return <div className="p-20 text-center font-bold">{t('provider.loading_dashboard')}</div>;
 
   return (
     <div className="min-h-screen bg-background pb-10 text-right" dir="rtl">
@@ -179,28 +181,28 @@ const ProviderDashboard = () => {
              <div className="space-y-2 text-center md:text-right">
                 <h3 className={`text-xl font-black flex items-center gap-2 justify-center md:justify-start ${trialDaysLeft > 0 ? 'text-primary' : 'text-destructive'}`}>
                   {trialDaysLeft > 0 ? (
-                    <><Clock className="w-6 h-6" /> الفترة التجريبية (متبقي {trialDaysLeft} يوماً)</>
+                    <><Clock className="w-6 h-6" /> {t('provider.trial_active', { days: trialDaysLeft })}</>
                   ) : (
-                    <><AlertTriangle className="w-6 h-6" /> انتهت الفترة التجريبية !</>
+                    <><AlertTriangle className="w-6 h-6" /> {t('provider.trial_ended')}</>
                   )}
                 </h3>
                 <p className="text-sm font-bold text-muted-foreground">
                   {trialDaysLeft > 0 
-                    ? "استمتع بتجربة المنصة بكل مميزاتها. يمكنك تفعيل اشتراكك السنوي في أي وقت لضمان استمرار خدماتك."
-                    : "لقد انتهت فترة الـ 30 يوم المجانية. يرجى تفعيل اشتراكك لتتمكن من الاستمرار في استقبال الطلبات وإدارتها."}
+                    ? t('provider.trial_active_desc')
+                    : t('provider.trial_ended_desc')}
                 </p>
              </div>
              <Button onClick={() => navigate("/payment")} className={`rounded-2xl h-14 px-8 font-black shadow-lg hover:scale-105 transition-transform text-lg w-full md:w-auto ${trialDaysLeft === 0 ? 'bg-destructive hover:bg-destructive/90 text-white' : ''}`}>
-                تفعيل الاشتراك (100 ⃁)
+                {t('provider.activate_subscription')}
              </Button>
           </Card>
         )}
 
         <div className="flex flex-col md:flex-row justify-between items-center gap-4 pt-2">
-          <h1 className="text-4xl font-black text-primary tracking-tighter">لوحة الأعمال</h1>
+          <h1 className="text-4xl font-black text-primary tracking-tighter">{t('provider.title')}</h1>
           <div className="flex gap-2">
             <Button onClick={() => setSupportOpen(true)} variant="secondary" className="rounded-2xl gap-2 font-bold h-12">
-              <LifeBuoy className="w-5 h-5" /> الدعم الفني
+              <LifeBuoy className="w-5 h-5" /> {t('provider.support')}
             </Button>
           </div>
         </div>
@@ -208,26 +210,26 @@ const ProviderDashboard = () => {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="grid grid-cols-2 gap-4 lg:col-span-2">
             <Card className="rounded-3xl border-2"><CardContent className="p-6 text-center h-full flex flex-col justify-center">
-              <p className="text-[10px] text-muted-foreground uppercase font-black mb-1">إجمالي الطلبات</p>
+              <p className="text-[10px] text-muted-foreground uppercase font-black mb-1">{t('provider.total_orders')}</p>
               <h3 className="text-3xl font-black">{providerStats.total}</h3>
             </CardContent></Card>
             <Card className="rounded-3xl border-2 border-amber-100 bg-amber-50/20"><CardContent className="p-6 text-center h-full flex flex-col justify-center">
-              <p className="text-[10px] text-amber-600 uppercase font-black mb-1">قيد الانتظار</p>
+              <p className="text-[10px] text-amber-600 uppercase font-black mb-1">{t('provider.pending')}</p>
               <h3 className="text-3xl font-black text-amber-600">{providerStats.pending}</h3>
             </CardContent></Card>
             <Card className="rounded-3xl border-2 border-emerald-100 bg-emerald-50/20"><CardContent className="p-6 text-center h-full flex flex-col justify-center">
-              <p className="text-[10px] text-emerald-600 uppercase font-black mb-1">مكتملة</p>
+              <p className="text-[10px] text-emerald-600 uppercase font-black mb-1">{t('provider.completed')}</p>
               <h3 className="text-3xl font-black text-emerald-600">{providerStats.completed}</h3>
             </CardContent></Card>
             <Card className="rounded-3xl border-2"><CardContent className="p-6 text-center h-full flex flex-col justify-center">
-              <p className="text-[10px] text-muted-foreground uppercase font-black mb-1">التقييم العام</p>
+              <p className="text-[10px] text-muted-foreground uppercase font-black mb-1">{t('provider.avg_rating')}</p>
               <h3 className="text-3xl font-black text-primary">{providerStats.avgRating} <Star className="inline w-5 h-5 mb-1 fill-primary" /></h3>
             </CardContent></Card>
           </div>
 
           <Card className="rounded-3xl border-2 bg-primary/5 border-primary/10 flex flex-col overflow-hidden max-h-[260px] lg:max-h-full">
             <div className="bg-primary text-primary-foreground px-4 py-3 font-black flex items-center gap-2 shadow-sm z-10 shrink-0">
-              <Star className="w-5 h-5 fill-current" /> أبرز التعليقات
+              <Star className="w-5 h-5 fill-current" /> {t('provider.top_reviews')}
             </div>
             <div className="p-4 flex-1 overflow-y-auto flex flex-col gap-3">
               {recentReviews.length > 0 ? (
@@ -245,7 +247,7 @@ const ProviderDashboard = () => {
               ) : (
                 <div className="flex flex-col items-center justify-center h-full opacity-50 space-y-2 py-8">
                   <MessageSquare className="w-8 h-8 text-muted-foreground" />
-                  <p className="text-xs font-black">لا توجد تعليقات حالياً</p>
+                  <p className="text-xs font-black">{t('provider.no_reviews')}</p>
                 </div>
               )}
             </div>
@@ -254,10 +256,10 @@ const ProviderDashboard = () => {
 
         <Tabs defaultValue="requests" className="w-full">
           <TabsList className="grid w-full grid-cols-4 h-16 rounded-[1.5rem] bg-muted/50 p-1.5 mb-8 shadow-inner">
-            <TabsTrigger value="requests" className="rounded-xl font-black">الطلبات</TabsTrigger>
-            <TabsTrigger value="services" className="rounded-xl font-black">الخدمات</TabsTrigger>
-            <TabsTrigger value="add" className="rounded-xl font-black">إضافة خدمة</TabsTrigger>
-            <TabsTrigger value="reports" className="rounded-xl font-black text-primary"><BarChart3 className="w-4 h-4 me-1" /> التقارير</TabsTrigger>
+            <TabsTrigger value="requests" className="rounded-xl font-black">{t('provider.tabs.requests')}</TabsTrigger>
+            <TabsTrigger value="services" className="rounded-xl font-black">{t('provider.tabs.services')}</TabsTrigger>
+            <TabsTrigger value="add" className="rounded-xl font-black">{t('provider.tabs.add')}</TabsTrigger>
+            <TabsTrigger value="reports" className="rounded-xl font-black text-primary"><BarChart3 className="w-4 h-4 me-1" /> {t('provider.tabs.reports')}</TabsTrigger>
           </TabsList>
 
           <TabsContent value="requests" className="space-y-4">
@@ -270,7 +272,7 @@ const ProviderDashboard = () => {
                         {b.service_title} <Badge variant="outline" className="text-xs font-mono">#{b.order_number}</Badge>
                       </h3>
                       <div className="flex flex-col items-end gap-1 text-[11px] font-bold text-muted-foreground">
-                        <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> وقت الطلب:</span>
+                        <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> {t('provider.order_time')}:</span>
                         <span dir="ltr">{new Date(b.created_at).toLocaleString('ar-SA', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' })}</span>
                       </div>
                     </div>
@@ -278,11 +280,11 @@ const ProviderDashboard = () => {
                     <p className="text-sm bg-muted/30 p-4 rounded-2xl italic leading-relaxed">"{b.problem_description}"</p>
                     
                     <div className="flex flex-wrap items-center gap-3">
-                      <Badge variant="secondary" className="px-3 py-1 font-bold">العميل: {b.client?.full_name}</Badge>
+                      <Badge variant="secondary" className="px-3 py-1 font-bold">{t('provider.customer')}: {b.client?.full_name}</Badge>
                       <Badge variant="outline" className="px-3 py-1 font-bold font-mono">{b.client?.phone}</Badge>
                       <div className="flex items-center gap-2 bg-primary/10 text-primary px-3 py-1.5 rounded-xl border border-primary/20 shadow-sm">
                         <Calendar className="w-4 h-4" />
-                        <span className="text-xs font-black">الموعد المطلوب: {b.scheduled_date || "قريباً"} | {b.scheduled_time || "--:--"}</span>
+                        <span className="text-xs font-black">{t('provider.appointment')}: {b.scheduled_date || t('provider.appointment_pending')} | {b.scheduled_time || "--:--"}</span>
                       </div>
                     </div>
                   </div>
@@ -298,11 +300,11 @@ const ProviderDashboard = () => {
                               recipient_id: b.client_id,
                               sender_id: user?.id,
                               booking_id: b.id,
-                              content: `تم قبول طلبك لخدمة: ${b.service_title}`,
+                              content: t('provider.notification_order_accepted', { title: b.service_title }),
                             });
                             handleManualRefresh();
                           }
-                        }} className="rounded-2xl h-12 font-black bg-blue-500 hover:bg-blue-600">قبول الطلب</Button>
+                        }} className="rounded-2xl h-12 font-black bg-blue-500 hover:bg-blue-600">{t('provider.accept_order')}</Button>
                         <Button onClick={async () => {
                           const { error } = await supabase.from('bookings').update({provider_status:'declined'}).eq('id', b.id);
                           if (!error) {
@@ -311,14 +313,14 @@ const ProviderDashboard = () => {
                               recipient_id: b.client_id,
                               sender_id: user?.id,
                               booking_id: b.id,
-                              content: `تم رفض طلبك لخدمة: ${b.service_title}`,
+                              content: t('provider.notification_order_declined', { title: b.service_title }),
                             });
                             handleManualRefresh();
                           }
-                        }} variant="outline" className="rounded-2xl h-12 font-black text-destructive border-destructive hover:bg-destructive/10">رفض الطلب</Button>
+                        }} variant="outline" className="rounded-2xl h-12 font-black text-destructive border-destructive hover:bg-destructive/10">{t('provider.decline_order')}</Button>
                       </>
                     ) : b.provider_status === 'declined' ? (
-                       <Badge className="bg-destructive/10 text-destructive py-3 justify-center border-none font-black rounded-2xl text-sm">تم الرفض</Badge>
+                       <Badge className="bg-destructive/10 text-destructive py-3 justify-center border-none font-black rounded-2xl text-sm">{t('provider.declined_badge')}</Badge>
                     ) : b.status !== 'completed' ? (
                       <Button onClick={async () => {
                         const { error } = await supabase.from('bookings').update({status:'completed'}).eq('id', b.id);
@@ -328,31 +330,31 @@ const ProviderDashboard = () => {
                             recipient_id: b.client_id,
                             sender_id: user?.id,
                             booking_id: b.id,
-                            content: `تم إكمال خدمة: ${b.service_title} بنجاح`,
+                            content: t('provider.notification_service_completed', { title: b.service_title }),
                           });
                           handleManualRefresh();
                         }
-                      }} className="rounded-2xl h-12 bg-emerald-500 hover:bg-emerald-600 font-black shadow-lg shadow-emerald-500/20">إكمال الخدمة</Button>
+                      }} className="rounded-2xl h-12 bg-emerald-500 hover:bg-emerald-600 font-black shadow-lg shadow-emerald-500/20">{t('provider.complete_service')}</Button>
                     ) : (
-                      <Badge className="bg-emerald-100 text-emerald-700 py-3 justify-center border-none font-black rounded-2xl text-sm">مكتمل بنجاح</Badge>
+                      <Badge className="bg-emerald-100 text-emerald-700 py-3 justify-center border-none font-black rounded-2xl text-sm">{t('provider.completed_badge')}</Badge>
                     )}
                     
                     {b.status !== 'completed' && b.provider_status !== 'declined' && (
                       <Button variant="ghost" onClick={() => setChatBooking(b)} className="rounded-2xl h-12 font-bold mt-2 bg-muted/50 hover:bg-primary/10 hover:text-primary">
-                        <MessageCircle className="w-5 h-5 me-2" /> تواصل مع العميل
+                        <MessageCircle className="w-5 h-5 me-2" /> {t('provider.contact_client')}
                       </Button>
                     )}
                   </div>
                 </div>
               </Card>
             ))}
-            {bookings.length === 0 && <div className="text-center py-20 opacity-30 font-black text-xl">لا توجد طلبات حالياً</div>}
+            {bookings.length === 0 && <div className="text-center py-20 opacity-30 font-black text-xl">{t('provider.no_requests')}</div>}
           </TabsContent>
 
           <TabsContent value="reports" className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                  <Card className="rounded-[2rem] border-2 p-6">
-                    <h3 className="font-black text-lg mb-6 text-center">توزيع حالات الطلبات</h3>
+                    <h3 className="font-black text-lg mb-6 text-center">{t('provider.reports.order_distribution')}</h3>
                     <div className="h-[300px]">
                        <ResponsiveContainer width="100%" height="100%">
                           <PieChart>
@@ -366,7 +368,7 @@ const ProviderDashboard = () => {
                     </div>
                  </Card>
                  <Card className="rounded-[2rem] border-2 p-6">
-                    <h3 className="font-black text-lg mb-6 text-center">إحصائيات الأداء</h3>
+                    <h3 className="font-black text-lg mb-6 text-center">{t('provider.reports.performance_stats')}</h3>
                     <div className="h-[300px]">
                        <ResponsiveContainer width="100%" height="100%">
                           <BarChart data={chartData}>
@@ -392,12 +394,12 @@ const ProviderDashboard = () => {
                   <div className="flex justify-between items-start mb-4">
                     <h3 className="font-black text-xl line-clamp-1">{s.title}</h3>
                     <Badge className={`font-bold ${s.admin_status === 'approved' ? 'bg-emerald-500' : 'bg-amber-500'}`}>
-                      {s.admin_status === 'approved' ? 'موثق' : 'بانتظار المراجعة'}
+                      {s.admin_status === 'approved' ? t('provider.status_verified') : t('provider.status_pending_review')}
                     </Badge>
                   </div>
                   <div className="mt-auto pt-4 border-t border-dashed">
                     <Button onClick={() => navigate(`/provider/service/${s.id}`)} variant="outline" className="w-full rounded-2xl h-12 font-black border-primary text-primary hover:bg-primary hover:text-white">
-                      <Edit className="w-4 h-4 me-2" /> تعديل بيانات الخدمة
+                      <Edit className="w-4 h-4 me-2" /> {t('provider.edit_service')}
                     </Button>
                   </div>
                 </div>
@@ -410,37 +412,37 @@ const ProviderDashboard = () => {
               <CardContent className="p-8 space-y-8">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                   <div className="space-y-5">
-                    <div className="space-y-2"><Label className="font-black text-sm">عنوان الخدمة *</Label><Input placeholder="مثال: كهربائي منازل" value={title} onChange={e => setTitle(e.target.value)} className="rounded-2xl h-14 bg-muted/20 border-2" /></div>
+                    <div className="space-y-2"><Label className="font-black text-sm">{t('provider.service_title_label')} *</Label><Input placeholder={t('provider.service_title_placeholder')} value={title} onChange={e => setTitle(e.target.value)} className="rounded-2xl h-14 bg-muted/20 border-2" /></div>
                     <div className="space-y-2">
-                      <Label className="font-black text-sm">التصنيف *</Label>
+                      <Label className="font-black text-sm">{t('provider.category_label')} *</Label>
                       <Select value={category} onValueChange={setCategory}>
-                        <SelectTrigger className="rounded-2xl h-14 bg-muted/20 border-2"><SelectValue placeholder="اختر نوع الخدمة" /></SelectTrigger>
+                        <SelectTrigger className="rounded-2xl h-14 bg-muted/20 border-2"><SelectValue placeholder={t('provider.category_placeholder')} /></SelectTrigger>
                         <SelectContent>{categories.filter(c=>c.id!=='all').map(c=><SelectItem key={c.id} value={c.id} className="font-bold">{c.label}</SelectItem>)}</SelectContent>
                       </Select>
                     </div>
-                    <div className="space-y-2"><Label className="font-black text-sm">وصف تفصيلي للخدمة *</Label><Textarea placeholder="اشرح ما تقدمه بالتفصيل للعملاء..." value={description} onChange={e => setDescription(e.target.value)} className="rounded-2xl min-h-[140px] bg-muted/20 border-2 resize-none p-4" /></div>
+                    <div className="space-y-2"><Label className="font-black text-sm">{t('provider.description_label')} *</Label><Textarea placeholder={t('provider.description_placeholder')} value={description} onChange={e => setDescription(e.target.value)} className="rounded-2xl min-h-[140px] bg-muted/20 border-2 resize-none p-4" /></div>
                   </div>
                   <div className="space-y-5">
                     <div className="bg-primary/5 p-6 rounded-[2rem] space-y-5 border border-primary/10">
-                      <div className="space-y-2"><Label className="font-black text-sm flex items-center gap-2"><MapPin className="w-4 h-4 text-primary" /> الحي في حائل *</Label><Input placeholder="مثال: حي النقرة" value={neighborhood} onChange={e => setNeighborhood(e.target.value)} className="rounded-2xl h-14 bg-white" /></div>
-                      <div className="space-y-2"><Label className="font-black text-sm">رابط الموقع (خرائط قوقل) *</Label><Input type="url" placeholder="انسخ رابط الموقع هنا" value={mapsLink} onChange={e => setMapsLink(e.target.value)} className="rounded-2xl h-14 bg-white" /></div>
+                      <div className="space-y-2"><Label className="font-black text-sm flex items-center gap-2"><MapPin className="w-4 h-4 text-primary" /> {t('provider.neighborhood_label')} *</Label><Input placeholder={t('provider.neighborhood_placeholder')} value={neighborhood} onChange={e => setNeighborhood(e.target.value)} className="rounded-2xl h-14 bg-white" /></div>
+                      <div className="space-y-2"><Label className="font-black text-sm">{t('provider.map_link_label')} *</Label><Input type="url" placeholder={t('provider.map_link_placeholder')} value={mapsLink} onChange={e => setMapsLink(e.target.value)} className="rounded-2xl h-14 bg-white" /></div>
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                       <div className={`p-6 border-2 border-dashed rounded-[2rem] text-center cursor-pointer transition-all ${serviceImage ? 'bg-primary/10 border-primary' : 'hover:bg-muted/50'}`} onClick={() => imageInputRef.current?.click()}>
                         <Image className={`mx-auto mb-3 w-8 h-8 ${serviceImage ? 'text-primary' : 'text-muted-foreground'}`} />
-                        <p className="text-xs font-black">{serviceImage ? "تم إرفاق الصورة ✓" : "إرفاق صورة للخدمة *"}</p>
+                        <p className="text-xs font-black">{serviceImage ? t('provider.image_attached') : t('provider.attach_service_image')}</p>
                         <input ref={imageInputRef} type="file" className="hidden" onChange={e => setServiceImage(e.target.files?.[0] || null)} />
                       </div>
                       <div className={`p-6 border-2 border-dashed rounded-[2rem] text-center cursor-pointer transition-all ${licenseFile ? 'bg-amber-50 border-amber-500' : 'hover:bg-muted/50'}`} onClick={() => licenseInputRef.current?.click()}>
                         <FileText className={`mx-auto mb-3 w-8 h-8 ${licenseFile ? 'text-amber-600' : 'text-muted-foreground'}`} />
-                        <p className="text-xs font-black">{licenseFile ? "تم إرفاق الرخصة ✓" : "إرفاق رخصة المحل *"}</p>
+                        <p className="text-xs font-black">{licenseFile ? t('provider.license_attached') : t('provider.attach_license')}</p>
                         <input ref={licenseInputRef} type="file" className="hidden" onChange={e => setLicenseFile(e.target.files?.[0] || null)} />
                       </div>
                     </div>
                   </div>
                 </div>
                 <Button onClick={handleSubmitService} disabled={addingService || !isFormValid} className="w-full h-16 rounded-[1.5rem] text-xl font-black shadow-xl shadow-primary/20">
-                  {addingService ? "جاري المعالجة والرفع..." : "تأكيد ونشر الخدمة "}
+                  {addingService ? t('provider.service_publishing') : t('provider.submit_service')}
                 </Button>
               </CardContent>
             </Card>
@@ -451,7 +453,7 @@ const ProviderDashboard = () => {
       <SupportTicketDialog open={supportOpen} onOpenChange={supportOpen => setSupportOpen(supportOpen)} />
       
       {chatBooking && (
-        <ChatDialog open={!!chatBooking} onOpenChange={open => !open && setChatBooking(null)} bookingId={chatBooking.id} otherName={chatBooking.client?.full_name || "العميل"} />
+        <ChatDialog open={!!chatBooking} onOpenChange={open => !open && setChatBooking(null)} bookingId={chatBooking.id} otherName={chatBooking.client?.full_name || t('roles.client')} />
       )}
     </div>
   );

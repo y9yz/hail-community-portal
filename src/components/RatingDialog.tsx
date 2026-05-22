@@ -6,6 +6,7 @@ import StarRating from "./StarRating";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
+import { useTranslation } from "react-i18next";
 import { Star } from "lucide-react";
 
 interface RatingDialogProps {
@@ -18,6 +19,7 @@ interface RatingDialogProps {
 }
 
 const RatingDialog = ({ open, onOpenChange, serviceId, serviceTitle, bookingId, onSubmitted }: RatingDialogProps) => {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const [rating, setRating] = useState(0);
   const [comment, setComment] = useState("");
@@ -38,7 +40,7 @@ const RatingDialog = ({ open, onOpenChange, serviceId, serviceTitle, bookingId, 
    */
   const handleSubmit = async () => {
     if (!user || rating === 0) {
-      toast.error("يرجى اختيار تقييم (عدد النجوم)");
+      toast.error(t('rating.select_stars_error'));
       return;
     }
 
@@ -62,12 +64,12 @@ const RatingDialog = ({ open, onOpenChange, serviceId, serviceTitle, bookingId, 
 
       if (bookingError) throw bookingError;
 
-      toast.success("شكراً لك! تم إرسال تقييمك بنجاح");
+      toast.success(t('rating.submitted_success'));
       onSubmitted?.();
       onOpenChange(false);
     } catch (err: any) {
       console.error("Rating Error:", err.message);
-      toast.error("حدث خطأ أثناء حفظ التقييم");
+      toast.error(t('rating.save_error'));
     } finally {
       setSubmitting(false);
     }
@@ -79,13 +81,13 @@ const RatingDialog = ({ open, onOpenChange, serviceId, serviceTitle, bookingId, 
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-xl font-black">
             <Star className="w-6 h-6 text-yellow-500 fill-yellow-500" />
-            قيّم خدمة: {serviceTitle}
+            {t('rating.title', { service: serviceTitle })}
           </DialogTitle>
         </DialogHeader>
 
         <div className="space-y-6 py-4">
           <div className="flex flex-col items-center gap-2">
-            <p className="text-xs text-muted-foreground font-bold">كيف كانت تجربتك مع المزود؟</p>
+            <p className="text-xs text-muted-foreground font-bold">{t('rating.prompt')}</p>
             <div className="bg-muted/30 p-4 rounded-2xl">
               {/* مكون النجوم التفاعلي */}
               <StarRating rating={rating} size="md" interactive onRate={setRating} />
@@ -94,7 +96,7 @@ const RatingDialog = ({ open, onOpenChange, serviceId, serviceTitle, bookingId, 
 
           <div className="space-y-2">
             <Textarea
-              placeholder="اكتب تعليقك هنا (اختياري)..."
+              placeholder={t('rating.comment_placeholder')}
               value={comment}
               onChange={(e) => setComment(e.target.value)}
               dir="rtl"
@@ -107,7 +109,7 @@ const RatingDialog = ({ open, onOpenChange, serviceId, serviceTitle, bookingId, 
             disabled={submitting || rating === 0} 
             className="w-full h-14 rounded-2xl text-lg font-black shadow-lg shadow-primary/20 transition-all active:scale-95"
           >
-            {submitting ? "جاري الحفظ..." : "تأكيد وإرسال التقييم"}
+            {submitting ? t('rating.saving') : t('rating.submit')}
           </Button>
         </div>
       </DialogContent>

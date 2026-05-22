@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
+import { useTranslation } from "react-i18next";
 import { Send, LifeBuoy, AlertCircle, Clock, CheckCircle2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
@@ -19,6 +20,7 @@ interface SupportTicketDialogProps {
 }
 
 const SupportTicketDialog = ({ open, onOpenChange, booking }: SupportTicketDialogProps) => {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const [subject, setSubject] = useState("");
   const [message, setMessage] = useState("");
@@ -114,7 +116,7 @@ const SupportTicketDialog = ({ open, onOpenChange, booking }: SupportTicketDialo
   /* إنشاء تذكرة دعم فني جديدة وإضافة أول رسالة */
   const handleCreateTicket = async () => {
     if (!user || !subject.trim() || !message.trim()) {
-      toast.error("يرجى تعبئة عنوان وسبب البلاغ");
+      toast.error(t('support.fill_subject_message'));
       return;
     }
 
@@ -155,17 +157,17 @@ const SupportTicketDialog = ({ open, onOpenChange, booking }: SupportTicketDialo
           await supabase.from("notifications").insert({
             recipient_id: admin.user_id,
             sender_id: user.id,
-            content: `تذكرة دعم جديدة: ${subject.trim()}`,
+            content: t('support.ticket_notification_new', { subject: subject.trim() }),
           });
         }
       }
 
-      toast.success("تم فتح التذكرة بنجاح، سيتم الرد عليك قريباً");
+      toast.success(t('support.ticket_created_success'));
       setActiveTicket(newTicket);
       fetchMessages(newTicket.id);
       
     } catch (err: any) {
-      toast.error(err.message || "حدث خطأ أثناء إرسال البلاغ");
+      toast.error(err.message || t('support.ticket_send_error'));
     } finally {
       setLoading(false);
     }
@@ -191,7 +193,7 @@ const SupportTicketDialog = ({ open, onOpenChange, booking }: SupportTicketDialo
       fetchMessages(activeTicket.id); 
 
     } catch (err: any) {
-      toast.error("فشل إرسال الرد");
+      toast.error(t('support.reply_failed'));
     } finally {
       setSendingReply(false);
     }
@@ -200,9 +202,9 @@ const SupportTicketDialog = ({ open, onOpenChange, booking }: SupportTicketDialo
   /* تحديد لون وشكل الشارة بناءً على حالة التذكرة */
   const getStatusBadge = (status: string) => {
     switch (status) {
-      case 'open': return <Badge className="bg-amber-500 hover:bg-amber-600 gap-1"><Clock className="w-3 h-3" /> جاري المراجعة</Badge>;
-      case 'in_progress': return <Badge className="bg-blue-500 hover:bg-blue-600 gap-1"><AlertCircle className="w-3 h-3" /> قيد المعالجة</Badge>;
-      case 'closed': return <Badge className="bg-emerald-500 hover:bg-emerald-600 gap-1"><CheckCircle2 className="w-3 h-3" /> مغلقة</Badge>;
+      case 'open': return <Badge className="bg-amber-500 hover:bg-amber-600 gap-1"><Clock className="w-3 h-3" /> {t('support.status.review')}</Badge>;
+      case 'in_progress': return <Badge className="bg-blue-500 hover:bg-blue-600 gap-1"><AlertCircle className="w-3 h-3" /> {t('support.status.in_progress')}</Badge>;
+      case 'closed': return <Badge className="bg-emerald-500 hover:bg-emerald-600 gap-1"><CheckCircle2 className="w-3 h-3" /> {t('support.status.closed')}</Badge>;
       default: return null;
     }
   };
@@ -213,11 +215,11 @@ const SupportTicketDialog = ({ open, onOpenChange, booking }: SupportTicketDialo
         <DialogHeader className="p-6 bg-muted/30 border-b">
           <DialogTitle className="flex items-center gap-2 text-2xl font-black text-primary">
             <LifeBuoy className="w-6 h-6" />
-            {activeTicket ? "متابعة البلاغ" : "الدعم الفني والشكاوى"}
+            {activeTicket ? t('support.ticket_follow_up') : t('support.support_center')}
           </DialogTitle>
           {booking && !activeTicket && (
             <p className="text-sm font-bold text-muted-foreground mt-2">
-              بخصوص طلب: {booking.service_title} (رقم #{booking.order_number})
+              {t('support.ticket_about_order', { service: booking.service_title, order: booking.order_number })}
             </p>
           )}
         </DialogHeader>
@@ -228,25 +230,25 @@ const SupportTicketDialog = ({ open, onOpenChange, booking }: SupportTicketDialo
             <div className="bg-amber-50/50 p-4 rounded-2xl border border-amber-100 flex items-start gap-3">
               <AlertCircle className="w-5 h-5 text-amber-600 mt-0.5" />
               <div className="space-y-1 text-sm">
-                <p className="font-bold text-amber-900">تعليمات هامة</p>
-                <p className="text-amber-700">يرجى كتابة تفاصيل المشكلة بوضوح. سيقوم فريق الإدارة بمراجعة بلاغك والرد عليك في أقرب وقت ممكن.</p>
+                <p className="font-bold text-amber-900">{t('support.instructions_title')}</p>
+                <p className="text-amber-700">{t('support.instructions_description')}</p>
               </div>
             </div>
 
             <div className="space-y-4">
               <div className="space-y-2">
-                <Label className="font-bold text-sm">عنوان البلاغ</Label>
+                <Label className="font-bold text-sm">{t('support.ticket_subject_label')}</Label>
                 <Input 
-                  placeholder="مثال: مشكلة في الدفع، المزود لم يحضر..." 
+                  placeholder={t('support.ticket_subject_placeholder')} 
                   value={subject} 
                   onChange={(e) => setSubject(e.target.value)}
                   className="h-12 rounded-xl bg-muted/20"
                 />
               </div>
               <div className="space-y-2">
-                <Label className="font-bold text-sm">التفاصيل</Label>
+                <Label className="font-bold text-sm">{t('support.ticket_details_label')}</Label>
                 <Textarea 
-                  placeholder="اشرح المشكلة التي واجهتك بالتفصيل هنا..." 
+                  placeholder={t('support.ticket_details_placeholder')} 
                   value={message} 
                   onChange={(e) => setMessage(e.target.value)}
                   className="min-h-[120px] rounded-xl bg-muted/20 resize-none p-4"
@@ -255,9 +257,9 @@ const SupportTicketDialog = ({ open, onOpenChange, booking }: SupportTicketDialo
             </div>
 
             <div className="flex justify-end gap-2 pt-4">
-              <Button variant="ghost" className="h-12 px-6 rounded-xl font-bold" onClick={() => onOpenChange(false)}>إلغاء</Button>
+              <Button variant="ghost" className="h-12 px-6 rounded-xl font-bold" onClick={() => onOpenChange(false)}>{t('support.cancel')}</Button>
               <Button onClick={handleCreateTicket} disabled={loading || !subject.trim() || !message.trim()} className="h-12 px-8 rounded-xl font-black shadow-lg shadow-primary/20">
-                {loading ? "جاري الإرسال..." : "إرسال البلاغ"}
+                {loading ? t('support.sending') : t('support.submit_ticket')}
               </Button>
             </div>
           </div>
@@ -267,7 +269,7 @@ const SupportTicketDialog = ({ open, onOpenChange, booking }: SupportTicketDialo
             <div className="p-4 border-b bg-background flex justify-between items-center shadow-sm z-10">
               <div>
                 <h3 className="font-black text-lg">{activeTicket.subject}</h3>
-                <p className="text-xs text-muted-foreground font-mono">رقم التذكرة: {activeTicket.id.split('-')[0]}</p>
+                <p className="text-xs text-muted-foreground font-mono">{t('support.ticket_number_label', { number: activeTicket.id.split('-')[0] })}</p>
               </div>
               {getStatusBadge(activeTicket.status)}
             </div>
@@ -280,7 +282,7 @@ const SupportTicketDialog = ({ open, onOpenChange, booking }: SupportTicketDialo
                   <div key={msg.id || idx} className={`flex flex-col ${isMe ? "items-start" : "items-end"}`}>
                     <div className="flex items-center gap-2 mb-1 px-1">
                       <span className="text-[10px] font-bold text-muted-foreground">
-                        {isMe ? "أنت" : isAdmin ? "الدعم الفني (الإدارة)" : msg.sender?.full_name || "النظام"}
+                        {isMe ? t('support.sender_you') : isAdmin ? t('support.sender_admin') : msg.sender?.full_name || t('support.sender_system')}
                       </span>
                     </div>
                     <div 
@@ -311,7 +313,7 @@ const SupportTicketDialog = ({ open, onOpenChange, booking }: SupportTicketDialo
                     value={replyText}
                     onChange={(e) => setReplyText(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleSendReply()}
-                    placeholder="اكتب ردك هنا..."
+                    placeholder={t('support.reply_placeholder')}
                     className="h-14 rounded-2xl bg-muted/30 border-2 focus-visible:ring-primary"
                   />
                   <Button 
@@ -325,7 +327,7 @@ const SupportTicketDialog = ({ open, onOpenChange, booking }: SupportTicketDialo
               </div>
             ) : (
               <div className="p-4 bg-muted/50 border-t mt-auto text-center">
-                <p className="text-sm font-bold text-muted-foreground">هذه التذكرة مغلقة ولا يمكن الرد عليها.</p>
+                <p className="text-sm font-bold text-muted-foreground">{t('support.ticket_closed_note')}</p>
               </div>
             )}
           </div>
