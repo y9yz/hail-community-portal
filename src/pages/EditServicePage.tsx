@@ -32,34 +32,56 @@ const EditServicePage = () => {
   const [saving, setSaving] = useState(false);
   const imageInputRef = useRef<HTMLInputElement>(null);
 
-  /* حماية الصفحة والتحقق من ملكية المزود للخدمة قبل السماح بالتعديل */
+  /* حماية الصفحة والتحقق من ملكية المزود للخدمة مع صمام الأمان */
   useEffect(() => {
     if (authLoading) return;
     if (!user) { navigate("/auth"); return; }
     if (role !== "provider") { navigate("/"); return; }
     if (!id) return;
 
-    (async () => {
-      const { data, error } = await supabase
-        .from("services")
-        .select("*")
-        .eq("id", id)
-        .single();
-      
-      /* منع الدخول إذا كانت الخدمة لا تخص المستخدم الحالي */
-      if (error || !data) { toast.error(t('service.load_failed')); navigate("/provider"); return; }
-      if ((data as any).provider_id !== user.id) { navigate("/permission-denied"); return; }
-      
-      const s = data as any;
-      setService(s);
-      setTitle(s.title);
-      setCategory(s.category);
-      setDescription(s.description);
-      setAddressName(s.address_name || "");
-      setMapsLink(s.maps_link || "");
-      setLoading(false);
-    })();
-  }, [authLoading, user, role, id, navigate]);
+    let mounted = true;
+
+    const fetchServiceDetails = async () => {
+      try {
+        const { data, error } = await supabase
+          .from("services")
+          .select("*")
+          .eq("id", id)
+          .single();
+        
+        if (error || !data) {
+          toast.error(t('service.load_failed'));
+          navigate("/provider");
+          return;
+        }
+
+        if ((data as any).provider_id !== user.id) {
+          navigate("/permission-denied");
+          return;
+        }
+
+        if (mounted) {
+          const s = data as any;
+          setService(s);
+          setTitle(s.title);
+          setCategory(s.category);
+          setDescription(s.description);
+          setAddressName(s.address_name || "");
+          setMapsLink(s.maps_link || "");
+        }
+      } catch (err) {
+        console.error("Error loading service:", err);
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    };
+
+    fetchServiceDetails();
+
+    return () => {
+      mounted = false; // حماية من تسريب الذاكرة (Memory Leak Guard)
+    };
+  }, [authLoading, user, role, id, navigate, t]);
 
   /* دالة للتحقق من صياغة الروابط الخارجية */
   const isValidUrl = (url: string) => { try { new URL(url); return true; } catch { return false; } };
@@ -104,87 +126,98 @@ const EditServicePage = () => {
 
   if (authLoading || loading) {
     return (
-      <div className="min-h-screen bg-background">
+      <div className="min-h-screen bg-background" dir="rtl">
         <Navbar />
-        <div className="container py-16 text-center text-muted-foreground">{t('service.loading')}</div>
+        <div className="container py-16 text-center text-muted-foreground font-bold animate-pulse">{t('service.loading')}</div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background" dir="rtl">
       <Navbar />
       <header className="sticky top-16 z-40 bg-card/80 backdrop-blur-lg border-b">
         <div className="container flex items-center justify-between h-16 gap-4">
           <div className="flex items-center gap-3">
             <Button variant="ghost" size="icon" onClick={() => navigate("/provider")} className="rounded-full hover:bg-muted">
-              <ArrowRight className="w-5 h-5 text-primary" />
+              <ArrowRight className="w-5 h-5 text-primary rtl:-scale-x-100" />
             </Button>
             <h1 className="text-2xl font-black text-foreground tracking-tighter">{t('service.edit_title')}</h1>
           </div>
         </div>
       </header>
-      <div className="container py-6 max-w-2xl">
+      <div className="container py-6 max-w-2xl text-right">
 
-        <Card className="rounded-2xl">
+        <Card className="rounded-2xl border-2 shadow-sm">
           <CardContent className="p-6">
             <form onSubmit={handleSave} className="space-y-4">
               <div className="space-y-2">
-                <Label>{t('service.title_label')}</Label>
-                <Input value={title} onChange={(e) => setTitle(e.target.value)} required />
+                <Label className="font-bold text-sm">{t('service.title_label')}</Label>
+                <Input value={title} onChange={(e) => setTitle(e.target.value)} className="rounded-xl h-11" required />
               </div>
               <div className="space-y-2">
-                <Label>{t('service.category_label')}</Label>
+                <Label className="font-bold text-sm">{t('service.category_label')}</Label>
                 <Select value={category} onValueChange={setCategory}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="rounded-xl h-11"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     {categories.filter(c => c.id !== "all").map(c => (
-                      <SelectItem key={c.id} value={c.id}>{c.label}</SelectItem>
+                      <SelectItem key={c.id} value={c.id} className="font-semibold">{t(c.label)}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label>{t('service.description_label')}</Label>
-                <Textarea value={description} onChange={(e) => setDescription(e.target.value)} required className="min-h-[100px]" />
+                <Label className="font-bold text-sm">{t('service.description_label')}</Label>
+                <Textarea value={description} onChange={(e) => setDescription(e.target.value)} required className="min-h-[120px] rounded-xl resize-none p-3" />
               </div>
 
-              <div className="space-y-2 border rounded-xl p-4 border-border">
-                <Label className="font-bold flex items-center gap-2">📍 {t('service.location_label')}</Label>
-                <Input placeholder="عنوان المحل" value={addressName} onChange={(e) => setAddressName(e.target.value)} />
-                <Input type="url" placeholder={t('service.map_placeholder')} value={mapsLink} onChange={(e) => setMapsLink(e.target.value)} />
+              <div className="space-y-3 border-2 rounded-2xl p-4 bg-muted/10 border-dashed">
+                <Label className="font-black text-sm flex items-center gap-2 text-primary">📍 {t('service.location_label')}</Label>
+                <Input placeholder="عنوان المحل أو الحي (مثال: حي النقرة)" value={addressName} onChange={(e) => setAddressName(e.target.value)} className="rounded-xl h-11 bg-background" />
+                <Input type="url" placeholder={t('service.map_placeholder')} value={mapsLink} onChange={(e) => setMapsLink(e.target.value)} className="rounded-xl h-11 bg-background" />
               </div>
 
               <div className="space-y-2">
-                <Label className="flex items-center gap-2">
+                <Label className="font-bold text-sm flex items-center gap-2">
                   <Image className="w-4 h-4 text-primary" />
                   {t('service.image_label')}
                 </Label>
-                {/* عرض الصورة الحالية قبل الاستبدال */}
-                {service?.image_url && !serviceImage && (
-                  <img src={service.image_url} alt={t('service.current_image_alt')} className="rounded-xl h-32 w-full object-cover" />
+                
+                {/* 🚀 معالجة المعاينة الذكية الفورية للصورة الفعالة لتثبيت كفاءة العرض التفاعلي */}
+                {(serviceImage || service?.image_url) && (
+                  <div className="rounded-2xl h-40 w-full overflow-hidden border-2 mb-2 relative animate-in fade-in duration-300">
+                    <img 
+                      src={serviceImage ? URL.createObjectURL(serviceImage) : service?.image_url} 
+                      alt={t('service.current_image_alt')} 
+                      className="w-full h-full object-cover" 
+                    />
+                    <div className="absolute bottom-2 start-2 bg-black/60 backdrop-blur-sm text-white px-3 py-1 rounded-xl text-[10px] font-bold">
+                      {serviceImage ? "معاينة الملف المختار حالياً" : t('service.current_image_alt')}
+                    </div>
+                  </div>
                 )}
+                
                 <div
-                  className="border-2 border-dashed border-border rounded-xl p-4 text-center cursor-pointer hover:border-primary"
+                  className="border-2 border-dashed border-border rounded-2xl p-6 text-center cursor-pointer hover:bg-muted/30 transition-colors"
                   onClick={() => imageInputRef.current?.click()}
                 >
                   {serviceImage ? (
-                      <p className="text-sm font-medium">{serviceImage.name}</p>
+                      <p className="text-sm font-black text-primary italic truncate">✓ {serviceImage.name}</p>
                   ) : (
                     <div className="space-y-1">
-                      <Upload className="w-6 h-6 text-muted-foreground mx-auto" />
-                      <p className="text-xs text-muted-foreground">{t('service.replace_image_prompt')}</p>
+                      <Upload className="w-6 h-6 text-muted-foreground mx-auto animate-bounce" />
+                      <p className="text-xs text-muted-foreground font-bold">{t('service.replace_image_prompt')}</p>
                     </div>
                   )}
                 </div>
                 <input ref={imageInputRef} type="file" accept="image/*" className="hidden" onChange={(e) => setServiceImage(e.target.files?.[0] || null)} />
               </div>
 
-              <div className="flex gap-2">
-                <Button type="submit" className="flex-1 rounded-xl" disabled={saving}>
+              <div className="flex gap-2 pt-2">
+                <Button type="submit" className="flex-1 rounded-xl h-12 font-black text-md shadow-md" disabled={saving}>
                   {saving ? t('service.saving') : t('service.save_btn')}
                 </Button>
-                <Button type="button" variant="outline" className="rounded-xl" onClick={() => navigate("/provider") }>
+                <Button type="button" variant="outline" className="rounded-xl h-12 font-bold" onClick={() => navigate("/provider") }>
                   {t('common.back')}
                 </Button>
               </div>

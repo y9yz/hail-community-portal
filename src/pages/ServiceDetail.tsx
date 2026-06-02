@@ -34,54 +34,75 @@ const ServiceDetail = () => {
   const [bookedTimes, setBookedTimes] = useState<string[]>([]);
   const [isCheckingTimes, setIsCheckingTimes] = useState(false);
 
-  /* حماية المسار: منع الإدارة والمزودين من الوصول لصفحة الحجز وتوجيههم لصفحاتهم */
+  /* 1. حماية المسار: منع الإدارة والمزودين من الوصول لصفحة الحجز وتوجيههم لصفحاتهم */
   useEffect(() => {
     if (authLoading) return;
     if (role === "admin") { navigate("/admin", { replace: true }); return; }
     if (role === "provider") { navigate("/provider", { replace: true }); return; }
   }, [role, authLoading, navigate]);
 
-  /* جلب تفاصيل الخدمة مع بيانات الملف الشخصي للمزود المرتبط بها */
+  /* 2. جلب تفاصيل الخدمة آلياً مع صمام الأمان */
   useEffect(() => {
+    let mounted = true;
     const fetch = async () => {
-      const { data } = await supabase
-        .from("services")
-        .select("*, provider:profiles!services_provider_id_fkey(full_name)")
-        .eq("id", id as string)
-        .single();
-      setService(data as any);
-      setLoading(false);
+      try {
+        const { data } = await supabase
+          .from("services")
+          .select("*, provider:profiles!services_provider_id_fkey(full_name)")
+          .eq("id", id as string)
+          .single();
+        
+        if (mounted) {
+          setService(data as any);
+          setLoading(false);
+        }
+      } catch (err) {
+        console.error("Error fetching service:", err);
+        if (mounted) setLoading(false);
+      }
     };
     if (id) fetch();
+
+    return () => { mounted = false; };
   }, [id]);
 
-  /* التحقق من المواعيد المحجوزة مسبقاً لنفس اليوم لمنع التضارب في الحجوزات */
+  /* 🚀 دالة مساعدة ذكية لاستخراج التاريخ بصيغة YYYY-MM-DD محلياً بدون التلاعب بالـ Timezone */
+  const getLocalDateString = (date?: Date) => {
+    if (!date) return "";
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  /* 3. التحقق من المواعيد المحجوزة مسبقاً لنفس اليوم لمنع التضارب في الحجوزات */
   useEffect(() => {
+    let mounted = true;
     const fetchBookedTimes = async () => {
       if (!selectedDate || !service?.provider_id) return;
       
       setIsCheckingTimes(true);
       try {
-        const formattedDate = selectedDate.toISOString().split("T")[0];
+        // 🚀 تم الاستبدال بالتوقيت المحلي الصارم لحل فخ الـ UTC والـ Timezones
+        const formattedDate = getLocalDateString(selectedDate);
         
         const { data, error } = await supabase
           .from("bookings")
           .select("scheduled_time")
           .eq("provider_id", service.provider_id)
           .eq("scheduled_date", formattedDate)
-          /* استثناء المواعيد المرفوضة من الحظر لتوفيرها للعملاء مرة أخرى */
           .neq("provider_status", "declined");
 
         if (error) throw error;
 
-        if (data) {
+        if (data && mounted) {
           const times = data.map((b: any) => b.scheduled_time);
           setBookedTimes(times);
         }
       } catch (err) {
         console.error("خطأ في فحص المواعيد:", err);
       } finally {
-        setIsCheckingTimes(false);
+        if (mounted) setIsCheckingTimes(false);
       }
     };
 
@@ -89,6 +110,8 @@ const ServiceDetail = () => {
       fetchBookedTimes();
       setSelectedTime(undefined); 
     }
+
+    return () => { mounted = false; };
   }, [selectedDate, service?.provider_id]);
 
   if (loading) return <div className="min-h-screen flex items-center justify-center text-muted-foreground font-black">{t('serviceDetail.loading')}</div>;
@@ -97,7 +120,7 @@ const ServiceDetail = () => {
   const categoryLabel = categories.find((c) => c.id === service.category)?.label ?? "";
   const canProceed = selectedDate && selectedTime && problemDescription.trim().length > 0;
 
-  /* التحقق من ما إذا كان الوقت المختار في الماضي */
+  /* التحقق مما إذا كان الوقت المختار في الماضي اليوم */
   const isTimePast = (time: string): boolean => {
     if (!selectedDate) return false;
     
@@ -113,14 +136,14 @@ const ServiceDetail = () => {
     return selectedDateTime < today;
   };
 
-  /* معالجة إنشاء طلب حجز جديد وإرسال إشعار فوري للمزود المعني */
+  /* 4. معالجة إنشاء طلب حجز جديد وإرسال إشعار فوري للمزود */
   const handleSubmitRequest = async () => {
     if (!user) { toast.error(t('serviceDetail.login_required')); navigate("/auth"); return; }
     if (role !== "client") { toast.error(t('serviceDetail.clients_only')); return; }
 
     setSubmitting(true);
     try {
-      /* إدراج سجل الطلب في جدول الحجوزات */
+      /* إدراج سجل الطلب في جدول الحجوزات بالتاريخ المحلي الآمن */
       const { data: booking, error } = await supabase.from("bookings").insert({
         client_id: user.id,
         provider_id: service.provider_id,
@@ -129,7 +152,7 @@ const ServiceDetail = () => {
         problem_description: problemDescription,
         fee: 0,
         provider_status: "pending" as any,
-        scheduled_date: selectedDate?.toISOString().split("T")[0],
+        scheduled_date: getLocalDateString(selectedDate), // 🚀 تاريخ محلي آمن هنا أيضاً
         scheduled_time: selectedTime,
       }).select().single();
 
@@ -242,7 +265,6 @@ const ServiceDetail = () => {
                       <Button 
                         key={time} 
                         variant={selectedTime === time ? "default" : "outline"} 
-                        /* تعطيل الأوقات المحجوزة بالفعل من الداتابيس لنفس اليوم والمزود */
                         disabled={isBooked || isCheckingTimes || isPast}
                         onClick={() => setSelectedTime(time)}
                         className={cn(
@@ -258,7 +280,7 @@ const ServiceDetail = () => {
                   })}
                 </div>
                 
-                {bookedTimes.length > 0 && (
+                {(bookedTimes.length > 0) && (
                    <p className="text-[10px] text-amber-600 font-bold bg-amber-50 p-2 rounded-lg inline-block">
                      * الأوقات المشطوبة تم حجزها مسبقاً من قبل عملاء آخرين أو قد مضت
                    </p>

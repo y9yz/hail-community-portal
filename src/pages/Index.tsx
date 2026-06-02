@@ -22,8 +22,8 @@ const Index = () => {
   const [sortBy, setSortBy] = useState("newest");
 
   /* 
-     توجيه المستخدمين (Role-based Redirect): 
-     المتجر مخصص للعملاء فقط؛ المشرف والمزود يتم تحويلهم للوحات التحكم الخاصة بهم.
+      1. توجيه المستخدمين (Role-based Redirect): 
+      المتجر مخصص للعملاء والزوار فقط؛ المشرف والمزود يتم تحويلهم فوراً.
   */
   useEffect(() => {
     if (authLoading) return;
@@ -32,51 +32,66 @@ const Index = () => {
   }, [role, authLoading, navigate]);
 
   /* 
-     جلب الخدمات المعتمدة فقط مع بيانات المزود. 
-     تم فصل جلب التقييمات وحسابها يدوياً لتجنب تعقيدات الـ Aggregation في استعلام واحد.
+      2. جلب الخدمات المعتمدة فقط مع صمام أمان لمنع وميض البيانات والـ Memory Leaks
   */
   useEffect(() => {
+    let mounted = true;
+
     const fetchServices = async () => {
-      const { data: svcData } = await supabase
-        .from("services")
-        .select("*, provider:profiles!services_provider_id_fkey(full_name)")
-        .eq("admin_status", "approved" as any)
-        .order("created_at", { ascending: false });
+      try {
+        const { data: svcData } = await supabase
+          .from("services")
+          .select("*, provider:profiles!services_provider_id_fkey(full_name)")
+          .eq("admin_status", "approved" as any)
+          .order("created_at", { ascending: false });
 
-      const svcs = (svcData as any[]) || [];
+        const svcs = (svcData as any[]) || [];
 
-      if (svcs.length > 0) {
-        const serviceIds = svcs.map((s) => s.id);
-        const { data: reviewData } = await supabase
-          .from("reviews")
-          .select("service_id, rating")
-          .in("service_id", serviceIds);
+        if (svcs.length > 0) {
+          const serviceIds = svcs.map((s) => s.id);
+          const { data: reviewData } = await supabase
+            .from("reviews")
+            .select("service_id, rating")
+            .in("service_id", serviceIds);
 
-        // بناء خارطة (Map) لإحصائيات التقييم لرفع كفاءة المعالجة
-        const reviewStats: Record<string, { sum: number; count: number }> = {};
-        (reviewData || []).forEach((r: any) => {
-          if (!reviewStats[r.service_id]) reviewStats[r.service_id] = { sum: 0, count: 0 };
-          reviewStats[r.service_id].sum += r.rating;
-          reviewStats[r.service_id].count += 1;
-        });
+          // بناء خارطة (Map) لإحصائيات التقييم لرفع كفاءة المعالجة
+          const reviewStats: Record<string, { sum: number; count: number }> = {};
+          (reviewData || []).forEach((r: any) => {
+            if (!reviewStats[r.service_id]) reviewStats[r.service_id] = { sum: 0, count: 0 };
+            reviewStats[r.service_id].sum += r.rating;
+            reviewStats[r.service_id].count += 1;
+          });
 
-        // دمج النتائج مع مصفوفة الخدمات الأساسية
-        svcs.forEach((s) => {
-          const stats = reviewStats[s.id];
-          s.avg_rating = stats ? stats.sum / stats.count : 0;
-          s.review_count = stats ? stats.count : 0;
-        });
+          // دمج النتائج مع مصفوفة الخدمات الأساسية
+          svcs.forEach((s) => {
+            const stats = reviewStats[s.id];
+            s.avg_rating = stats ? stats.sum / stats.count : 0;
+            s.review_count = stats ? stats.count : 0;
+          });
+        }
+
+        if (mounted) {
+          setServices(svcs);
+          setLoading(false);
+        }
+      } catch (error) {
+        console.error("Error fetching services:", error);
+        if (mounted) setLoading(false);
       }
-
-      setServices(svcs);
-      setLoading(false);
     };
-    fetchServices();
-  }, []);
+
+    // 🚀 صمام الأمان: لا تجلب الخدمات من السيرفر إذا كان المستخدم سيتم طرده (أدمن أو مزود)
+    if (!authLoading && role !== "admin" && role !== "provider") {
+      fetchServices();
+    }
+
+    return () => {
+      mounted = false; // إلغاء تفعيل التحديثات الخلفية عند الخروج من الصفحة
+    };
+  }, [authLoading, role]);
 
   /* 
-     استخدام useMemo للتصفية والفرز: 
-     حركة احترافية لمنع إعادة الحسابات المعقدة مع كل "رندرة" (Render) إلا في حال تغير المدخلات.
+      3. التصفية والفرز الصارم والمقاوم للتلاعب الواجهي
   */
   const filtered = useMemo(() => {
     let result = services.filter((s) => {
@@ -88,10 +103,22 @@ const Index = () => {
 
     if (sortBy === "rating") {
       result = [...result].sort((a, b) => (b.avg_rating || 0) - (a.avg_rating || 0));
+    } else if (sortBy === "newest") {
+      // 🚀 ترتيب حتمي صارم يعتمد على الطابع الزمني للخدمة عند التبديل العكسي
+      result = [...result].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
     }
 
     return result;
   }, [services, searchQuery, activeCategory, sortBy]);
+
+  // حاجز عرض مؤقت لمنع وميض الهيكل الإنشائي أثناء تحديد الرتبة الصارمة
+  if (authLoading || role === "admin" || role === "provider") {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">
