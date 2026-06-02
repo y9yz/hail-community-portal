@@ -164,18 +164,18 @@ const Navbar = ({ searchQuery = "", onSearchChange }: NavbarProps) => {
                   <div className="px-3 py-2">
                     <p className="font-bold text-sm">{profile?.full_name || t('user')}</p>
                     <p className="text-xs text-muted-foreground">
-                      {role === "provider" ? t('verified_provider') : role === "admin" ? t('admin_role') : t('client_role')}
+                      {role === "provider" ? t('roles.provider') : role === "admin" ? t('roles.admin_role') : t('roles.client_role')}
                     </p>
                   </div>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={() => setEditOpen(true)} className="gap-2 cursor-pointer">
                     <Edit className="w-4 h-4" />
-                    {t('edit_profile')}
+                    {t('auth.edit_profile')}
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={handleSignOut} className="gap-2 cursor-pointer text-destructive">
                     <LogOut className="w-4 h-4" />
-                    {t('logout')}
+                    {t('auth.logout')}
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>

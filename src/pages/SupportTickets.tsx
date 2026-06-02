@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import {
-  Send, MessageCircle, ArrowRight, ArrowLeft, User as UserIcon,
+  Send, MessageCircle, ArrowRight, User as UserIcon,
   LifeBuoy, Check, CheckCheck, ImagePlus, X, Loader2, Lock
 } from "lucide-react";
 import Navbar from "@/components/Navbar";
@@ -33,7 +33,7 @@ const SupportTickets = () => {
 
   const signedUrlsRef = useRef<Record<string, string>>({});
 
-  // 🚀 تحديد ما إذا كانت المحادثة مقفلة (من الحالة أو من الـ Navigate State)
+  // تحديد ما إذا كانت المحادثة مقفلة
   const isReadOnly = location.state?.readOnly || selectedTicket?.status === 'closed';
 
   const markAsRead = useCallback(async (ticketId: string) => {
@@ -180,7 +180,6 @@ const SupportTickets = () => {
       setPendingImage(null);
       if (fileInputRef.current) fileInputRef.current.value = "";
 
-      // إشعار للمستخدم برد جديد من الإدارة
       if (role === "admin" && selectedTicket.user_id !== user.id) {
         await supabase.from("notifications").insert({
           recipient_id: selectedTicket.user_id,
@@ -199,8 +198,34 @@ const SupportTickets = () => {
   return (
     <div className="h-[100dvh] bg-[#f8fafc] flex flex-col overflow-hidden" dir="rtl">
       <Navbar />
-      <div className="container py-4 md:py-6 flex-1 flex flex-col overflow-hidden">
-        
+      
+      {/* 🚀 Header الجديد والمحسن مع زر العودة للصفحة السابقة */}
+      <header className="sticky top-16 z-30 bg-white border-b shadow-sm">
+        <div className="container py-3 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            {/* زر العودة للصفحة السابقة */}
+            <Button
+              variant="outline"
+              className="gap-2 rounded-xl border-border hover:bg-secondary text-muted-foreground hover:text-foreground font-bold shadow-sm"
+              onClick={() => navigate(-1)}
+            >
+              <ArrowRight className="w-4 h-4 rtl:rotate-0 ltr:rotate-180" />
+              <span className="hidden sm:inline">{t('common.back')}</span>
+            </Button>
+
+            <div className="h-6 w-[2px] bg-muted/50 hidden sm:block mx-1"></div>
+
+            <div className="flex items-center gap-2">
+              <LifeBuoy className="w-6 h-6 text-primary" />
+              <h1 className="font-black text-lg text-primary">
+                {role === "admin" ? t('support.title_admin') : t('support.title')}
+              </h1>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <div className="flex-1 container py-4 md:py-6 flex flex-col overflow-hidden">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 flex-1 overflow-hidden">
 
           {/* Ticket List */}
@@ -255,7 +280,7 @@ const SupportTickets = () => {
                         {ticket.booking_id ? t('support.linked_booking') : t('support.general_inquiry')}
                       </p>
                       <p className="text-[10px] text-muted-foreground font-medium">
-                        {new Date(ticket.created_at).toLocaleDateString("ar-SA")}
+                        {new Date(ticket.created_at).toLocaleDateString("ar-SA", { year: 'numeric', month: '2-digit', day: '2-digit' })}
                       </p>
                     </div>
                   </div>
@@ -268,39 +293,31 @@ const SupportTickets = () => {
           <Card className={`md:col-span-2 rounded-[2rem] border-none shadow-2xl overflow-hidden bg-white flex-col h-full ${selectedTicket ? 'flex' : 'hidden md:flex'}`}>
             {selectedTicket ? (
               <>
-                <CardHeader className="border-b bg-white py-4 px-6 shrink-0">
-                  <div className="flex justify-between items-center">
-                          <div className="flex items-center gap-4">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => setSelectedTicket(null)}
-                        className="md:hidden rounded-full shrink-0"
-                      >
-                        <ArrowRight />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        className="gap-2 rounded-xl border hover:bg-secondary hidden md:inline-flex"
-                        onClick={() => navigate(-1)}
-                      >
-                        <ArrowLeft className="w-4 h-4 rtl:rotate-180" />
-                        <span className="hidden sm:inline">{t('common.back')}</span>
-                      </Button>
-                      <div className="bg-primary/10 p-3 rounded-2xl hidden sm:flex">
-                        <UserIcon className="w-6 h-6 text-primary" />
+                <CardHeader className="border-b bg-white py-4 px-6 shrink-0 flex flex-row items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    {/* 🚀 زر العودة لقائمة التذاكر (يظهر فقط في الجوال داخل المحادثة) */}
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className="md:hidden shrink-0 hover:bg-muted rounded-full"
+                      onClick={() => setSelectedTicket(null)}
+                    >
+                      <ArrowRight className="w-5 h-5 rtl:rotate-0 ltr:rotate-180" />
+                    </Button>
+
+                    <div className="bg-primary/10 p-3 rounded-2xl hidden sm:flex">
+                      <UserIcon className="w-6 h-6 text-primary" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        {isReadOnly && <Lock className="w-4 h-4 text-muted-foreground" />}
+                        <CardTitle className="text-lg md:text-xl font-black line-clamp-1">{selectedTicket.subject}</CardTitle>
                       </div>
-                      <div>
-                        <div className="flex items-center gap-2">
-                          {isReadOnly && <Lock className="w-4 h-4 text-muted-foreground" />}
-                            <CardTitle className="text-lg md:text-xl font-black line-clamp-1">{selectedTicket.subject}</CardTitle>
-                        </div>
-                        <p className="text-[10px] md:text-xs font-bold text-muted-foreground mt-1">
-                          {role === "admin"
-                            ? `${t('support.sender_label')}: ${selectedTicket.user?.full_name}`
-                            : t('support.default_sender')}
-                        </p>
-                      </div>
+                      <p className="text-[10px] md:text-xs font-bold text-muted-foreground mt-1">
+                        {role === "admin"
+                          ? `${t('support.sender_label')}: ${selectedTicket.user?.full_name}`
+                          : t('support.default_sender')}
+                      </p>
                     </div>
                   </div>
                 </CardHeader>
@@ -358,7 +375,7 @@ const SupportTickets = () => {
                             {new Date(msg.created_at).toLocaleTimeString("ar-SA", {
                               hour: "2-digit",
                               minute: "2-digit",
-                              hour12: true,
+                              hour12: false,
                             })}
                           </span>
                           {msg.sender_id === user?.id && (
@@ -376,7 +393,6 @@ const SupportTickets = () => {
                   ))}
                 </CardContent>
 
-                {/* ✅ تحديث صندوق الإدخال: يختفي إذا كانت التذكرة مغلقة */}
                 <div className="p-3 md:p-4 border-t bg-white shrink-0">
                     {isReadOnly ? (
                     <div className="bg-muted/50 p-4 rounded-2xl border border-dashed text-center flex flex-col items-center gap-2">

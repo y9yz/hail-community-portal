@@ -1,8 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { 
   Bell, Trash2, CheckCheck, BellOff, MessageCircle, 
-  LifeBuoy, CheckCircle2, AlertCircle, Calendar, ArrowLeft
+  LifeBuoy, CheckCircle2, AlertCircle, Calendar
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -13,13 +13,14 @@ import { useNavigate } from "react-router-dom";
 
 const NotificationsBell = () => {
   const { t } = useTranslation();
-  const { user } = useAuth();
+  const { user, role } = useAuth(); // 🚀 جلبنا الـ role مباشرة لمنع الاستعلام المكرر بالأسفل
   const navigate = useNavigate();
   const [notifications, setNotifications] = useState<any[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
 
-  const fetchNotifications = async () => {
-    if (!user) return;
+  // 🚀 تغليف الدالة بـ useCallback لمنع إعادة إنشائها في الذاكرة عند كل رندر
+  const fetchNotifications = useCallback(async () => {
+    if (!user?.id) return;
     const { data } = await supabase
       .from("notifications")
       .select("*")
@@ -28,24 +29,29 @@ const NotificationsBell = () => {
       .limit(20);
     setNotifications(data || []);
     setUnreadCount((data || []).filter((n: any) => !n.is_read).length);
-  };
+  }, [user?.id]);
 
   useEffect(() => {
-    if (!user) return;
+    if (!user?.id) return;
     fetchNotifications();
 
+    // 🚀 جعل اسم القناة فريداً للمستخدم الحالي لمنع تصادم الـ WebSockets
+    const channelName = `notifications:${user.id}`;
     const channel = supabase
-      .channel("notifications")
+      .channel(channelName)
       .on("postgres_changes", { 
-        event: "*", // استماع لجميع التغييرات (إضافة، تعديل، حذف)
+        event: "*", 
         schema: "public", 
         table: "notifications", 
         filter: `recipient_id=eq.${user.id}` 
       }, () => fetchNotifications())
       .subscribe();
 
-    return () => { supabase.removeChannel(channel); };
-  }, [user]);
+    // 🚀 تنظيف آمن للقناة عند الـ unmount أو تغيير المستخدم
+    return () => { 
+      supabase.removeChannel(channel); 
+    };
+  }, [user?.id, fetchNotifications]); // 🔥 الاعتماد على user.id النصي يمنع نهائياً إعادة الاشتراك اللانهائية عند الـ Window Focus
 
   // دالة ذكية لتحديد الأيقونة واللون بناءً على نوع الإشعار
   const getNotifDetails = (content: string) => {
@@ -74,19 +80,17 @@ const NotificationsBell = () => {
       fetchNotifications();
     }
 
-    // 2. التوجيه الذكي (Navigation)
+    // 2. التوجيه الذكي الآمن والمعتمد على الـ role الجاهز من الـ Context
     const text = notification.content.toLowerCase();
     if (text.includes("تذكرة") || text.includes("بلاغ")) {
       navigate("/support");
     } else if (text.includes("رسالة") || text.includes("محادثة") || text.includes("طلب")) {
-      // إذا كان مزود خدمة يروح لوحة الأعمال، إذا عميل يروح طلباتي
-      const { data: roleData } = await supabase.from('user_roles').select('role').eq('user_id', user?.id).single();
-      navigate(roleData?.role === 'provider' ? "/provider" : "/my-bookings");
+      navigate(role === 'provider' ? "/provider" : "/my-bookings");
     }
   };
 
   const markAllRead = async () => {
-    if (!user) return;
+    if (!user?.id) return;
     const { error } = await supabase
       .from("notifications")
       .update({ is_read: true })
@@ -100,7 +104,7 @@ const NotificationsBell = () => {
   };
 
   const clearAll = async () => {
-    if (!user) return;
+    if (!user?.id) return;
     if (!confirm(t('notifications.clear_confirm'))) return;
     const { error } = await supabase.from("notifications").delete().eq("recipient_id", user.id);
     if (!error) {
@@ -123,8 +127,6 @@ const NotificationsBell = () => {
       </PopoverTrigger>
       
       <PopoverContent className="w-[340px] p-0 rounded-3xl border-2 shadow-2xl overflow-hidden" align="end">
-        
-        {/* تم إضافة إغلاق الـ div هنا */}
         <div className="bg-primary text-primary-foreground p-4 flex items-center justify-between shadow-md">
           <div className="flex items-center gap-2">
             <Bell className="w-4 h-4 fill-current" />
@@ -164,12 +166,12 @@ const NotificationsBell = () => {
                     </div>
                     <div className="flex-1 space-y-1">
                       <p className={`text-xs leading-relaxed ${!n.is_read ? "font-black text-foreground" : "font-medium text-muted-foreground"}`}>
-                        {n.content}
+                        ={n.content}
                       </p>
                       <div className="flex justify-between items-center">
                         <p className="text-[9px] text-muted-foreground font-bold flex items-center gap-1">
                           <Calendar className="w-2.5 h-2.5" />
-                          {new Date(n.created_at).toLocaleDateString("ar-SA", { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                          {new Date(n.created_at).toLocaleDateString("ar-SA", { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false })}
                         </p>
                         {!n.is_read && <span className="text-[9px] font-black text-primary bg-primary/10 px-1.5 py-0.5 rounded">{t('notifications.new')}</span>}
                       </div>

@@ -1,8 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import i18n from "@/i18n/config";
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from "react-router-dom";
-import { ClipboardList, ArrowRight, Clock, CheckCircle2, XCircle, MessageCircle, Ban, LifeBuoy, Star, CheckCheck, MapPin } from "lucide-react";
+import { ClipboardList, ArrowRight, Clock, CheckCircle2, XCircle, MessageCircle, Ban, LifeBuoy, Star, CheckCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -36,25 +36,9 @@ const MyBookings = () => {
   const [ratingBooking, setRatingBooking] = useState<any>(null);
   const [supportBooking, setSupportBooking] = useState<any>(null);
 
-  useEffect(() => {
-    if (authLoading) return;
-    if (!user) { navigate("/auth"); return; }
-    fetchBookings();
-
-    /* إعداد قناة اتصال لحظي لتحديث حالة الطلبات عند تغييرها في قاعدة البيانات من طرف المزود */
-    const channel = supabase
-      .channel("realtime-bookings")
-      .on("postgres_changes", { event: "*", schema: "public", table: "bookings", filter: `client_id=eq.${user.id}` }, () => {
-        fetchBookings();
-      })
-      .subscribe();
-
-    return () => { supabase.removeChannel(channel); };
-  }, [user, authLoading]);
-
-  /* جلب سجل الحجوزات مع ربط بيانات مقدم الخدمة وموقع الخدمة من الجداول المرتبطة */
-  const fetchBookings = async () => {
-    if (!user) return;
+  /* 🚀 تغليف دالة الجلب بـ useCallback لمنع تكرار الاستعلامات العشوائية */
+  const fetchBookings = useCallback(async () => {
+    if (!user?.id) return;
     try {
       const { data, error } = await supabase
         .from("bookings")
@@ -69,7 +53,33 @@ const MyBookings = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user?.id]);
+
+  useEffect(() => {
+    if (authLoading) return;
+    if (!user?.id) { navigate("/auth"); return; }
+    
+    fetchBookings();
+
+    /* 🚀 جعل اسم القناة فريداً للعميل الحالي لتجنب تصادم الـ WebSockets */
+    const channelName = `realtime-bookings:${user.id}`;
+    const channel = supabase
+      .channel(channelName)
+      .on("postgres_changes", { 
+        event: "*", 
+        schema: "public", 
+        table: "bookings", 
+        filter: `client_id=eq.${user.id}` 
+      }, () => {
+        fetchBookings();
+      })
+      .subscribe();
+
+    // 🚀 تنظيف آمن وإغلاق القناة لمنع تسريب الذاكرة (Memory Leak)
+    return () => { 
+      supabase.removeChannel(channel); 
+    };
+  }, [user?.id, authLoading, fetchBookings, navigate]); // 🔥 الاعتماد على الهوية النصية يحمي الصفحة تماماً عند الـ Window Focus
 
   /* معالجة إلغاء الطلب عبر تحديث الحالة في قاعدة البيانات */
   const handleCancel = async (booking: any) => {
@@ -88,7 +98,7 @@ const MyBookings = () => {
     }
   };
 
-    if (authLoading || loading) {
+  if (authLoading || loading) {
     return (
       <div className="min-h-screen bg-background">
         <Navbar />
@@ -98,15 +108,19 @@ const MyBookings = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background" dir="rtl">
       <Navbar />
-      <div className="container py-6 max-w-2xl">
-        <div className="flex items-center gap-3 mb-8">
-          <Button variant="ghost" size="icon" onClick={() => navigate("/")} className="rounded-full">
-            <ArrowRight className="w-5 h-5 text-primary" />
-          </Button>
-          <h1 className="text-3xl font-black text-foreground tracking-tighter">{t('bookings.title')}</h1>
+      <header className="sticky top-16 z-40 bg-card/80 backdrop-blur-lg border-b">
+        <div className="container flex items-center justify-between h-16 gap-4">
+          <div className="flex items-center gap-3">
+            <Button variant="ghost" size="icon" onClick={() => navigate("/")} className="rounded-full hover:bg-muted">
+              <ArrowRight className="w-5 h-5 text-primary" />
+            </Button>
+            <h1 className="text-2xl font-black text-foreground tracking-tighter">{t('bookings.title')}</h1>
+          </div>
         </div>
+      </header>
+      <div className="container py-6 max-w-2xl">
 
         {bookings.length === 0 ? (
           <Card className="rounded-3xl border-dashed border-2 py-20 bg-muted/5">
@@ -122,32 +136,28 @@ const MyBookings = () => {
               const status = getBookingStatus(b);
               const StatusIcon = status.icon;
               
-              /* 🚀 التعديل هنا: زر المحادثة يظهر فقط إذا لم يكتمل الطلب ولم يُرفض */
               const canCancel = b.provider_status === "pending";
               const canChat = b.status !== "completed" && b.provider_status !== "declined";
               const canRate = b.status === "completed" && b.has_review !== true;
               
               return (
                 <Card key={b.id} className="rounded-3xl border-2 hover:shadow-lg transition-all overflow-hidden border-primary/5">
-                  {/* ترويسة الطلب: نوع الخدمة، الرقم المرجعي، والحالة */}
                   <div className="p-5 border-b bg-muted/10 flex items-center justify-between">
-                    <div className="space-y-1">
+                    <div className="space-y-1 text-right">
                       <h3 className="font-black text-lg">{b.service_title}</h3>
                       <Badge variant="outline" className="text-[10px] font-mono tracking-tighter bg-background">#{b.order_number}</Badge>
                     </div>
-                      <Badge className={`${status.color} px-4 py-1.5 rounded-full text-[10px] font-black flex items-center gap-1.5 shadow-sm`}>
+                    <Badge className={`${status.color} px-4 py-1.5 rounded-full text-[10px] font-black flex items-center gap-1.5 shadow-sm`}>
                       <StatusIcon className="w-3.5 h-3.5" />
                       {status.label}
                     </Badge>
                   </div>
 
-                  <div className="p-5 space-y-4">
-                    {/* تفاصيل وصف المشكلة المكتوبة من العميل */}
+                  <div className="p-5 space-y-4 text-right">
                     <div className="bg-muted/30 p-4 rounded-2xl border-r-4 border-primary/20">
                         <p className="text-sm text-muted-foreground italic leading-relaxed">"{b.problem_description}"</p>
                     </div>
                     
-                    {/* معلومات مقدم الخدمة وآلية الدفع الميدانية */}
                     <div className="grid grid-cols-2 gap-4 text-xs">
                       <div className="bg-secondary/30 p-3 rounded-xl">
                         <p className="text-muted-foreground mb-1">{t('bookings.provider_label')}:</p>
@@ -159,7 +169,6 @@ const MyBookings = () => {
                       </div>
                     </div>
 
-                    {/* عرض تفاصيل الموعد المجدول */}
                     {b.scheduled_date && (
                       <div className="flex items-center gap-2 text-[11px] font-bold text-muted-foreground bg-muted/20 p-2 rounded-lg">
                         <Clock className="w-4 h-4 text-primary" />
@@ -167,7 +176,6 @@ const MyBookings = () => {
                       </div>
                     )}
 
-                    {/* أزرار الإجراءات التفاعلية للمستخدم */}
                     <div className="flex gap-2 flex-wrap pt-2">
                       {canRate && (
                         <Button className="rounded-2xl gap-2 flex-1 h-12 text-md font-black shadow-xl shadow-primary/20 bg-primary hover:bg-primary/90" onClick={() => setRatingBooking(b)}>
@@ -181,7 +189,7 @@ const MyBookings = () => {
                         </Button>
                       )}
                       
-                        <Button variant="secondary" className="rounded-2xl gap-2 flex-1 h-12 font-bold" onClick={() => setSupportBooking(b)}>
+                      <Button variant="secondary" className="rounded-2xl gap-2 flex-1 h-12 font-bold" onClick={() => setSupportBooking(b)}>
                         <LifeBuoy className="w-5 h-5" /> {t('bookings.support')}
                       </Button>
 
@@ -199,7 +207,6 @@ const MyBookings = () => {
         )}
       </div>
 
-      {/* نوافذ التفاعل الجانبية (Dialogs) */}
       {ratingBooking && (
         <RatingDialog
           open={!!ratingBooking}

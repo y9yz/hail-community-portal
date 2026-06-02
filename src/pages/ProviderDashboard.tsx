@@ -55,24 +55,47 @@ const ProviderDashboard = () => {
   const imageInputRef = useRef<HTMLInputElement>(null);
   const licenseInputRef = useRef<HTMLInputElement>(null);
 
-  // ✅ ref يمنع إعادة جلب البيانات عند تغيير مرجع الـ user object
+  // ref يمنع إعادة جلب البيانات عند تغيير مرجع الـ user object
   const fetchedForUserId = useRef<string | null>(null);
+
+  // ✅ حساب الأيام المتبقية بناءً على تفاصيل السيرفر والجدول الصحيح
+  const calculateTrialDays = () => {
+    if (subscription) {
+      if (subscription.status === 'active') return 30; // مشترك رسمي فعال
+      if (subscription.status === 'expired') return 0;  // منتهي الصلاحية تماماً
+      
+      const endDate = subscription.expires_at || subscription.trial_ends_at;
+      if (endDate) {
+        const remainingTime = new Date(endDate).getTime() - Date.now();
+        return Math.max(0, Math.floor(remainingTime / (1000 * 60 * 60 * 24)));
+      }
+    }
+
+    const creationDate = user?.created_at;
+    if (!creationDate) return 30; 
+    const createdTime = new Date(creationDate).getTime();
+    const currentTime = Date.now();
+    const daysPassed = Math.floor((currentTime - createdTime) / (1000 * 60 * 60 * 24));
+    return Math.max(0, 30 - daysPassed);
+  };
+
+  const trialDaysLeft = calculateTrialDays();
+  const isSubscribed = subscription && subscription.status === 'active';
 
   useEffect(() => {
     if (authLoading) return;
-    if (!user || role !== "provider") { navigate("/"); return; }
+    if (!user || role !== "provider") { navigate("/", { replace: true }); return; }
 
-    // ✅ لا تجلب البيانات إذا سبق جلبها لنفس المستخدم
     if (fetchedForUserId.current === user.id) return;
-
     fetchedForUserId.current = user.id;
     fetchData();
-  }, [user?.id, role, authLoading]); // ✅ user.id بدل user كاملاً
+  }, [user?.id, role, authLoading, navigate]);
 
   const fetchData = async () => {
     if (!user) return;
     setLoading(true);
     try {
+      // 🛠️ تم التعديل للاستعلام من جدول provider_subscriptions المتوافق مع صفحة الدفع
       const [
         { data: svc }, 
         { data: bk }, 
@@ -82,7 +105,7 @@ const ProviderDashboard = () => {
         supabase.from("services").select("*").eq("provider_id", user.id).order("created_at", { ascending: false }),
         supabase.from("bookings").select("*, client:profiles!bookings_client_id_fkey(full_name, phone)").eq("provider_id", user.id).order("created_at", { ascending: false }),
         supabase.from("reviews").select("rating, comment, service_id").order("created_at", { ascending: false }),
-        supabase.from("subscriptions" as any).select("*").eq("provider_id", user.id).maybeSingle(),
+        supabase.from("provider_subscriptions" as any).select("*").eq("provider_id", user.id).maybeSingle(),
       ]);
 
       setServices((svc as any) || []);
@@ -117,7 +140,14 @@ const ProviderDashboard = () => {
     }
   };
 
-  // ✅ fetchData اليدوي (زر التحديث) يسمح بإعادة الجلب
+  // ✅ تأثير الطرد الصارم (Strict Redirect Effect) عند انتهاء فترة الوصول (<= 0)
+  useEffect(() => {
+    if (!loading && !authLoading && !isSubscribed && trialDaysLeft <= 0) {
+      toast.error(t('provider.trial_expired_alert'));
+      navigate('/payment', { replace: true });
+    }
+  }, [loading, authLoading, isSubscribed, trialDaysLeft, navigate, t]);
+
   const handleManualRefresh = () => {
     fetchedForUserId.current = null;
     fetchData();
@@ -151,61 +181,62 @@ const ProviderDashboard = () => {
     finally { setAddingService(false); }
   };
 
-  const isSubscribed = subscription && subscription.status === 'active';
-  
-  const calculateTrialDays = () => {
-    const creationDate = user?.created_at;
-    if (!creationDate) return 30; 
-    const createdTime = new Date(creationDate).getTime();
-    const currentTime = Date.now();
-    const daysPassed = Math.floor((currentTime - createdTime) / (1000 * 60 * 60 * 24));
-    return Math.max(0, 30 - daysPassed);
-  };
-
-  const trialDaysLeft = calculateTrialDays();
   const chartData = [
     { name: t('provider.status.completed'), value: providerStats.completed },
     { name: t('provider.status.pending'), value: providerStats.pending },
     { name: t('provider.status.declined'), value: providerStats.declined },
   ];
 
-  if (loading) return <div className="p-20 text-center font-bold">{t('provider.loading_dashboard')}</div>;
+  // ✅ حاجز العرض الصارم (Render Guard) لمنع وميض البيانات قبل الطرد
+  if (!loading && !authLoading && !isSubscribed && trialDaysLeft <= 0) {
+    return null; 
+  }
+
+  if (loading || authLoading) {
+    return <div className="p-20 text-center font-bold">{t('provider.loading_dashboard')}</div>;
+  }
 
   return (
-    <div className="min-h-screen bg-background pb-10 text-right" dir="rtl">
+    <div className="min-h-screen bg-background pb-10 text-right flex flex-col" dir="rtl">
       <Navbar />
-      <div className="container py-8 max-w-6xl space-y-8">
+      <header className="sticky top-16 z-40 bg-card/80 backdrop-blur-lg border-b shadow-sm">
+        <div className="container flex flex-col md:flex-row items-start md:items-center justify-between h-auto md:h-16 gap-3 md:gap-4 py-3">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 w-full">
+            <h1 className="text-2xl font-black text-primary flex items-center gap-3">
+              {t('provider.title')}
+            </h1>
+            {/* عداد الوقت الفعلي في القائمة العلوية للمستخدم التجريبي النشط */}
+            {!isSubscribed && trialDaysLeft > 0 && (
+              <div className="bg-amber-100 text-amber-600 border border-amber-300 font-black px-3 py-1.5 rounded-full flex items-center gap-2 text-sm shadow-sm">
+                <Clock className="w-4 h-4 animate-pulse" />
+                {t('provider.trial_badge', { days: trialDaysLeft })}
+              </div>
+            )}
+          </div>
+          <Button onClick={() => setSupportOpen(true)} variant="secondary" className="rounded-xl gap-2 font-bold h-10 px-4 text-sm hidden md:inline-flex shrink-0">
+            <LifeBuoy className="w-4 h-4" /> {t('support.title')}
+          </Button>
+        </div>
+      </header>
+      
+      <div className="container py-4 max-w-6xl space-y-4 flex-1 overflow-auto">
         
-        {!isSubscribed && (
-          <Card className={`rounded-[2rem] border-2 p-6 flex flex-col md:flex-row items-center justify-between gap-6 shadow-sm transition-all ${trialDaysLeft > 0 ? 'border-primary/20 bg-primary/5' : 'border-destructive/30 bg-destructive/5'}`}>
+        {/* صندوق التنبيه التفعيلي داخل الصفحة */}
+        {!isSubscribed && trialDaysLeft > 0 && (
+          <Card className="rounded-[2rem] border-2 p-6 flex flex-col md:flex-row items-center justify-between gap-6 shadow-sm transition-all border-primary/20 bg-primary/5">
              <div className="space-y-2 text-center md:text-right">
-                <h3 className={`text-xl font-black flex items-center gap-2 justify-center md:justify-start ${trialDaysLeft > 0 ? 'text-primary' : 'text-destructive'}`}>
-                  {trialDaysLeft > 0 ? (
-                    <><Clock className="w-6 h-6" /> {t('provider.trial_active', { days: trialDaysLeft })}</>
-                  ) : (
-                    <><AlertTriangle className="w-6 h-6" /> {t('provider.trial_ended')}</>
-                  )}
+                <h3 className="text-xl font-black flex items-center gap-2 justify-center md:justify-start text-primary">
+                  <Clock className="w-6 h-6" /> {t('provider.trial_active', { days: trialDaysLeft })}
                 </h3>
                 <p className="text-sm font-bold text-muted-foreground">
-                  {trialDaysLeft > 0 
-                    ? t('provider.trial_active_desc')
-                    : t('provider.trial_ended_desc')}
+                  {t('provider.trial_active_desc')}
                 </p>
              </div>
-             <Button onClick={() => navigate("/payment")} className={`rounded-2xl h-14 px-8 font-black shadow-lg hover:scale-105 transition-transform text-lg w-full md:w-auto ${trialDaysLeft === 0 ? 'bg-destructive hover:bg-destructive/90 text-white' : ''}`}>
+             <Button onClick={() => navigate("/payment")} className="rounded-2xl h-14 px-8 font-black shadow-lg hover:scale-105 transition-transform text-lg w-full md:w-auto">
                 {t('provider.activate_subscription')}
              </Button>
           </Card>
         )}
-
-        <div className="flex flex-col md:flex-row justify-between items-center gap-4 pt-2">
-          <h1 className="text-4xl font-black text-primary tracking-tighter">{t('provider.title')}</h1>
-          <div className="flex gap-2">
-            <Button onClick={() => setSupportOpen(true)} variant="secondary" className="rounded-2xl gap-2 font-bold h-12">
-              <LifeBuoy className="w-5 h-5" /> {t('provider.support')}
-            </Button>
-          </div>
-        </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="grid grid-cols-2 gap-4 lg:col-span-2">
@@ -273,7 +304,7 @@ const ProviderDashboard = () => {
                       </h3>
                       <div className="flex flex-col items-end gap-1 text-[11px] font-bold text-muted-foreground">
                         <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> {t('provider.order_time')}:</span>
-                        <span dir="ltr">{new Date(b.created_at).toLocaleString('ar-SA', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' })}</span>
+                        <span dir="ltr">{new Date(b.created_at).toLocaleString('ar-SA', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', hour12: false })}</span>
                       </div>
                     </div>
 
@@ -295,7 +326,6 @@ const ProviderDashboard = () => {
                         <Button onClick={async () => {
                           const { error } = await supabase.from('bookings').update({provider_status:'accepted'}).eq('id', b.id);
                           if (!error) {
-                            // إشعار للعميل بقبول الطلب
                             await supabase.from("notifications").insert({
                               recipient_id: b.client_id,
                               sender_id: user?.id,
@@ -308,7 +338,6 @@ const ProviderDashboard = () => {
                         <Button onClick={async () => {
                           const { error } = await supabase.from('bookings').update({provider_status:'declined'}).eq('id', b.id);
                           if (!error) {
-                            // إشعار للعميل برفض الطلب
                             await supabase.from("notifications").insert({
                               recipient_id: b.client_id,
                               sender_id: user?.id,
@@ -325,7 +354,6 @@ const ProviderDashboard = () => {
                       <Button onClick={async () => {
                         const { error } = await supabase.from('bookings').update({status:'completed'}).eq('id', b.id);
                         if (!error) {
-                          // إشعار للعميل بإكمال الخدمة
                           await supabase.from("notifications").insert({
                             recipient_id: b.client_id,
                             sender_id: user?.id,

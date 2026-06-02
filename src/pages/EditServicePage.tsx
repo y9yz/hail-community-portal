@@ -114,13 +114,17 @@ const EditServicePage = () => {
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
-      <div className="container py-6 max-w-2xl">
-        <div className="flex items-center gap-3 mb-6">
-          <Button variant="ghost" size="icon" onClick={() => navigate("/provider")}>
-            <ArrowRight className="w-5 h-5" />
-          </Button>
-          <h1 className="text-2xl font-extrabold text-foreground">{t('service.edit_title')}</h1>
+      <header className="sticky top-16 z-40 bg-card/80 backdrop-blur-lg border-b">
+        <div className="container flex items-center justify-between h-16 gap-4">
+          <div className="flex items-center gap-3">
+            <Button variant="ghost" size="icon" onClick={() => navigate("/provider")} className="rounded-full hover:bg-muted">
+              <ArrowRight className="w-5 h-5 text-primary" />
+            </Button>
+            <h1 className="text-2xl font-black text-foreground tracking-tighter">{t('service.edit_title')}</h1>
+          </div>
         </div>
+      </header>
+      <div className="container py-6 max-w-2xl">
 
         <Card className="rounded-2xl">
           <CardContent className="p-6">

@@ -202,16 +202,24 @@ const AdminDashboard = () => {
   if (loading) return <div className="p-20 text-center font-black animate-pulse text-primary">{t('admin.loading_data')}</div>;
 
   return (
-    <div className="min-h-screen bg-background text-right" dir="rtl">
+    <div className="min-h-screen bg-background text-right flex flex-col" dir="rtl">
       <Navbar />
-      <div className="container py-6 max-w-7xl space-y-6">
-        
-        <div className="flex flex-col md:flex-row justify-between items-center bg-card p-8 rounded-[2rem] border shadow-sm">
-          <h1 className="text-4xl font-black text-primary flex items-center gap-3">
-            <Shield className="w-10 h-10" /> {t('admin.dashboard_title')}
+      <header className="sticky top-16 z-40 bg-card/80 backdrop-blur-lg border-b shadow-sm">
+        <div className="container flex items-center justify-between h-16 gap-4">
+          <h1 className="text-2xl font-black text-primary flex items-center gap-3">
+            <Shield className="w-7 h-7" /> {t('admin.dashboard_title')}
           </h1>
-          <Button onClick={handleManualRefresh} variant="outline" className="rounded-2xl gap-2 font-black mt-4 md:mt-0"><Clock className="w-5 h-5" /> {t('admin.refresh_data')}</Button>
+          <div className="flex gap-2">
+            <Button onClick={handleManualRefresh} variant="outline" className="rounded-xl gap-2 font-black h-10 px-4 text-sm">
+              <Clock className="w-4 h-4" /> {t('admin.refresh_data')}
+            </Button>
+            <Button onClick={downloadCSV} className="rounded-xl h-10 px-4 font-black gap-2 hidden md:inline-flex text-sm">
+              <Download className="w-4 h-4" /> {t('admin.export_data')}
+            </Button>
+          </div>
         </div>
+      </header>
+      <div className="container py-4 max-w-7xl space-y-4 flex-1 overflow-auto">
 
         <Tabs defaultValue="verify" className="w-full">
           <TabsList className="grid w-full grid-cols-3 lg:grid-cols-7 h-16 rounded-[1.5rem] bg-muted/50 p-1.5 mb-10 shadow-inner">
@@ -225,9 +233,6 @@ const AdminDashboard = () => {
           </TabsList>
 
           <TabsContent value="reports" className="space-y-6">
-            <div className="flex justify-end">
-               <Button onClick={downloadCSV} className="rounded-2xl h-12 px-8 font-black"><Download className="w-5 h-5 me-2" /> {t('admin.export_data')}</Button>
-            </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                <Card className="rounded-[2rem] border-2 p-6 shadow-sm">
                   <h3 className="font-black text-xl mb-6 flex items-center justify-center gap-2"><Users className="w-6 h-6 text-primary" /> {t('admin.users_distribution_title')}</h3>
@@ -334,7 +339,7 @@ const AdminDashboard = () => {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-muted/30 p-4 rounded-2xl border border-dashed">
                        <div className="flex flex-col gap-1">
                           <span className="text-[10px] font-black text-muted-foreground flex items-center gap-1"><Clock className="w-3 h-3" /> {t('admin.order_received_time')}</span>
-                          <span className="text-sm font-bold" dir="ltr">{new Date(b.created_at).toLocaleString('ar-SA', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' })}</span>
+                          <span className="text-sm font-bold" dir="ltr">{new Date(b.created_at).toLocaleString('ar-SA', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric', hour12: false })}</span>
                        </div>
                        <div className="flex flex-col gap-1">
                           <span className="text-[10px] font-black text-primary flex items-center gap-1"><Calendar className="w-3 h-3" /> {t('admin.scheduled_execution')}</span>
@@ -448,7 +453,7 @@ const AdminDashboard = () => {
                    <div className="flex justify-between items-start">
                      <div>
                        <p className="font-black text-lg text-primary">{s.provider?.full_name || t('admin.unknown_provider')}</p>
-                       <p className="text-xs text-muted-foreground font-bold mt-1 flex items-center gap-1"><Calendar className="w-3 h-3" /> {t('admin.joined_on', { date: new Date(s.provider?.created_at || s.created_at).toLocaleDateString('ar-SA') })}</p>
+                       <p className="text-xs text-muted-foreground font-bold mt-1 flex items-center gap-1"><Calendar className="w-3 h-3" /> {t('admin.joined_on', { date: new Date(s.provider?.created_at || s.created_at).toLocaleDateString('ar-SA', { year: 'numeric', month: '2-digit', day: '2-digit' }) })}</p>
                      </div>
                      <Badge className={`px-3 py-1 rounded-xl font-bold border-none text-white ${isExpired ? "bg-destructive" : isTrial ? "bg-orange-500" : "bg-emerald-500"}`}>
                        {isExpired ? t('admin.subscription_expired') : isTrial ? t('admin.subscription_trial') : t('admin.subscription_active')}

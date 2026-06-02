@@ -80,7 +80,8 @@ const Index = () => {
   */
   const filtered = useMemo(() => {
     let result = services.filter((s) => {
-      const matchesSearch = s.title.includes(searchQuery) || s.description.includes(searchQuery);
+      const lowerQuery = searchQuery.toLowerCase();
+      const matchesSearch = s.title.toLowerCase().includes(lowerQuery);
       const matchesCategory = activeCategory === "all" || s.category === activeCategory;
       return matchesSearch && matchesCategory;
     });

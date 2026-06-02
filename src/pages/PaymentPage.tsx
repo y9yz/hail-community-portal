@@ -66,13 +66,17 @@ const PaymentPage = () => {
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
-      <div className="container py-10 max-w-md space-y-8">
-        
-        {/* ترويسة الصفحة والرجوع */}
-        <div className="flex items-center gap-2">
-          <Button variant="ghost" size="icon" onClick={() => navigate("/provider")}><ArrowRight /></Button>
-          <h1 className="text-2xl font-black">{t('payment.title')}</h1>
+      <header className="sticky top-16 z-40 bg-card/80 backdrop-blur-lg border-b">
+        <div className="container flex items-center justify-between h-16 gap-4">
+          <div className="flex items-center gap-3">
+            <Button variant="ghost" size="icon" onClick={() => navigate("/provider")} className="rounded-full hover:bg-muted">
+              <ArrowRight className="w-5 h-5 text-primary" />
+            </Button>
+            <h1 className="text-2xl font-black text-foreground tracking-tighter">{t('payment.title')}</h1>
+          </div>
         </div>
+      </header>
+      <div className="container py-6 max-w-md">
 
         {/* عرض تفاصيل المبلغ المستحق */}
         <Card className="rounded-3xl border-2 border-primary/20 p-6 text-center space-y-4 shadow-lg">

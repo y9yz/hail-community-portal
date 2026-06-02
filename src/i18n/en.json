@@ -15,12 +15,13 @@
     "loading": "Loading services...",
     "no_services": "No services match your search."
   },
-  "search_placeholder": "Search services, providers or tickets...",
+  "search_placeholder": "Search services...",
   "common": {
     "back": "Back",
     "back_home": "Back to Home"
   },
   "auth": {
+    "login": "Log In",
     "login_tab": "Log In",
     "signup_tab": "Create Account",
     "fill_required": "Please fill all required fields.",
@@ -57,11 +58,16 @@
     "reset_password_title": "Set New Password",
     "reset_password_instructions": "Enter the 6-digit code and your new password.",
     "update_password_btn": "Update Password",
-    "logged_out": "You have been logged out."
+    "logged_out": "You have been logged out.",
+    "edit_profile": "Edit Profile",
+    "logout": "Sign Out"
   },
   "roles": {
     "client": "Client",
-    "provider": "Provider"
+    "provider": "Provider",
+    "admin": "Administrator",
+    "admin_role": "Administrator",
+    "client_role": "Beneficiary Client"
   },
   "support": {
     "title": "Support Tickets",
@@ -181,7 +187,15 @@
     "manage_ticket_title": "Manage Ticket",
     "update_ticket_status_label": "Update ticket status:",
     "ticket_action_in_progress": "In progress",
-    "ticket_action_resolved": "Resolved and closed"
+    "ticket_action_resolved": "Resolved and closed",
+    "loading_data": "Loading admin data...",
+    "reply": "Reply",
+    "view": "View",
+    "users_distribution_title": "Users Distribution",
+    "orders_statistics_title": "Orders Statistics",
+    "sender_label": "Sender: {{sender}}",
+    "not_defined": "Not defined",
+    "undefined_time": "Not scheduled"
   },
   "provider": {
     "title": "Provider Dashboard",
@@ -203,6 +217,41 @@
     "category_placeholder": "Choose a service type",
     "map_link_label": "Site Link (Google Maps)",
     "map_link_placeholder": "Paste the site link here",
+    "service_title_label": "Service Title",
+    "service_title_placeholder": "Enter your service title",
+    "description_label": "Service Description",
+    "description_placeholder": "Describe your service in detail",
+    "neighborhood_label": "Neighborhood / Area",
+    "neighborhood_placeholder": "Enter the neighborhood name",
+    "attach_service_image": "Attach service image",
+    "image_attached": "Image attached",
+    "attach_license": "Attach license document",
+    "license_attached": "License attached",
+    "service_publishing": "Publishing service...",
+    "submit_service": "Publish Service",
+    "service_published": "Service published successfully.",
+    "activate_subscription": "Activate Subscription",
+    "total_orders": "Total Orders",
+    "pending": "Pending",
+    "completed": "Completed",
+    "avg_rating": "Average Rating",
+    "no_reviews": "No reviews yet.",
+    "tabs": {
+      "requests": "Requests",
+      "services": "Services",
+      "add": "Add Service",
+      "reports": "Reports"
+    },
+    "order_time": "Order Time",
+    "customer": "Customer",
+    "appointment": "Appointment",
+    "appointment_pending": "Pending",
+    "contact_client": "Contact Client",
+    "no_requests": "No requests found.",
+    "reports": {
+      "order_distribution": "Order Distribution",
+      "performance_stats": "Performance Statistics"
+    },
     "decline_order": "Decline Order",
     "complete_service": "Complete Service",
     "accept_order": "Accept Order",
@@ -212,7 +261,9 @@
     "notification_order_accepted": "Your order for {{title}} has been accepted.",
     "notification_order_declined": "Your order for {{title}} has been declined.",
     "notification_service_completed": "Your service {{title}} has been completed successfully.",
-    "fetch_error": "Failed to load dashboard data."
+    "fetch_error": "Failed to load dashboard data.",
+    "trial_expired_alert": "Free trial ended! Please activate your subscription to continue using the dashboard.",
+    "trial_badge": "Free Trial: {{days}} days left"
   },
   "service": {
     "load_failed": "Failed to load service.",
@@ -358,5 +409,20 @@
     "copyright": "All rights reserved © 2026",
     "university": "University of Hail - Computer Science Faculty",
     "made_in_hail": "Made in Hail"
+  },
+  "payment": {
+    "title": "Subscription Payment",
+    "annual_fee_label": "Annual Subscription Fee",
+    "confirm_access": "Confirm your payment to activate subscription access",
+    "choose_method": "Choose Payment Method",
+    "legal_notice": "By completing this payment, you agree to the subscription terms and conditions.",
+    "error_alert": "Payment error: {{message}}",
+    "success": "Payment successful! Subscription activated.",
+    "failed": "Payment failed. Please try again."
+  },
+  "permissionDenied": {
+    "title": "Access Denied",
+    "description": "You don't have permission to access this page. Please contact support if you believe this is an error.",
+    "back_home": "Back to Home"
   }
 }

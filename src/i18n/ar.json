@@ -15,12 +15,13 @@
     "loading": "جاري تحميل الخدمات...",
     "no_services": "لا توجد خدمات مطابقة لبحثك."
   },
-  "search_placeholder": "ابحث عن الخدمات أو المزودين أو البلاغات...",
+  "search_placeholder": "ابحث عن الخدمات...",
   "common": {
     "back": "العودة",
     "back_home": "العودة للرئيسية"
   },
   "auth": {
+    "login": "تسجيل الدخول",
     "login_tab": "تسجيل الدخول",
     "signup_tab": "حساب جديد",
     "fill_required": "يرجى ملء جميع الحقول المطلوبة.",
@@ -57,11 +58,16 @@
     "reset_password_title": "تعيين كلمة جديدة",
     "reset_password_instructions": "أدخل رمز التحقق المكون من 6 أرقام وكلمتك الجديدة.",
     "update_password_btn": "تحديث كلمة المرور",
-    "logged_out": "تم تسجيل الخروج بنجاح."
+    "logged_out": "تم تسجيل الخروج بنجاح.",
+    "edit_profile": "تعديل الملف الشخصي",
+    "logout": "تسجيل الخروج"
   },
   "roles": {
     "client": "عميل",
-    "provider": "مقدم خدمة"
+    "provider": "مزود الخدمة",
+    "admin": "المسؤول",
+    "admin_role": "مسؤول النظام",
+    "client_role": "عميل مستفيد"
   },
   "support": {
     "title": "تذاكر الدعم الفني",
@@ -181,11 +187,20 @@
     "manage_ticket_title": "إدارة التذكرة",
     "update_ticket_status_label": "تحديث حالة التذكرة:",
     "ticket_action_in_progress": "قيد المعالجة",
-    "ticket_action_resolved": "مُحلة ومغلقة"
+    "ticket_action_resolved": "مُحلة ومغلقة",
+    "reply": "رد",
+    "view": "عرض",
+    "users_distribution_title": "توزيع المستخدمين",
+    "orders_statistics_title": "إحصائيات الطلبات",
+    "sender_label": "المرسل:",
+    "not_defined": "غير محدد",
+    "undefined_time": "لم يتم تحديده"
   },
   "provider": {
     "title": "لوحة الأعمال",
     "support": "الدعم الفني",
+    "trial_expired_alert": "انتهت الفترة التجريبية! يرجى تفعيل اشتراكك للاستمرار في استخدام لوحة الأعمال.",
+    "trial_badge": "الفترة التجريبية: {{days}} يوم",
     "top_reviews": "أبرز التعليقات",
     "trial_active": "الفترة التجريبية فعالة — تبقى {{days}} يوماً",
     "trial_ended": "انتهت الفترة التجريبية!",
@@ -203,6 +218,41 @@
     "category_placeholder": "اختر نوع الخدمة",
     "map_link_label": "رابط الموقع (خرائط قوقل)",
     "map_link_placeholder": "الصق رابط الموقع هنا",
+    "service_title_label": "عنوان الخدمة",
+    "service_title_placeholder": "أدخل عنوان الخدمة",
+    "description_label": "وصف الخدمة",
+    "description_placeholder": "وصف خدمتك بالتفصيل",
+    "neighborhood_label": "الحي / المنطقة",
+    "neighborhood_placeholder": "أدخل اسم الحي",
+    "attach_service_image": "إرفاق صورة الخدمة",
+    "image_attached": "تم إرفاق الصورة",
+    "attach_license": "إرفاق وثيقة الترخيص",
+    "license_attached": "تم إرفاق الترخيص",
+    "service_publishing": "جاري نشر الخدمة...",
+    "submit_service": "نشر الخدمة",
+    "service_published": "تم نشر الخدمة بنجاح.",
+    "activate_subscription": "تفعيل الاشتراك",
+    "total_orders": "إجمالي الطلبات",
+    "pending": "قيد الانتظار",
+    "completed": "مكتمل",
+    "avg_rating": "متوسط التقييم",
+    "no_reviews": "لا توجد تقييمات حتى الآن.",
+    "tabs": {
+      "requests": "الطلبات",
+      "services": "الخدمات",
+      "add": "إضافة خدمة",
+      "reports": "التقارير"
+    },
+    "order_time": "وقت الطلب",
+    "customer": "العميل",
+    "appointment": "الموعد",
+    "appointment_pending": "قيد الانتظار",
+    "contact_client": "اتصل بالعميل",
+    "no_requests": "لا توجد طلبات.",
+    "reports": {
+      "order_distribution": "توزيع الطلبات",
+      "performance_stats": "إحصائيات الأداء"
+    },
     "decline_order": "رفض الطلب",
     "complete_service": "إكمال الخدمة",
     "accept_order": "قبول الطلب",
@@ -212,7 +262,9 @@
     "notification_order_accepted": "تم قبول طلبك لخدمة {{title}}.",
     "notification_order_declined": "تم رفض طلبك لخدمة {{title}}.",
     "notification_service_completed": "تم إكمال خدمتك {{title}} بنجاح.",
-    "fetch_error": "تعذّر تحميل بيانات لوحة التحكم."
+    "fetch_error": "تعذّر تحميل بيانات لوحة التحكم.",
+    "trial_expired_alert": "انتهت الفترة التجريبية! يرجى تفعيل اشتراكك للاستمرار في استخدام لوحة الأعمال.",
+    "trial_badge": "الفترة التجريبية: {{days}} يوم"
   },
   "service": {
     "load_failed": "تعذّر تحميل الخدمة.",
@@ -358,5 +410,20 @@
     "copyright": "جميع الحقوق محفوظة © 2026",
     "university": "جامعة حائل - كلية علوم الحاسب",
     "made_in_hail": "صُنع في حائل"
+  },
+  "payment": {
+    "title": "دفع الاشتراك",
+    "annual_fee_label": "رسم الاشتراك السنوي",
+    "confirm_access": "أكد الدفع لتفعيل الوصول للاشتراك",
+    "choose_method": "اختر طريقة الدفع",
+    "legal_notice": "بإتمام هذه العملية، أنت توافق على شروط وأحكام الاشتراك.",
+    "error_alert": "خطأ في الدفع: {{message}}",
+    "success": "تم الدفع بنجاح! تم تفعيل الاشتراك.",
+    "failed": "فشل الدفع. يرجى المحاولة مجدداً."
+  },
+  "permissionDenied": {
+    "title": "تم رفض الوصول",
+    "description": "ليس لديك صلاحية للوصول إلى هذه الصفحة. يرجى التواصل مع الدعم إذا كنت تعتقد أن هذا خطأ.",
+    "back_home": "العودة للصفحة الرئيسية"
   }
 }

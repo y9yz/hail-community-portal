@@ -112,7 +112,7 @@ const SubscriptionPage = () => {
       {subscription && (
         <p className="mt-6 text-center text-sm text-muted-foreground">
           {t('subscription.status_label')} {subscription.status === 'trial' ? t('subscription.status_trial') : t('subscription.status_active')} | 
-          {t('subscription.expires_at', { date: new Date(subscription.expires_at || subscription.trial_ends_at).toLocaleDateString('ar-SA') })}
+          {t('subscription.expires_at', { date: new Date(subscription.expires_at || subscription.trial_ends_at).toLocaleDateString('ar-SA', { year: 'numeric', month: '2-digit', day: '2-digit' }) })}
         </p>
       )}
     </div>
