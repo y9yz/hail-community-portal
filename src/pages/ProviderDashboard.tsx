@@ -33,6 +33,7 @@ const ProviderDashboard = () => {
   const [bookings, setBookings] = useState<any[]>([]);
   const [subscription, setSubscription] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
+  const [subscriptionLoading, setSubscriptionLoading] = useState(false);
   
   const [providerStats, setProviderStats] = useState({
     total: 0, accepted: 0, pending: 0, completed: 0, declined: 0, avgRating: 0
@@ -55,24 +56,27 @@ const ProviderDashboard = () => {
   const imageInputRef = useRef<HTMLInputElement>(null);
   const licenseInputRef = useRef<HTMLInputElement>(null);
 
-  // ref يمنع إعادة جلب البيانات عند تغيير مرجع الـ user object
   const fetchedForUserId = useRef<string | null>(null);
+  const unsubscribeRef = useRef<(() => void) | null>(null);
 
-  // ✅ حساب الأيام المتبقية بناءً على تفاصيل السيرفر والجدول الصحيح
-  const calculateTrialDays = () => {
-    if (subscription) {
-      if (subscription.status === 'active') return 30; // مشترك رسمي فعال
-      if (subscription.status === 'expired') return 0;  // منتهي الصلاحية تماماً
-      
-      const endDate = subscription.expires_at || subscription.trial_ends_at;
-      if (endDate) {
-        const remainingTime = new Date(endDate).getTime() - Date.now();
-        return Math.max(0, Math.floor(remainingTime / (1000 * 60 * 60 * 24)));
-      }
+  // 1️⃣ التحقق من الاشتراك المدفوع بصرامة (تطابق الحالة مع تاريخ الانتهاء الفعلي)
+  const checkIsSubscribed = () => {
+    if (!subscription) return false;
+    if (subscription.status !== 'active') return false;
+    
+    // إذا كان هناك تاريخ انتهاء، تأكد أنه في المستقبل
+    if (subscription.expires_at) {
+      return new Date(subscription.expires_at).getTime() > Date.now();
     }
+    return false; // إذا لم يكن هناك تاريخ انتهاء، نعتبره غير صالح للأمان
+  };
 
+  const isSubscribed = checkIsSubscribed();
+  
+  // 2️⃣ حساب الفترة التجريبية بناءً على تاريخ إنشاء الحساب حصراً!
+  const calculateTrialDays = () => {
     const creationDate = user?.created_at;
-    if (!creationDate) return 30; 
+    if (!creationDate) return 0; 
     const createdTime = new Date(creationDate).getTime();
     const currentTime = Date.now();
     const daysPassed = Math.floor((currentTime - createdTime) / (1000 * 60 * 60 * 24));
@@ -80,7 +84,6 @@ const ProviderDashboard = () => {
   };
 
   const trialDaysLeft = calculateTrialDays();
-  const isSubscribed = subscription && subscription.status === 'active';
 
   useEffect(() => {
     if (authLoading) return;
@@ -89,31 +92,102 @@ const ProviderDashboard = () => {
     if (fetchedForUserId.current === user.id) return;
     fetchedForUserId.current = user.id;
     fetchData();
+    setupRealtimeListener();
   }, [user?.id, role, authLoading, navigate]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const justPaid = params.get('payment_success');
+    if (justPaid === 'true' && user?.id) {
+      console.log('[Dashboard] Detected payment redirect, refetching subscription...');
+      refetchSubscription();
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, [user?.id]);
+
+  const setupRealtimeListener = () => {
+    if (!user?.id) return;
+
+    const channel = supabase
+      .channel(`subscriptions:${user.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'subscriptions',
+          filter: `provider_id=eq.${user.id}`,
+        },
+        (payload: any) => {
+          console.log('[Realtime] Subscription changed:', payload);
+          refetchSubscription();
+        }
+      )
+      .subscribe();
+
+    unsubscribeRef.current = () => {
+      supabase.removeChannel(channel);
+    };
+  };
+
+  const refetchSubscription = async () => {
+    if (!user?.id) return;
+    setSubscriptionLoading(true);
+    try {
+      const { data: subData, error: subError } = await supabase
+        .from("subscriptions" as any)
+        .select("*")
+        .eq("provider_id", user.id)
+        .order("created_at", { ascending: false });
+
+      if (!subError && subData && subData.length > 0) {
+        setSubscription(subData[0]); // دائماً نأخذ أحدث سجل اشتراك متوفر
+      } else {
+        setSubscription(null);
+      }
+    } catch (err) {
+      console.error('[RefetchSubscription] Error:', err);
+    } finally {
+      setSubscriptionLoading(false);
+    }
+  };
 
   const fetchData = async () => {
     if (!user) return;
     setLoading(true);
+    
     try {
-      // 🛠️ تم التعديل للاستعلام من جدول provider_subscriptions المتوافق مع صفحة الدفع
-      const [
-        { data: svc }, 
-        { data: bk }, 
-        { data: reviewData }, 
-        { data: sub }
-      ] = await Promise.all([
+      const { data: subData, error: subError } = await supabase
+        .from("subscriptions" as any)
+        .select("*")
+        .eq("provider_id", user.id)
+        .order("created_at", { ascending: false });
+
+      if (!subError && subData && subData.length > 0) {
+        setSubscription(subData[0]); // حفظ أحدث اشتراك تم العثور عليه
+      } else {
+        setSubscription(null);
+      }
+    } catch (subErr) {
+      console.error("[Dashboard] Subscription Fetch Exception:", subErr);
+      setSubscription(null);
+    }
+
+    try {
+      const [resSvc, resBk, resReview] = await Promise.all([
         supabase.from("services").select("*").eq("provider_id", user.id).order("created_at", { ascending: false }),
         supabase.from("bookings").select("*, client:profiles!bookings_client_id_fkey(full_name, phone)").eq("provider_id", user.id).order("created_at", { ascending: false }),
         supabase.from("reviews").select("rating, comment, service_id").order("created_at", { ascending: false }),
-        supabase.from("provider_subscriptions" as any).select("*").eq("provider_id", user.id).maybeSingle(),
       ]);
 
-      setServices((svc as any) || []);
-      const allBks = bk || [];
-      setBookings(allBks);
-      setSubscription(sub || null);
+      const svc = resSvc.data || [];
+      const bk = resBk.data || [];
+      const reviewData = resReview.data || [];
 
-      const myReviews = (reviewData || []).filter((r: any) => (svc || []).map(s => s.id).includes(r.service_id));
+      setServices(svc);
+      setBookings(bk);
+
+      const myReviews = reviewData.filter((r: any) => svc.map(s => s.id).includes(r.service_id));
       const avg = myReviews.length > 0 ? myReviews.reduce((s: number, r: any) => s + r.rating, 0) / myReviews.length : 0;
       
       const commentsWithTitles = myReviews
@@ -121,39 +195,62 @@ const ProviderDashboard = () => {
         .map((r: any) => ({
           rating: r.rating,
           comment: r.comment,
-          serviceTitle: (svc as any)?.find((s: any) => s.id === r.service_id)?.title || t('service.default_title')
+          serviceTitle: svc.find((s: any) => s.id === r.service_id)?.title || t('service.default_title')
         }));
       setRecentReviews(commentsWithTitles);
 
       setProviderStats({
-        total: allBks.length,
-        accepted: allBks.filter((b: any) => b.provider_status === "accepted").length,
-        pending: allBks.filter((b: any) => b.provider_status === "pending").length,
-        completed: allBks.filter((b: any) => b.status === "completed").length,
-        declined: allBks.filter((b: any) => b.provider_status === "declined").length,
+        total: bk.length,
+        accepted: bk.filter((b: any) => b.provider_status === "accepted").length,
+        pending: bk.filter((b: any) => b.provider_status === "pending").length,
+        completed: bk.filter((b: any) => b.status === "completed").length,
+        declined: bk.filter((b: any) => b.provider_status === "declined").length,
         avgRating: Math.round(avg * 10) / 10
       });
     } catch (err: any) {
+      console.error("[Dashboard] Data Fetch Exception:", err);
       toast.error(t('provider.fetch_error'));
     } finally {
       setLoading(false);
     }
   };
 
-  // ✅ تأثير الطرد الصارم (Strict Redirect Effect) عند انتهاء فترة الوصول (<= 0)
+  // 🔴 جدار الحماية (Redirect Guard)
   useEffect(() => {
-    if (!loading && !authLoading && !isSubscribed && trialDaysLeft <= 0) {
-      toast.error(t('provider.trial_expired_alert'));
-      navigate('/payment', { replace: true });
+    if (loading || authLoading) return;
+    
+    // 1. هل لديه اشتراك مدفوع ولم ينتهي؟
+    if (isSubscribed) {
+      console.log('[RedirectGuard] Valid active subscription - ALLOW');
+      return;
     }
-  }, [loading, authLoading, isSubscribed, trialDaysLeft, navigate, t]);
+
+    // 2. إذا لم يكن لديه اشتراك صالح، هل هو في فترة الـ 30 يوم المجانية؟
+    if (trialDaysLeft > 0) {
+      console.log('[RedirectGuard] Valid trial period - ALLOW');
+      return;
+    }
+
+    // 3. إذا لم ينجح في الشرطين السابقين -> طرد مباشر
+    console.warn('[RedirectGuard] EXPIRED! Redirecting to payment...');
+    toast.error(t('provider.trial_expired_alert'));
+    navigate('/payment', { replace: true });
+  }, [loading, authLoading, subscriptionLoading, isSubscribed, trialDaysLeft, navigate, t]);
+
+  useEffect(() => {
+    return () => {
+      if (unsubscribeRef.current) {
+        unsubscribeRef.current();
+      }
+    };
+  }, []);
 
   const handleManualRefresh = () => {
     fetchedForUserId.current = null;
     fetchData();
   };
 
-  const isFormValid = title && category && description && neighborhood && mapsLink && serviceImage && licenseFile;
+  const isFormValid = !!(title && category && description && neighborhood && mapsLink && serviceImage && licenseFile);
 
   const handleSubmitService = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -187,13 +284,13 @@ const ProviderDashboard = () => {
     { name: t('provider.status.declined'), value: providerStats.declined },
   ];
 
-  // ✅ حاجز العرض الصارم (Render Guard) لمنع وميض البيانات قبل الطرد
+  // 🔴 منع الواجهة من الظهور أثناء معالجة الطرد
   if (!loading && !authLoading && !isSubscribed && trialDaysLeft <= 0) {
     return null; 
   }
 
   if (loading || authLoading) {
-    return <div className="p-20 text-center font-bold">{t('provider.loading_dashboard')}</div>;
+    return <div className="min-h-screen bg-background flex items-center justify-center font-bold text-muted-foreground animate-pulse">{t('provider.loading_dashboard')}</div>;
   }
 
   return (
@@ -205,11 +302,16 @@ const ProviderDashboard = () => {
             <h1 className="text-2xl font-black text-primary flex items-center gap-3">
               {t('provider.title')}
             </h1>
-            {/* عداد الوقت الفعلي في القائمة العلوية للمستخدم التجريبي النشط */}
             {!isSubscribed && trialDaysLeft > 0 && (
               <div className="bg-amber-100 text-amber-600 border border-amber-300 font-black px-3 py-1.5 rounded-full flex items-center gap-2 text-sm shadow-sm">
                 <Clock className="w-4 h-4 animate-pulse" />
                 {t('provider.trial_badge', { days: trialDaysLeft })}
+              </div>
+            )}
+            {isSubscribed && (
+              <div className="bg-emerald-100 text-emerald-700 border border-emerald-300 font-black px-4 py-1.5 rounded-full flex items-center gap-2 text-sm shadow-sm">
+                <CheckCircle2 className="w-4 h-4" />
+                مشترك رسمي فعال ✓
               </div>
             )}
           </div>
@@ -221,7 +323,6 @@ const ProviderDashboard = () => {
       
       <div className="container py-4 max-w-6xl space-y-4 flex-1 overflow-auto">
         
-        {/* صندوق التنبيه التفعيلي داخل الصفحة */}
         {!isSubscribed && trialDaysLeft > 0 && (
           <Card className="rounded-[2rem] border-2 p-6 flex flex-col md:flex-row items-center justify-between gap-6 shadow-sm transition-all border-primary/20 bg-primary/5">
              <div className="space-y-2 text-center md:text-right">

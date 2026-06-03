@@ -29,9 +29,10 @@ const PaymentPage = () => {
       /**
        * استخدام upsert لتحديث سجل الاشتراك الحالي أو إنشاء سجل جديد
        * تم تحديد onConflict لضمان عدم تكرار السجلات لنفس المزود
+       * IMPORTANT: Using correct table name "provider_subscriptions"
        */
       const { error } = await supabase
-        .from("subscriptions" as any) 
+        .from("provider_subscriptions" as any) 
         .upsert({ 
           provider_id: user.id,
           status: 'active', 
@@ -47,8 +48,8 @@ const PaymentPage = () => {
 
       toast.success(t('payment.success', { methodName }));
       
-      /* إعادة التوجيه للوحة التحكم بعد تحديث الحالة */
-      navigate("/provider"); 
+      /* إعادة التوجيه للوحة التحكم بعد تحديث الحالة مع إشارة نجاح الدفع */
+      navigate("/provider?payment_success=true"); 
       
     } catch (err: any) {
       console.error("Payment Error:", err);
