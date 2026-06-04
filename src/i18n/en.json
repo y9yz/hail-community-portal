@@ -250,8 +250,10 @@
     "no_requests": "No requests found.",
     "reports": {
       "order_distribution": "Order Distribution",
-      "performance_stats": "Performance Statistics"
+      "performance_stats": "Performance Statistics",
+      "timeline": "Request Timeline"
     },
+    "export_data": "Export Data (Excel)",
     "decline_order": "Decline Order",
     "complete_service": "Complete Service",
     "accept_order": "Accept Order",
@@ -310,7 +312,9 @@
     "select_date_prompt": "Select a date",
     "available_times": "Available times",
     "checking_times": "Checking availability...",
-    "submit_request": "Submit Request"
+    "submit_request": "Submit Request",
+    "submit_button": "Request Service Now"
+
   },
   "review": {
     "title_count": "Reviews ({{count}})",

@@ -250,7 +250,7 @@ export type Database = {
         }
         Relationships: []
       }
-      provider_subscriptions: {
+      subscriptions: {
         Row: {
           activated_at: string | null
           activated_by: string | null

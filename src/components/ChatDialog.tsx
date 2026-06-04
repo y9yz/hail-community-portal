@@ -138,7 +138,14 @@ const ChatDialog = ({ open, onOpenChange, bookingId, otherName, readOnly = false
   }, [messages]);
 
   const handleSend = async () => {
-    if (readOnly || (!newMessage.trim() && !pendingImage) || !user) return;
+    if (readOnly || !user) return;
+
+    if (pendingImage && (!newMessage || newMessage.trim() === "")) {
+      toast.warning('يرجى كتابة وصف أو توضيح مع الصورة قبل إرسالها 📝');
+      return;
+    }
+
+    if (!newMessage.trim() && !pendingImage) return;
     setSending(true);
     try {
       let imagePath: string | null = null;

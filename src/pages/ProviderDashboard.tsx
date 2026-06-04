@@ -2,7 +2,7 @@ import { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   CheckCircle2, XCircle, Clock, MessageSquare, Plus, Package, Inbox, Upload,
-  Image, FileText, Edit, Phone, MessageCircle, CheckCheck, TrendingUp, BarChart3, Download, Star, MapPin, Wallet, AlertTriangle, ArrowLeft, LifeBuoy, Calendar
+  Image, FileText, Edit, Phone, MessageCircle, CheckCheck, TrendingUp, BarChart3, Download, Star, MapPin, Wallet, AlertTriangle, ArrowLeft, LifeBuoy, Calendar, BellRing
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -21,7 +21,7 @@ import SupportTicketDialog from "@/components/SupportTicketDialog";
 import { toast } from "sonner";
 import { categories } from "@/data/categories";
 import type { Service } from "@/types/service";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend, AreaChart, Area } from "recharts";
 
 const COLORS = ["#10b981", "#f59e0b", "#3b82f6", "#ef4444"];
 
@@ -40,6 +40,7 @@ const ProviderDashboard = () => {
   });
   
   const [recentReviews, setRecentReviews] = useState<{rating: number, comment: string, serviceTitle: string}[]>([]);
+  const [timelineData, setTimelineData] = useState<{date: string, orders: number}[]>([]);
 
   const [chatBooking, setChatBooking] = useState<any>(null);
   const [supportOpen, setSupportOpen] = useState(false);
@@ -59,24 +60,20 @@ const ProviderDashboard = () => {
   const fetchedForUserId = useRef<string | null>(null);
   const unsubscribeRef = useRef<(() => void) | null>(null);
 
-  // 1️⃣ التحقق من الاشتراك المدفوع بصرامة (تطابق الحالة مع تاريخ الانتهاء الفعلي)
-  const checkIsSubscribed = () => {
-    if (!subscription) return false;
-    if (subscription.status !== 'active') return false;
-    
-    // إذا كان هناك تاريخ انتهاء، تأكد أنه في المستقبل
-    if (subscription.expires_at) {
-      return new Date(subscription.expires_at).getTime() > Date.now();
-    }
-    return false; // إذا لم يكن هناك تاريخ انتهاء، نعتبره غير صالح للأمان
-  };
-
-  const isSubscribed = checkIsSubscribed();
-  
-  // 2️⃣ حساب الفترة التجريبية بناءً على تاريخ إنشاء الحساب حصراً!
   const calculateTrialDays = () => {
+    if (subscription) {
+      if (subscription.status === 'active') return 30; 
+      if (subscription.status === 'expired') return 0;
+      
+      const endDate = subscription.expires_at || subscription.trial_ends_at;
+      if (endDate) {
+        const remainingTime = new Date(endDate).getTime() - Date.now();
+        return Math.max(0, Math.floor(remainingTime / (1000 * 60 * 60 * 24)));
+      }
+    }
+
     const creationDate = user?.created_at;
-    if (!creationDate) return 0; 
+    if (!creationDate) return 30; 
     const createdTime = new Date(creationDate).getTime();
     const currentTime = Date.now();
     const daysPassed = Math.floor((currentTime - createdTime) / (1000 * 60 * 60 * 24));
@@ -84,6 +81,7 @@ const ProviderDashboard = () => {
   };
 
   const trialDaysLeft = calculateTrialDays();
+  const isSubscribed = subscription && subscription.status === 'active';
 
   useEffect(() => {
     if (authLoading) return;
@@ -99,34 +97,39 @@ const ProviderDashboard = () => {
     const params = new URLSearchParams(window.location.search);
     const justPaid = params.get('payment_success');
     if (justPaid === 'true' && user?.id) {
-      console.log('[Dashboard] Detected payment redirect, refetching subscription...');
       refetchSubscription();
       window.history.replaceState({}, document.title, window.location.pathname);
     }
   }, [user?.id]);
 
+  // 🚀 النظام المباشر الشامل (Realtime) للاشتراكات والطلبات
   const setupRealtimeListener = () => {
     if (!user?.id) return;
 
-    const channel = supabase
-      .channel(`subscriptions:${user.id}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'subscriptions',
-          filter: `provider_id=eq.${user.id}`,
-        },
-        (payload: any) => {
-          console.log('[Realtime] Subscription changed:', payload);
-          refetchSubscription();
+    // 1. مراقبة جدول الاشتراكات
+    const subChannel = supabase
+      .channel(`subscriptions_channel:${user.id}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'subscriptions', filter: `provider_id=eq.${user.id}` }, () => {
+        refetchSubscription();
+      })
+      .subscribe();
+
+    // 2. مراقبة جدول الطلبات (Bookings) ليعمل كإشعار لحظي
+    const bookingsChannel = supabase
+      .channel(`bookings_channel:${user.id}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'bookings', filter: `provider_id=eq.${user.id}` }, (payload) => {
+        if (payload.eventType === 'INSERT') {
+          toast.success('طلب خدمة جديد وصلك الآن! 🔔', { duration: 5000, icon: <BellRing className="w-5 h-5 animate-bounce text-emerald-500" /> });
+        } else if (payload.eventType === 'UPDATE') {
+          toast.info('تم تحديث حالة أحد الطلبات 🔄');
         }
-      )
+        fetchData(); // تحديث فوري للبيانات في الواجهة
+      })
       .subscribe();
 
     unsubscribeRef.current = () => {
-      supabase.removeChannel(channel);
+      supabase.removeChannel(subChannel);
+      supabase.removeChannel(bookingsChannel);
     };
   };
 
@@ -141,7 +144,8 @@ const ProviderDashboard = () => {
         .order("created_at", { ascending: false });
 
       if (!subError && subData && subData.length > 0) {
-        setSubscription(subData[0]); // دائماً نأخذ أحدث سجل اشتراك متوفر
+        const activeSub = subData.find((s: any) => s.status === 'active');
+        setSubscription(activeSub || subData[0]);
       } else {
         setSubscription(null);
       }
@@ -164,12 +168,12 @@ const ProviderDashboard = () => {
         .order("created_at", { ascending: false });
 
       if (!subError && subData && subData.length > 0) {
-        setSubscription(subData[0]); // حفظ أحدث اشتراك تم العثور عليه
+        const activeSub = subData.find((s: any) => s.status === 'active');
+        setSubscription(activeSub || subData[0]);
       } else {
         setSubscription(null);
       }
     } catch (subErr) {
-      console.error("[Dashboard] Subscription Fetch Exception:", subErr);
       setSubscription(null);
     }
 
@@ -186,6 +190,15 @@ const ProviderDashboard = () => {
 
       setServices(svc);
       setBookings(bk);
+
+      // تجهيز بيانات الرسم البياني الزمني للطلبات
+      const timelineMap: Record<string, number> = {};
+      bk.forEach((b: any) => {
+        const dateStr = new Date(b.created_at).toLocaleDateString('ar-SA', { month: 'short', day: 'numeric' });
+        timelineMap[dateStr] = (timelineMap[dateStr] || 0) + 1;
+      });
+      const tData = Object.entries(timelineMap).map(([date, orders]) => ({ date, orders })).reverse();
+      setTimelineData(tData);
 
       const myReviews = reviewData.filter((r: any) => svc.map(s => s.id).includes(r.service_id));
       const avg = myReviews.length > 0 ? myReviews.reduce((s: number, r: any) => s + r.rating, 0) / myReviews.length : 0;
@@ -208,46 +221,67 @@ const ProviderDashboard = () => {
         avgRating: Math.round(avg * 10) / 10
       });
     } catch (err: any) {
-      console.error("[Dashboard] Data Fetch Exception:", err);
       toast.error(t('provider.fetch_error'));
     } finally {
       setLoading(false);
     }
   };
 
-  // 🔴 جدار الحماية (Redirect Guard)
   useEffect(() => {
     if (loading || authLoading) return;
-    
-    // 1. هل لديه اشتراك مدفوع ولم ينتهي؟
-    if (isSubscribed) {
-      console.log('[RedirectGuard] Valid active subscription - ALLOW');
-      return;
-    }
+    if (isSubscribed) return;
+    if (trialDaysLeft > 0) return;
 
-    // 2. إذا لم يكن لديه اشتراك صالح، هل هو في فترة الـ 30 يوم المجانية؟
-    if (trialDaysLeft > 0) {
-      console.log('[RedirectGuard] Valid trial period - ALLOW');
-      return;
-    }
-
-    // 3. إذا لم ينجح في الشرطين السابقين -> طرد مباشر
-    console.warn('[RedirectGuard] EXPIRED! Redirecting to payment...');
     toast.error(t('provider.trial_expired_alert'));
     navigate('/payment', { replace: true });
   }, [loading, authLoading, subscriptionLoading, isSubscribed, trialDaysLeft, navigate, t]);
 
   useEffect(() => {
     return () => {
-      if (unsubscribeRef.current) {
-        unsubscribeRef.current();
-      }
+      if (unsubscribeRef.current) unsubscribeRef.current();
     };
   }, []);
 
   const handleManualRefresh = () => {
     fetchedForUserId.current = null;
     fetchData();
+  };
+
+  // 🚀 دالة تصدير الطلبات والتقارير إلى ملف CSV المتوافق مع Excel
+  const handleExportCSV = () => {
+    if (!bookings || bookings.length === 0) {
+      toast.error(t('admin.no_data_error') || 'لا توجد بيانات متاحة للتصدير.');
+      return;
+    }
+
+    const headers = ['رقم الطلب', 'اسم الخدمة', 'اسم العميل', 'رقم الجوال', 'تاريخ الطلب', 'تاريخ التنفيذ', 'حالة الطلب'];
+    
+    const csvData = bookings.map(b => [
+      b.order_number || b.id.substring(0, 8),
+      b.service_title,
+      b.client?.full_name || 'غير متوفر',
+      b.client?.phone || 'غير متوفر',
+      new Date(b.created_at).toLocaleDateString('ar-SA'),
+      b.scheduled_date ? `${b.scheduled_date} ${b.scheduled_time || ''}` : 'غير محدد',
+      b.status === 'completed' ? 'مكتمل بنجاح' : b.provider_status === 'declined' ? 'تم الرفض' : b.provider_status === 'accepted' ? 'مقبول وفي الانتظار' : 'قيد المراجعة'
+    ]);
+
+    const csvContent = [
+      headers.join(','),
+      ...csvData.map(row => row.map(cell => `"${cell}"`).join(','))
+    ].join('\n');
+
+    const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    
+    link.setAttribute('href', url);
+    link.setAttribute('download', `تقرير_طلبات_${new Date().toLocaleDateString('en-GB').replace(/\//g,'-')}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    toast.success('تم تصدير التقرير بنجاح!');
   };
 
   const isFormValid = !!(title && category && description && neighborhood && mapsLink && serviceImage && licenseFile);
@@ -284,7 +318,6 @@ const ProviderDashboard = () => {
     { name: t('provider.status.declined'), value: providerStats.declined },
   ];
 
-  // 🔴 منع الواجهة من الظهور أثناء معالجة الطرد
   if (!loading && !authLoading && !isSubscribed && trialDaysLeft <= 0) {
     return null; 
   }
@@ -387,11 +420,20 @@ const ProviderDashboard = () => {
         </div>
 
         <Tabs defaultValue="requests" className="w-full">
-          <TabsList className="grid w-full grid-cols-4 h-16 rounded-[1.5rem] bg-muted/50 p-1.5 mb-8 shadow-inner">
-            <TabsTrigger value="requests" className="rounded-xl font-black">{t('provider.tabs.requests')}</TabsTrigger>
-            <TabsTrigger value="services" className="rounded-xl font-black">{t('provider.tabs.services')}</TabsTrigger>
-            <TabsTrigger value="add" className="rounded-xl font-black">{t('provider.tabs.add')}</TabsTrigger>
-            <TabsTrigger value="reports" className="rounded-xl font-black text-primary"><BarChart3 className="w-4 h-4 me-1" /> {t('provider.tabs.reports')}</TabsTrigger>
+          {/* 🚀 سلايدر التصنيفات القابل للسحب الجانبي (Scrollable Slider) */}
+          <TabsList className="flex overflow-x-auto overflow-y-hidden w-full h-auto min-h-[4rem] rounded-[1.5rem] bg-muted/50 p-1.5 mb-8 shadow-inner justify-start sm:grid sm:grid-cols-4 snap-x [&::-webkit-scrollbar]:hidden [-ms-overflow-style:'none'] [scrollbar-width:'none'] gap-1">
+            <TabsTrigger value="requests" className="rounded-xl font-black whitespace-nowrap shrink-0 snap-start px-6 sm:px-3 py-3 data-[state=active]:bg-white data-[state=active]:shadow-sm">
+              {t('provider.tabs.requests')}
+            </TabsTrigger>
+            <TabsTrigger value="services" className="rounded-xl font-black whitespace-nowrap shrink-0 snap-start px-6 sm:px-3 py-3 data-[state=active]:bg-white data-[state=active]:shadow-sm">
+              {t('provider.tabs.services')}
+            </TabsTrigger>
+            <TabsTrigger value="add" className="rounded-xl font-black whitespace-nowrap shrink-0 snap-start px-6 sm:px-3 py-3 data-[state=active]:bg-white data-[state=active]:shadow-sm">
+              {t('provider.tabs.add')}
+            </TabsTrigger>
+            <TabsTrigger value="reports" className="rounded-xl font-black whitespace-nowrap shrink-0 snap-start px-6 sm:px-3 py-3 data-[state=active]:bg-white data-[state=active]:shadow-sm text-primary">
+              <BarChart3 className="w-4 h-4 me-1 inline-block" /> {t('provider.tabs.reports')}
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="requests" className="space-y-4">
@@ -481,6 +523,34 @@ const ProviderDashboard = () => {
           </TabsContent>
 
           <TabsContent value="reports" className="space-y-6">
+              {/* 🚀 قسم الرسم البياني الزمني Area Chart المضاف حديثاً */}
+              <Card className="rounded-[2rem] border-2 p-6">
+                <div className="flex flex-col md:flex-row justify-between items-center gap-4 mb-6">
+                  <h3 className="font-black text-lg text-center md:text-right">{t('provider.reports.timeline') || 'التسلسل الزمني للطلبات'}</h3>
+                  <Button variant="outline" onClick={handleExportCSV} className="rounded-xl font-bold gap-2 bg-primary/5 text-primary hover:bg-primary/10 border-primary/20 w-full md:w-auto">
+                    <Download className="w-4 h-4" />
+                    {t('provider.export_data') || 'تصدير التقرير (Excel)'}
+                  </Button>
+                </div>
+                <div className="h-[300px]">
+                   <ResponsiveContainer width="100%" height="100%">
+                      <AreaChart data={timelineData}>
+                         <defs>
+                           <linearGradient id="colorOrders" x1="0" y1="0" x2="0" y2="1">
+                             <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.8}/>
+                             <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
+                           </linearGradient>
+                         </defs>
+                         <CartesianGrid strokeDasharray="3 3" opacity={0.1} vertical={false} />
+                         <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontWeight: 'bold', fontSize: 12 }} />
+                         <YAxis axisLine={false} tickLine={false} allowDecimals={false} />
+                         <Tooltip contentStyle={{ borderRadius: '1rem', fontWeight: 'bold', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
+                         <Area type="monotone" dataKey="orders" name="عدد الطلبات" stroke="#3b82f6" strokeWidth={3} fillOpacity={1} fill="url(#colorOrders)" />
+                      </AreaChart>
+                   </ResponsiveContainer>
+                </div>
+              </Card>
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                  <Card className="rounded-[2rem] border-2 p-6">
                     <h3 className="font-black text-lg mb-6 text-center">{t('provider.reports.order_distribution')}</h3>

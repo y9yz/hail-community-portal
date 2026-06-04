@@ -29,10 +29,10 @@ const PaymentPage = () => {
       /**
        * استخدام upsert لتحديث سجل الاشتراك الحالي أو إنشاء سجل جديد
        * تم تحديد onConflict لضمان عدم تكرار السجلات لنفس المزود
-       * IMPORTANT: Using correct table name "provider_subscriptions"
+       * IMPORTANT: Using correct table name "subscriptions"
        */
       const { error } = await supabase
-        .from("provider_subscriptions" as any) 
+        .from("subscriptions" as any) 
         .upsert({ 
           provider_id: user.id,
           status: 'active', 
