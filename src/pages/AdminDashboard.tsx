@@ -1,3 +1,4 @@
+// استيراد المكتبات والمكونات الأساسية والأيقونات
 import { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import {
@@ -20,13 +21,16 @@ import { toast } from "sonner";
 import { useTranslation } from 'react-i18next';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from "recharts";
 
+// ألوان مخصصة للرسوم البيانية
 const COLORS = ["#3b82f6", "#10b981", "#f59e0b", "#ef4444"];
 
 const AdminDashboard = () => {
+  // تهيئة أدوات التنقل والمصادقة والترجمة
   const navigate = useNavigate();
   const { user, role, loading: authLoading } = useAuth();
   const { t } = useTranslation();
   
+  // تعريف متغيرات الحالة (State) لتخزين البيانات القادمة من قاعدة البيانات
   const [pendingServices, setPendingServices] = useState<any[]>([]);
   const [allServices, setAllServices] = useState<any[]>([]);
   const [usersList, setUsersList] = useState<any[]>([]);
@@ -36,27 +40,31 @@ const AdminDashboard = () => {
   const [stats, setStats] = useState({ users: 0, pendingServices: 0, totalOrders: 0, pendingOrders: 0, completedOrders: 0, declinedOrders: 0, verifiedUsers: 0, activeSubs: 0, subRevenue: 0 });
   const [loading, setLoading] = useState(true);
   
+  // متغيرات حالة للتحكم في النوافذ المنبثقة (عرض خدمة، تذكرة، محادثة، أو مستند)
   const [viewingService, setViewingService] = useState<any | null>(null);
   const [viewingTicket, setViewingTicket] = useState<any | null>(null);
   const [viewingChat, setViewingChat] = useState<any | null>(null);
-
   const [viewingDocUrl, setViewingDocUrl] = useState<string | null>(null);
   const [isDocLoading, setIsDocLoading] = useState(false);
 
-  // ✅ ref يمنع إعادة جلب البيانات عند تغيير مرجع الـ user object
+  // استخدام useRef لمنع تكرار جلب البيانات لنفس المستخدم عند إعادة تصيير المكون
   const fetchedForUserId = useRef<string | null>(null);
 
+  // التحقق من الصلاحيات وجلب البيانات عند تحميل الصفحة
   useEffect(() => {
     if (authLoading) return;
+    
+    // طرد المستخدم إذا لم يكن مسجلاً أو لا يملك صلاحية مدير
     if (!user || role !== "admin") { navigate(user ? "/permission-denied" : "/auth"); return; }
 
-    // ✅ لا تجلب البيانات إذا سبق جلبها لنفس المستخدم
+    // منع جلب البيانات إذا تم جلبها مسبقاً لنفس المدير
     if (fetchedForUserId.current === user.id) return;
 
     fetchedForUserId.current = user.id;
     fetchData();
-  }, [user?.id, role, authLoading]); // ✅ user.id بدل user كاملاً
+  }, [user?.id, role, authLoading]);
 
+  // دالة لجلب جميع الإحصائيات والبيانات من قاعدة البيانات دفعة واحدة
   const fetchData = async () => {
     setLoading(true);
     try {
@@ -73,12 +81,14 @@ const AdminDashboard = () => {
       const allSubs = (subs || []) as any[];
       const allSvc = (svc || []) as any[];
 
+      // تحديث القوائم بالبيانات المجلوبة
       setAllServices(allSvc);
       setPendingServices(allSvc.filter(s => s.admin_status === 'pending_admin'));
       setBookings(allBks);
       setTickets(allTix);
       setSubscriptions(allSubs);
 
+      // دمج بيانات المستخدمين مع أدوارهم
       if (profs) {
         const rolesMap: Record<string, string> = {};
         (roles || []).forEach((r: any) => { rolesMap[r.user_id] = r.role; });
@@ -86,6 +96,7 @@ const AdminDashboard = () => {
         setUsersList(mappedUsers);
       }
 
+      // حساب الإحصائيات العامة وعرضها في لوحة التحكم
       setStats({
         users: profs?.length || 0,
         pendingServices: allSvc.filter(s => s.admin_status === 'pending_admin').length,
@@ -104,12 +115,13 @@ const AdminDashboard = () => {
     }
   };
 
-  // ✅ التحديث اليدوي يتجاوز الـ ref
+  // دالة لتحديث البيانات يدوياً عند الضغط على زر التحديث
   const handleManualRefresh = () => {
     fetchedForUserId.current = null;
     fetchData();
   };
 
+  // دالة لإنشاء رابط مؤقت لفتح وعرض المستندات الخاصة (مثل الرخص)
   const handleViewDocument = async (path: string) => {
     if (!path) {
       toast.error(t('admin.no_document'));
@@ -133,10 +145,10 @@ const AdminDashboard = () => {
     }
   };
 
+  // دالة لقبول أو رفض خدمة جديدة وإرسال إشعار لمقدم الخدمة
   const handleModerate = async (id: string, action: "approved" | "rejected") => {
     const { error } = await supabase.from("services").update({ admin_status: action } as any).eq("id", id);
     if (!error) {
-      // إشعار للمزود بقرار المراجعة
       const { data: service } = await supabase.from("services").select("provider_id, title").eq("id", id).single();
       if (service) {
         await supabase.from("notifications").insert({
@@ -151,6 +163,7 @@ const AdminDashboard = () => {
     }
   };
 
+  // دالة لتحديث حالة تذاكر الدعم الفني (قيد المعالجة، مغلقة)
   const handleUpdateTicketStatus = async (id: string, newStatus: string) => {
     const { error } = await supabase.from("support_tickets").update({ status: newStatus } as any).eq("id", id);
     if (!error) {
@@ -160,10 +173,10 @@ const AdminDashboard = () => {
     }
   };
 
+  // دالة لتوثيق أو إلغاء توثيق حساب المستخدم مع إرسال إشعار له
   const handleToggleVerified = async (userId: string, current: boolean) => {
     const { error } = await supabase.from("profiles").update({ is_verified: !current } as any).eq("id", userId);
     if (!error) {
-      // إشعار للمستخدم بتغيير حالة التوثيق
       await supabase.from("notifications").insert({
         recipient_id: userId,
         sender_id: user?.id,
@@ -174,11 +187,13 @@ const AdminDashboard = () => {
     }
   };
 
+  // دالة لحظر أو فك حظر حساب مستخدم
   const handleToggleBlock = async (userId: string, current: boolean) => {
     const { error } = await supabase.from("profiles").update({ is_blocked: !current } as any).eq("id", userId);
     if (!error) { toast.success(t('admin.updated')); handleManualRefresh(); }
   };
 
+  // دالة لتصدير جدول الطلبات إلى ملف بصيغة CSV 
   const downloadCSV = () => {
     if (bookings.length === 0) { toast.error(t('admin.no_data_error')); return; }
     const headers = t('admin.csv_headers') + "\n";
@@ -188,6 +203,7 @@ const AdminDashboard = () => {
     const a = document.createElement("a"); a.href = url; a.download = t('admin.csv_file_name'); a.click();
   };
 
+  // بيانات الرسوم البيانية لتوزيع المستخدمين وحالات الطلبات
   const rolesChartData = [
     { name: t('admin.users_chart_client'), value: usersList.filter(u => u.role === 'client').length },
     { name: t('admin.users_chart_provider'), value: usersList.filter(u => u.role === 'provider').length },
@@ -199,11 +215,14 @@ const AdminDashboard = () => {
     { name: t('admin.orders_chart_declined'), value: stats.declinedOrders },
   ];
 
+  // واجهة التحميل أثناء جلب البيانات
   if (loading) return <div className="p-20 text-center font-black animate-pulse text-primary">{t('admin.loading_data')}</div>;
 
   return (
     <div className="min-h-screen bg-background text-right flex flex-col" dir="rtl">
       <Navbar />
+      
+      {/* الشريط العلوي الخاص بلوحة الإدارة (يحتوي على العنوان وأزرار التحديث والتصدير) */}
       <header className="sticky top-16 z-40 bg-card/80 backdrop-blur-lg border-b shadow-sm">
         <div className="container flex items-center justify-between h-16 gap-4">
           <h1 className="text-2xl font-black text-primary flex items-center gap-3">
@@ -219,8 +238,10 @@ const AdminDashboard = () => {
           </div>
         </div>
       </header>
+      
       <div className="container py-4 max-w-7xl space-y-4 flex-1 overflow-auto">
 
+        {/* التبويبات للتنقل بين أقسام لوحة الإدارة */}
         <Tabs defaultValue="verify" className="w-full">
           <TabsList className="grid w-full grid-cols-3 lg:grid-cols-7 h-16 rounded-[1.5rem] bg-muted/50 p-1.5 mb-10 shadow-inner">
             <TabsTrigger value="verify" className="rounded-xl font-black">{t('admin.tab_verify')}</TabsTrigger>
@@ -232,6 +253,7 @@ const AdminDashboard = () => {
             <TabsTrigger value="reports" className="rounded-xl font-black text-primary"><BarChart3 className="w-4 h-4 me-1" /> {t('admin.tab_reports')}</TabsTrigger>
           </TabsList>
 
+          {/* تبويب الرسوم البيانية والإحصائيات */}
           <TabsContent value="reports" className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                <Card className="rounded-[2rem] border-2 p-6 shadow-sm">
@@ -267,6 +289,7 @@ const AdminDashboard = () => {
             </div>
           </TabsContent>
 
+          {/* تبويب إدارة المستخدمين (العملاء ومقدمي الخدمات) */}
           <TabsContent value="users" className="space-y-10">
             <div className="space-y-4">
                <h2 className="text-2xl font-black flex items-center gap-2 text-emerald-600">
@@ -321,6 +344,7 @@ const AdminDashboard = () => {
             </div>
           </TabsContent>
 
+          {/* تبويب متابعة الطلبات الواردة للمنصة */}
           <TabsContent value="orders" className="space-y-4">
             {bookings.map(b => {
               const linkedTicket = tickets.find(t => t.booking_id === b.id);
@@ -367,6 +391,7 @@ const AdminDashboard = () => {
             })}
           </TabsContent>
 
+          {/* تبويب تذاكر الدعم الفني */}
           <TabsContent value="tickets" className="space-y-4">
             {tickets.map(ticket => {
               const isClosed = ticket.status === 'closed';
@@ -398,6 +423,7 @@ const AdminDashboard = () => {
             {tickets.length === 0 && <div className="text-center py-20 opacity-30 font-black">{t('admin.no_tickets')}</div>}
           </TabsContent>
 
+          {/* تبويب إدارة الخدمات (المقبولة والمرفوضة) */}
           <TabsContent value="services" className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {allServices.filter(s => s.admin_status !== 'pending_admin').map(s => (
                 <Card key={s.id} className={`rounded-3xl border-2 transition-all ${s.admin_status === 'rejected' ? 'opacity-60 grayscale bg-muted/20' : 'border-emerald-100'}`}>
@@ -428,6 +454,7 @@ const AdminDashboard = () => {
               ))}
           </TabsContent>
 
+          {/* تبويب الخدمات المعلقة بانتظار الموافقة */}
           <TabsContent value="verify" className="space-y-4">
               {pendingServices.map(s => (
                 <Card key={s.id} className="rounded-3xl border-2 p-5 flex flex-col md:flex-row gap-6 items-center bg-amber-50/5">
@@ -440,6 +467,7 @@ const AdminDashboard = () => {
              ))}
           </TabsContent>
 
+          {/* تبويب الاشتراكات وحالتها */}
           <TabsContent value="subs" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {subscriptions.map(s => {
               const now = new Date().getTime();
@@ -473,6 +501,7 @@ const AdminDashboard = () => {
         </Tabs>
       </div>
 
+      {/* نافذة عرض وتدقيق الخدمة الجديدة قبل القبول */}
       <Dialog open={!!viewingService} onOpenChange={() => setViewingService(null)}>
         <DialogContent className="rounded-[2.5rem] text-right max-w-2xl" dir="rtl">
             <DialogHeader><DialogTitle className="text-2xl font-black text-center">{t('admin.service_info_title', { title: viewingService?.title })}</DialogTitle></DialogHeader>
@@ -502,6 +531,7 @@ const AdminDashboard = () => {
         </DialogContent>
       </Dialog>
 
+      {/* نافذة عرض المستند / الرخصة المرفقة */}
       <Dialog open={!!viewingDocUrl} onOpenChange={() => setViewingDocUrl(null)}>
         <DialogContent className="max-w-4xl p-0 overflow-hidden rounded-[2.5rem] border-none bg-transparent shadow-none" dir="rtl">
            <div className="relative bg-white/95 backdrop-blur-xl p-6 rounded-[2.5rem] flex flex-col items-center border shadow-2xl">
@@ -521,6 +551,7 @@ const AdminDashboard = () => {
         </DialogContent>
       </Dialog>
 
+      {/* نافذة إدارة حالة تذاكر الدعم الفني */}
       <Dialog open={!!viewingTicket} onOpenChange={() => setViewingTicket(null)}>
         <DialogContent className="rounded-[2.5rem] text-right" dir="rtl">
             <DialogHeader><DialogTitle className="text-2xl font-black text-center">{t('admin.manage_ticket_title')}</DialogTitle></DialogHeader>
@@ -544,6 +575,7 @@ const AdminDashboard = () => {
         </DialogContent>
       </Dialog>
 
+      {/* نافذة المحادثة المشتركة (للمراقبة من قبل الإدارة) */}
       {viewingChat && (
         <ChatDialog open={!!viewingChat} onOpenChange={(open) => !open && setViewingChat(null)} bookingId={viewingChat.id} otherName={`${viewingChat.client?.full_name} ↔ ${viewingChat.provider?.full_name}`} readOnly={true} />
       )}

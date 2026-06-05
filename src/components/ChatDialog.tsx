@@ -19,24 +19,24 @@ interface ChatDialogProps {
 const ChatDialog = ({ open, onOpenChange, bookingId, otherName, readOnly = false }: ChatDialogProps) => {
   const { t } = useTranslation();
   const { user } = useAuth();
+  
+  // متغيرات الحالة للمحادثة
   const [messages, setMessages] = useState<any[]>([]);
   const [signedUrls, setSignedUrls] = useState<Record<string, string>>({});
   const [newMessage, setNewMessage] = useState("");
   const [sending, setSending] = useState(false);
   const [pendingImage, setPendingImage] = useState<File | null>(null);
+  
   const fileInputRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
-
-  // States to identify who is who in Admin Mode
-  const [chatRoles, setChatRoles] = useState({ clientId: "", providerId: "" });
-  const [participants, setParticipants] = useState<Record<string, string>>({});
-  
-  // 🚀 حالة جديدة لتخزين حالة الطلب (مكتمل أو مرفوض)
-  const [bookingState, setBookingState] = useState({ status: "", providerStatus: "" });
-
   const signedUrlsRef = useRef<Record<string, string>>({});
 
-  // 🚀 التعديل: الدالة الآن تعمل دائماً (وليس في وضع القراءة فقط) لنجلب حالة الطلب ونحدد هل نغلق المحادثة أم لا
+  // متغيرات حالة لتحديد أطراف المحادثة وحالة الطلب
+  const [chatRoles, setChatRoles] = useState({ clientId: "", providerId: "" });
+  const [participants, setParticipants] = useState<Record<string, string>>({});
+  const [bookingState, setBookingState] = useState({ status: "", providerStatus: "" });
+
+  // جلب تفاصيل الطلب لتحديد حالة المحادثة وأطرافها
   useEffect(() => {
     if (!bookingId || !open) return;
     const fetchBookingDetails = async () => {
@@ -52,13 +52,13 @@ const ChatDialog = ({ open, onOpenChange, bookingId, otherName, readOnly = false
           [data.client_id]: data.client?.full_name || t('chat.client'),
           [data.provider_id]: data.provider?.full_name || t('chat.provider'),
         });
-        // تحديث حالة الطلب
         setBookingState({ status: data.status, providerStatus: data.provider_status });
       }
     };
     fetchBookingDetails();
-  }, [bookingId, open]);
+  }, [bookingId, open, t]);
 
+  // تحديث حالة الرسائل إلى "مقروءة"
   const markAsRead = useCallback(async () => {
     if (readOnly || !user || !bookingId) return;
     try {
@@ -72,6 +72,7 @@ const ChatDialog = ({ open, onOpenChange, bookingId, otherName, readOnly = false
     }
   }, [bookingId, user?.id, readOnly]);
 
+  // جلب سجل الرسائل من قاعدة البيانات
   const fetchMessages = useCallback(async () => {
     if (!bookingId) return;
     const { data } = await (supabase
@@ -83,6 +84,7 @@ const ChatDialog = ({ open, onOpenChange, bookingId, otherName, readOnly = false
     const msgs = data || [];
     setMessages(msgs);
 
+    // جلب روابط الصور المرفقة في المحادثة
     const imagesToFetch = msgs.filter(
       (m: any) => m.image_url && !signedUrlsRef.current[m.image_url]
     );
@@ -104,6 +106,7 @@ const ChatDialog = ({ open, onOpenChange, bookingId, otherName, readOnly = false
     }
   }, [bookingId]);
 
+  // إعداد الاشتراك اللحظي (Realtime) للرسائل
   useEffect(() => {
     if (!open || !bookingId) return;
 
@@ -128,6 +131,7 @@ const ChatDialog = ({ open, onOpenChange, bookingId, otherName, readOnly = false
     };
   }, [open, bookingId, fetchMessages, markAsRead]);
 
+  // التمرير التلقائي لأسفل المحادثة عند إضافة رسائل جديدة
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTo({
@@ -137,6 +141,7 @@ const ChatDialog = ({ open, onOpenChange, bookingId, otherName, readOnly = false
     }
   }, [messages]);
 
+  // إرسال رسالة جديدة (مع أو بدون صورة)
   const handleSend = async () => {
     if (readOnly || !user) return;
 
@@ -177,7 +182,6 @@ const ChatDialog = ({ open, onOpenChange, bookingId, otherName, readOnly = false
     }
   };
 
-  // 🚀 التحقق هل المحادثة منتهية
   const isChatClosed = bookingState.status === 'completed' || bookingState.providerStatus === 'declined';
 
   return (
@@ -186,6 +190,7 @@ const ChatDialog = ({ open, onOpenChange, bookingId, otherName, readOnly = false
         className="max-w-md h-[85vh] md:h-[75vh] flex flex-col rounded-[2.5rem] p-0 overflow-hidden shadow-2xl border-none"
         dir="rtl"
       >
+        {/* رأس النافذة */}
         <DialogHeader className={`p-5 border-b shrink-0 ${readOnly ? "bg-amber-50/50" : "bg-white"}`}>
           <DialogTitle className="font-black text-xl text-primary px-2 flex items-center gap-2">
             {readOnly && <ShieldAlert className="w-5 h-5 text-amber-600" />}
@@ -196,6 +201,7 @@ const ChatDialog = ({ open, onOpenChange, bookingId, otherName, readOnly = false
           )}
         </DialogHeader>
 
+        {/* عرض سجل الرسائل */}
         <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-4 bg-[#f8fafc] scrollbar-thin">
           {messages.length === 0 && (
             <div className="h-full flex flex-col items-center justify-center opacity-30 gap-2">
@@ -222,31 +228,22 @@ const ChatDialog = ({ open, onOpenChange, bookingId, otherName, readOnly = false
                   </span>
                 )}
 
+                {/* عرض الصور المرفقة */}
                 {m.image_url && signedUrls[m.image_url] && (
-                  <a
-                    href={signedUrls[m.image_url]}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="block mb-2 overflow-hidden rounded-xl"
-                  >
-                    <img
-                      src={signedUrls[m.image_url]}
-                      alt={t('chat.attachment_alt')}
-                      className="w-full h-auto max-h-64 object-cover"
-                    />
+                  <a href={signedUrls[m.image_url]} target="_blank" rel="noreferrer" className="block mb-2 overflow-hidden rounded-xl">
+                    <img src={signedUrls[m.image_url]} alt={t('chat.attachment_alt')} className="w-full h-auto max-h-64 object-cover" />
                   </a>
                 )}
+                
+                {/* عرض نص الرسالة */}
                 {m.message && (
                   <p className="leading-relaxed font-bold whitespace-pre-wrap">{m.message}</p>
                 )}
                 
+                {/* عرض وقت الإرسال وحالة القراءة */}
                 <div className="flex items-center gap-1 mt-1 justify-end opacity-70">
                   <span className="text-[9px] font-black">
-                    {new Date(m.created_at).toLocaleTimeString("ar-SA", {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                      hour12: true,
-                    })}
+                    {new Date(m.created_at).toLocaleTimeString("ar-SA", { hour: "2-digit", minute: "2-digit", hour12: true })}
                   </span>
                   {(isRightSide || readOnly) && (
                     <span className="flex">
@@ -263,13 +260,13 @@ const ChatDialog = ({ open, onOpenChange, bookingId, otherName, readOnly = false
           })}
         </div>
 
+        {/* منطقة كتابة وإرسال الرسائل */}
         <div className="shrink-0 bg-white border-t p-4">
           {readOnly ? (
             <div className="bg-amber-50 p-3 rounded-xl border border-amber-200 text-center">
               <p className="text-xs font-black text-amber-700">{t('chat.view_only')}</p>
             </div>
           ) : isChatClosed ? (
-            // 🚀 التعديل: إخفاء حقل الكتابة واستبداله برسالة الإغلاق
             <div className="bg-muted/50 p-4 rounded-xl border border-dashed text-center">
               <p className="text-sm font-black text-muted-foreground">{t('chat.closed_chat')}</p>
             </div>
@@ -278,38 +275,17 @@ const ChatDialog = ({ open, onOpenChange, bookingId, otherName, readOnly = false
               {pendingImage && (
                 <div className="flex items-center gap-3 mb-3 p-2 bg-primary/5 rounded-2xl border border-primary/10">
                   <div className="w-12 h-12 bg-muted rounded-xl overflow-hidden border-2 border-white shadow-sm">
-                    <img
-                      src={URL.createObjectURL(pendingImage)}
-                      className="w-full h-full object-cover"
-                    />
+                    <img src={URL.createObjectURL(pendingImage)} className="w-full h-full object-cover" />
                   </div>
-                  <span className="flex-1 truncate text-xs font-black text-primary italic">
-                    {pendingImage.name}
-                  </span>
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    className="h-8 w-8 rounded-full hover:bg-red-50 hover:text-red-500"
-                    onClick={() => setPendingImage(null)}
-                  >
+                  <span className="flex-1 truncate text-xs font-black text-primary italic">{pendingImage.name}</span>
+                  <Button size="icon" variant="ghost" className="h-8 w-8 rounded-full hover:bg-red-50 hover:text-red-500" onClick={() => setPendingImage(null)}>
                     <X className="w-4 h-4" />
                   </Button>
                 </div>
               )}
               <div className="flex gap-2 items-center">
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={(e) => setPendingImage(e.target.files?.[0] || null)}
-                />
-                <Button
-                  size="icon"
-                  variant="outline"
-                  className="rounded-2xl shrink-0 h-12 w-12 border-2 border-muted hover:border-primary/30 transition-colors"
-                  onClick={() => fileInputRef.current?.click()}
-                >
+                <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={(e) => setPendingImage(e.target.files?.[0] || null)} />
+                <Button size="icon" variant="outline" className="rounded-2xl shrink-0 h-12 w-12 border-2 border-muted hover:border-primary/30" onClick={() => fileInputRef.current?.click()}>
                   <ImagePlus className="w-5 h-5 text-muted-foreground" />
                 </Button>
                 <Input
@@ -319,12 +295,7 @@ const ChatDialog = ({ open, onOpenChange, bookingId, otherName, readOnly = false
                   onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && handleSend()}
                   className="rounded-2xl h-12 border-none bg-muted/30 focus-visible:ring-primary font-bold"
                 />
-                <Button
-                  size="icon"
-                  onClick={handleSend}
-                  disabled={sending || (!newMessage.trim() && !pendingImage)}
-                  className="rounded-2xl shrink-0 h-12 w-12 shadow-lg shadow-primary/20 hover:scale-105 active:scale-95 transition-all"
-                >
+                <Button size="icon" onClick={handleSend} disabled={sending || (!newMessage.trim() && !pendingImage)} className="rounded-2xl shrink-0 h-12 w-12 shadow-lg shadow-primary/20 hover:scale-105 active:scale-95 transition-all">
                   <Send className="w-5 h-5 rtl:-scale-x-100" />
                 </Button>
               </div>

@@ -2,9 +2,12 @@ import * as React from "react";
 
 import type { ToastActionElement, ToastProps } from "@/components/ui/toast";
 
+// تحديد الحد الأقصى لعدد الإشعارات التي يمكن عرضها في نفس الوقت
 const TOAST_LIMIT = 1;
+// تحديد وقت التأخير (بالميلي ثانية) قبل إزالة الإشعار نهائياً من الذاكرة بعد إخفائه
 const TOAST_REMOVE_DELAY = 1000000;
 
+// تعريف واجهة بيانات الإشعار التي تمتد من الخصائص الأساسية وتضيف معرفاً وعناصر أخرى اختيارية
 type ToasterToast = ToastProps & {
   id: string;
   title?: React.ReactNode;
@@ -12,6 +15,7 @@ type ToasterToast = ToastProps & {
   action?: ToastActionElement;
 };
 
+// أنواع الإجراءات المتاحة للتحكم في حالة الإشعارات
 const actionTypes = {
   ADD_TOAST: "ADD_TOAST",
   UPDATE_TOAST: "UPDATE_TOAST",
@@ -21,6 +25,7 @@ const actionTypes = {
 
 let count = 0;
 
+// دالة لإنشاء معرفات فريدة للإشعارات بطريقة تسلسلية آمنة
 function genId() {
   count = (count + 1) % Number.MAX_SAFE_INTEGER;
   return count.toString();
@@ -28,6 +33,7 @@ function genId() {
 
 type ActionType = typeof actionTypes;
 
+// تعريف الإجراءات التي يقبلها الـ Reducer والبيانات المرفقة مع كل إجراء
 type Action =
   | {
       type: ActionType["ADD_TOAST"];
@@ -50,8 +56,10 @@ interface State {
   toasts: ToasterToast[];
 }
 
+// خريطة لتخزين المؤقتات الزمنية الخاصة بكل إشعار لمنع تكرار أو تداخل عمليات الحذف
 const toastTimeouts = new Map<string, ReturnType<typeof setTimeout>>();
 
+// دالة لإضافة الإشعار إلى طابور الحذف لإزالته من الواجهة والذاكرة بعد انتهاء مدة العرض
 const addToRemoveQueue = (toastId: string) => {
   if (toastTimeouts.has(toastId)) {
     return;
@@ -68,11 +76,13 @@ const addToRemoveQueue = (toastId: string) => {
   toastTimeouts.set(toastId, timeout);
 };
 
+// الدالة المسؤولة عن تحديث حالة الإشعارات (State) بناءً على الإجراء (Action) الممرر
 export const reducer = (state: State, action: Action): State => {
   switch (action.type) {
     case "ADD_TOAST":
       return {
         ...state,
+        // إضافة الإشعار الجديد في البداية مع الالتزام بالحد الأقصى المسموح به
         toasts: [action.toast, ...state.toasts].slice(0, TOAST_LIMIT),
       };
 
@@ -85,8 +95,8 @@ export const reducer = (state: State, action: Action): State => {
     case "DISMISS_TOAST": {
       const { toastId } = action;
 
-      // ! Side effects ! - This could be extracted into a dismissToast() action,
-      // but I'll keep it here for simplicity
+      // التعامل مع التأثيرات الجانبية لإخفاء الإشعار
+      // إذا تم تمرير معرف، يتم إخفاء إشعار محدد، وإلا يتم إخفاء جميع الإشعارات المفتوحة
       if (toastId) {
         addToRemoveQueue(toastId);
       } else {
@@ -121,10 +131,13 @@ export const reducer = (state: State, action: Action): State => {
   }
 };
 
+// مصفوفة لتخزين دوال التحديث الخاصة بالمكونات التي تستخدم هذا الخطاف (Observer Pattern)
 const listeners: Array<(state: State) => void> = [];
 
+// الحالة المركزية للإشعارات خارج دورة حياة React لتكون متاحة من أي مكان في التطبيق
 let memoryState: State = { toasts: [] };
 
+// دالة لتنفيذ الإجراءات وتحديث الحالة المركزية، ثم تنبيه كافة المكونات المستمعة لتحديث نفسها
 function dispatch(action: Action) {
   memoryState = reducer(memoryState, action);
   listeners.forEach((listener) => {
@@ -134,6 +147,7 @@ function dispatch(action: Action) {
 
 type Toast = Omit<ToasterToast, "id">;
 
+// الدالة الأساسية التي يتم استدعاؤها من أي مكان في التطبيق لإنشاء إشعار جديد
 function toast({ ...props }: Toast) {
   const id = genId();
 
@@ -163,12 +177,15 @@ function toast({ ...props }: Toast) {
   };
 }
 
+// الخطاف (Hook) المخصص لربط المكونات بالحالة المركزية للإشعارات
 function useToast() {
   const [state, setState] = React.useState<State>(memoryState);
 
   React.useEffect(() => {
+    // إضافة المكون الحالي إلى قائمة المستمعين عند التثبيت
     listeners.push(setState);
     return () => {
+      // إزالة المكون من قائمة المستمعين عند التدمير لمنع تسريب الذاكرة
       const index = listeners.indexOf(setState);
       if (index > -1) {
         listeners.splice(index, 1);

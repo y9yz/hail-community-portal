@@ -1,102 +1,102 @@
-@tailwind base;
-@tailwind components;
+/* استدعاء مكتبات Tailwind CSS الأساسية، المكونات، والأدوات المساعدة */
+@tailwind base; 
+@tailwind components; 
 @tailwind utilities;
 
-@layer base {
-  /* متغيرات التصميم الأساسية للوضع الفاتح */
-  :root {
-    --background: 0 0% 100%;
-    --foreground: 220 20% 10%;
+@layer base { 
+  /* إعدادات الوضع النهاري */
+  :root { 
+    --background: 0 0% 100%; /* لون أبيض للخلفية الأساسية */
+    --foreground: 220 20% 10%; /* لون غامق للنصوص */
 
-    --card: 0 0% 100%;
-    --card-foreground: 220 20% 10%;
+    --card: 0 0% 100%; /* خلفية البطاقات أو الكروت */
+    --card-foreground: 220 20% 10%; /* لون نصوص البطاقات */
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 220 20% 10%;
+    --popover: 0 0% 100%; /* خلفية القوائم والنافذة المنبثقة */
+    --popover-foreground: 220 20% 10%; /* لون نصوص القوائم المنبثقة */
 
-    /* اللون الأخضر الأساسي لهوية البوابة */
-    --primary: 142 71% 45%;
-    --primary-foreground: 0 0% 100%;
+    /* ألوان هوية البوابة (الأخضر) */
+    --primary: 142 71% 45%; /* اللون الأخضر الأساسي للهوية */
+    --primary-foreground: 0 0% 100%; /* لون النص فوق الأخضر الأساسي (أبيض) */
 
-    --secondary: 220 14% 96%;
-    --secondary-foreground: 220 20% 10%;
+    --secondary: 220 14% 96%; /* خلفية العناصر الثانوية (رمادي فاتح) */
+    --secondary-foreground: 220 20% 10%; /* لون النص فوق العناصر الثانوية */
 
-    --muted: 220 14% 96%;
-    --muted-foreground: 220 9% 46%;
+    --muted: 220 14% 96%; /* خلفية العناصر المطفية أو غير النشطة */
+    --muted-foreground: 220 9% 46%; /* لون النص الباهت للعناصر المطفية */
 
-    /* ألوان التمييز الجانبية */
-    --accent: 142 71% 95%;
-    --accent-foreground: 142 71% 25%;
+    /* ألوان التمييز عند التمرير (Hover) */
+    --accent: 142 71% 95%; /* خلفية التمييز والـ Hover (أخضر فاتح جداً) */
+    --accent-foreground: 142 71% 25%; /* لون النص عند التمرير والـ Hover */
 
-    --destructive: 0 84% 60%;
-    --destructive-foreground: 0 0% 100%;
+    --destructive: 0 84% 60%; /* لون إجراءات الحذف أو الخطر (أحمر) */
+    --destructive-foreground: 0 0% 100%; /* لون النص لأزرار الحذف (أبيض) */
 
-    --border: 220 13% 91%;
-    --input: 220 13% 91%;
-    --ring: 142 71% 45%;
+    --border: 220 13% 91%; /* اللون الافتراضي للحدود والفواصل */
+    --input: 220 13% 91%; /* لون حدود حقول الإدخال للفورم */
+    --ring: 142 71% 45%; /* لون إطار التحديد عند الضغط على عنصر */
 
-    /* مقدار انحناء حواف العناصر */
-    --radius: 0.75rem;
+    /* إعدادات انحناء الحواف */
+    --radius: 0.75rem; /* مقدار تدوير حواف العناصر */
 
-    /* إعدادات ألوان القوائم الجانبية */
-    --sidebar-background: 0 0% 99%;
-    --sidebar-foreground: 220 20% 25%;
-    --sidebar-primary: 142 71% 45%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 142 71% 95%;
-    --sidebar-accent-foreground: 142 71% 25%;
-    --sidebar-border: 220 13% 91%;
-    --sidebar-ring: 142 71% 45%;
+    /* إعدادات القائمة الجانبية (Sidebar) */
+    --sidebar-background: 0 0% 99%; /* خلفية القائمة الجانبية */
+    --sidebar-foreground: 220 20% 25%; /* لون نصوص القائمة الجانبية */
+    --sidebar-primary: 142 71% 45%; /* خلفية العنصر النشط في القائمة */
+    --sidebar-primary-foreground: 0 0% 100%; /* لون نص العنصر النشط بالقائمة */
+    --sidebar-accent: 142 71% 95%; /* خلفية العنصر عند التمرير بالقائمة */
+    --sidebar-accent-foreground: 142 71% 25%; /* لون نص العنصر عند التمرير بالقائمة */
+    --sidebar-border: 220 13% 91%; /* لون فواصل القائمة الجانبية */
+    --sidebar-ring: 142 71% 45%; /* لون إطار التحديد داخل القائمة */
 
-    /* ألوان التنبيهات وحالات النظام */
-    --success: 142 71% 45%;
-    --success-foreground: 0 0% 100%;
-    --warning: 38 92% 50%;
-    --warning-foreground: 0 0% 100%;
-    --info: 217 91% 60%;
-    --info-foreground: 0 0% 100%;
+    /* ألوان حالات النظام والتنبيهات */
+    --success: 142 71% 45%; /* لون حالة النجاح (أخضر) */
+    --success-foreground: 0 0% 100%; /* لون نص حالة النجاح */
+    --warning: 38 92% 50%; /* لون حالة التحذير (برتقالي) */
+    --warning-foreground: 0 0% 100%; /* لون نص حالة التحذير */
+    --info: 217 91% 60%; /* لون حالة الإرشادات والمعلومات (أزرق) */
+    --info-foreground: 0 0% 100%; /* لون نص الإرشادات */
+  } 
+
+  /* إعدادات الوضع الليلي */
+  .dark { 
+    --background: 220 20% 6%; /* لون خلفية داكن ومريح للعين */
+    --foreground: 0 0% 95%; /* لون فاتح للنصوص لزيادة التباين */
+    --card: 220 20% 8%; /* خلفية داكنة للبطاقات */
+    --card-foreground: 0 0% 95%; /* لون نص البطاقات بالوضع الليلي */
+    --popover: 220 20% 8%; /* خلفية داكنة للقوائم المنبثقة */
+    --popover-foreground: 0 0% 95%; /* لون نص القوائم المنبثقة */
+    --primary: 142 71% 45%; /* لون الهوية الأخضر يبقى ثابت */
+    --primary-foreground: 0 0% 100%; /* لون نص الأخضر يبقى أبيض */
+    --secondary: 220 14% 14%; /* رمادي داكن للعناصر الثانوية */
+    --secondary-foreground: 0 0% 95%; /* لون نص العناصر الثانوية بالليلي */
+    --muted: 220 14% 14%; /* خلفية داكنة للعناصر المطفية */
+    --muted-foreground: 220 9% 55%; /* لون رمادي متوسط لنصوص العناصر المطفية */
+    --accent: 142 71% 15%; /* خلفية داكنة للـ Hover (أخضر غامق) */
+    --accent-foreground: 142 71% 85%; /* لون نص الـ Hover بالوضع الليلي */
+    --destructive: 0 62% 30%; /* أحمر داكن لإجراءات الحذف */
+    --destructive-foreground: 0 0% 95%; /* لون نص أزرار الحذف بالليلي */
+    --border: 220 14% 18%; /* لون فواصل وحدود داكنة */
+    --input: 220 14% 18%; /* حدود داكنة لحقول الإدخال */
+    --ring: 142 71% 45%; /* إطار التحديد يبقى أخضر */
+    --sidebar-background: 220 20% 8%; /* خلفية داكنة للقائمة الجانبية */
+    --sidebar-foreground: 0 0% 85%; /* لون نص فاتح للقائمة الجانبية */
+    --sidebar-primary: 142 71% 45%; /* لون العنصر النشط بالقائمة يبقى أخضر */
+    --sidebar-primary-foreground: 0 0% 100%; /* نص العنصر النشط بالقائمة يبقى أبيض */
+    --sidebar-accent: 142 71% 15%; /* خلفية الـ Hover بالقائمة (أخضر غامق) */
+    --sidebar-accent-foreground: 142 71% 85%; /* لون نص الـ Hover بالقائمة بالليلي */
+    --sidebar-border: 220 14% 18%; /* فواصل داكنة للقائمة الجانبية */
+    --sidebar-ring: 142 71% 45%; /* إطار التحديد بالقائمة يبقى أخضر */
+  } 
+} 
+
+@layer base { 
+  /* ربط متغيرات الألوان بعناصر الـ HTML الأساسية */
+  * { 
+    @apply border-border; /* توحيد لون الحدود لجميع عناصر الصفحة */
   }
 
-  /* تبديل الألوان للوضع الليلي */
-  .dark {
-    --background: 220 20% 6%;
-    --foreground: 0 0% 95%;
-    --card: 220 20% 8%;
-    --card-foreground: 0 0% 95%;
-    --popover: 220 20% 8%;
-    --popover-foreground: 0 0% 95%;
-    --primary: 142 71% 45%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 220 14% 14%;
-    --secondary-foreground: 0 0% 95%;
-    --muted: 220 14% 14%;
-    --muted-foreground: 220 9% 55%;
-    --accent: 142 71% 15%;
-    --accent-foreground: 142 71% 85%;
-    --destructive: 0 62% 30%;
-    --destructive-foreground: 0 0% 95%;
-    --border: 220 14% 18%;
-    --input: 220 14% 18%;
-    --ring: 142 71% 45%;
-    --sidebar-background: 220 20% 8%;
-    --sidebar-foreground: 0 0% 85%;
-    --sidebar-primary: 142 71% 45%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 142 71% 15%;
-    --sidebar-accent-foreground: 142 71% 85%;
-    --sidebar-border: 220 14% 18%;
-    --sidebar-ring: 142 71% 45%;
-  }
-}
-
-@layer base {
-  /* توحيد ألوان الحدود لجميع العناصر */
-  * {
-    @apply border-border;
-  }
-
-  /* إعدادات الخط الأساسي وتنسيق الصفحة */
-  body {
-    @apply bg-background text-foreground font-tajawal antialiased;
+  body { 
+    @apply bg-background text-foreground font-tajawal antialiased; /* تطبيق خلفية الصفحة، لون الخط، خط تاجويل، وتنعيم الحواف */
   }
 }

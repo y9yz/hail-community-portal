@@ -1,36 +1,39 @@
+// استيراد أيقونة النجمة والمكتبة المساعدة لدمج كلاسات CSS
 import { Star } from "lucide-react";
 import { cn } from "@/lib/utils";
 
+// تعريف الخصائص (Props) التي يستقبلها المكون
 interface StarRatingProps {
-  rating: number;
-  maxStars?: number;
-  size?: "sm" | "md";
-  interactive?: boolean;
-  onRate?: (rating: number) => void;
+  rating: number;       // التقييم الحالي
+  maxStars?: number;    // الحد الأقصى للنجوم (الافتراضي 5)
+  size?: "sm" | "md";   // حجم النجوم
+  interactive?: boolean;// هل المكون قابل للتفاعل (للقراءة فقط أم للتقييم)
+  onRate?: (rating: number) => void; // الدالة التي تُستدعى عند اختيار تقييم
 }
 
-/* مكون عرض وتفاعل النجوم للتقييمات */
+// مكون لعرض النجوم والتحكم فيها
 const StarRating = ({ rating, maxStars = 5, size = "sm", interactive = false, onRate }: StarRatingProps) => {
-  /* تحديد فئة القياس بناءً على الخصائص الممررة */
+  // تحديد أبعاد الأيقونة بناءً على الحجم المختار
   const sizeClass = size === "sm" ? "w-4 h-4" : "w-5 h-5";
 
   return (
-    /* dir="ltr" لضمان ترتيب النجوم من اليسار لليمين دائماً */
+    // استخدام dir="ltr" لضمان بقاء النجوم مرتبة من اليسار لليمين حتى في واجهات RTL
     <div className="flex items-center gap-0.5" dir="ltr">
-      {/* توليد مصفوفة النجوم بناءً على العدد الأقصى */}
+      {/* إنشاء مصفوفة بناءً على عدد النجوم الأقصى وتوليد الأيقونات */}
       {Array.from({ length: maxStars }, (_, i) => {
-        /* تحديد حالة النجمة (ملونة أو فارغة) بناءً على قيمة التقييم */
+        // تحديد ما إذا كانت النجمة يجب أن تكون ملونة (إذا كان ترتيبها أقل من أو يساوي التقييم)
         const filled = i < Math.round(rating);
         return (
           <Star
             key={i}
             className={cn(
               sizeClass,
+              // تلوين النجمة بالذهبي إذا كانت ممتلئة، أو بالرمادي إذا كانت فارغة
               filled ? "fill-yellow-400 text-yellow-400" : "text-muted-foreground/30",
-              /* تفعيل تأثيرات الماوس في حال كان المكون مخصصاً للإدخال */
+              // إضافة تأثيرات بصرية عند التفاعل إذا كان المكون يدعم ذلك
               interactive && "cursor-pointer hover:text-yellow-400 transition-colors"
             )}
-            /* تنفيذ دالة التقييم عند النقر في الوضع التفاعلي */
+            // استدعاء دالة التقييم عند النقر على نجمة معينة
             onClick={() => interactive && onRate?.(i + 1)}
           />
         );

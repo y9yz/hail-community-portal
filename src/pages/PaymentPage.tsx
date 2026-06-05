@@ -1,3 +1,4 @@
+// استيراد المكتبات والمكونات الأساسية المطلوبة
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -8,29 +9,25 @@ import { toast } from "sonner";
 import { ArrowRight, CheckCircle2 } from "lucide-react";
 import Navbar from "@/components/Navbar";
 
+// تعريف مكون صفحة الدفع
 const PaymentPage = () => {
+  // تهيئة دوال التنقل، الترجمة، وجلب بيانات المستخدم الحالي
   const navigate = useNavigate();
   const { t } = useTranslation();
   const { user } = useAuth();
 
-  /**
-   * معالجة عملية الدفع وتحديث قاعدة البيانات
-   * يتم احتساب سنة كاملة من تاريخ اليوم وتحديث سجل الاشتراك بربطه بـ provider_id
-   */
+  // دالة معالجة الدفع وتحديث الاشتراك في قاعدة البيانات
   const handlePayment = async (methodName: string) => {
-    /* التحقق من وجود جلسة مستخدم نشطة */
+    // التحقق من تسجيل دخول المستخدم قبل إكمال العملية
     if (!user) return;
 
     try {
-      /* احتساب تاريخ الانتهاء (سنة من اللحظة الحالية) */
+      // تحديد تاريخ انتهاء الاشتراك (إضافة سنة واحدة لتاريخ اليوم)
       const newExpiry = new Date();
       newExpiry.setFullYear(newExpiry.getFullYear() + 1);
 
-      /**
-       * استخدام upsert لتحديث سجل الاشتراك الحالي أو إنشاء سجل جديد
-       * تم تحديد onConflict لضمان عدم تكرار السجلات لنفس المزود
-       * IMPORTANT: Using correct table name "subscriptions"
-       */
+      // تحديث أو إنشاء سجل الاشتراك الخاص بمقدم الخدمة في قاعدة البيانات
+      // يتم استخدام upsert للإنشاء إذا لم يكن موجوداً أو التحديث إذا كان موجوداً
       const { error } = await supabase
         .from("subscriptions" as any) 
         .upsert({ 
@@ -40,15 +37,16 @@ const PaymentPage = () => {
           updated_at: new Date().toISOString()
         }, { onConflict: 'provider_id' });
 
+      // معالجة الأخطاء في حال فشل التحديث في قاعدة البيانات
       if (error) {
-        /* إظهار الخطأ التقني المباشر في حال فشل الاتصال بقاعدة البيانات */
         alert(t('payment.error_alert', { message: error.message }));
         throw error;
       }
 
+      // عرض رسالة نجاح عملية الدفع للمستخدم
       toast.success(t('payment.success', { methodName }));
       
-      /* إعادة التوجيه للوحة التحكم بعد تحديث الحالة مع إشارة نجاح الدفع */
+      // إعادة توجيه المستخدم للوحة التحكم وتمرير مؤشر نجاح الدفع في الرابط
       navigate("/provider?payment_success=true"); 
       
     } catch (err: any) {
@@ -57,16 +55,19 @@ const PaymentPage = () => {
     }
   };
 
-  /* قائمة ببيانات وسائل الدفع المتاحة للعرض */
+  // قائمة بوسائل الدفع المتاحة مع شعاراتها التوضيحية
   const paymentMethods = [
     { name: "Apple Pay", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b0/Apple_Pay_logo.svg/1200px-Apple_Pay_logo.svg.png" },
     { name: "مدى mada", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c5/Mada_Logo.svg/1200px-Mada_Logo.svg.png" },
     { name: "Visa / MasterCard", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/5/5e/Visa_Inc._logo.svg/2560px-Visa_Inc._logo.svg.png" }
   ];
 
+  // هيكل واجهة المستخدم للمكون
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
+      
+      {/* الشريط العلوي (الترويسة) وزر الرجوع للوحة التحكم */}
       <header className="sticky top-16 z-40 bg-card/80 backdrop-blur-lg border-b">
         <div className="container flex items-center justify-between h-16 gap-4">
           <div className="flex items-center gap-3">
@@ -77,9 +78,10 @@ const PaymentPage = () => {
           </div>
         </div>
       </header>
+      
       <div className="container py-6 max-w-md">
 
-        {/* عرض تفاصيل المبلغ المستحق */}
+        {/* بطاقة عرض المبلغ المستحق للدفع */}
         <Card className="rounded-3xl border-2 border-primary/20 p-6 text-center space-y-4 shadow-lg">
           <div className="space-y-1">
             <p className="text-muted-foreground text-sm font-bold">{t('payment.annual_fee_label')}</p>
@@ -90,8 +92,8 @@ const PaymentPage = () => {
           </p>
         </Card>
 
-        {/* عرض خيارات الدفع كبطاقات تفاعلية */}
-        <div className="space-y-4">
+        {/* عرض خيارات الدفع كبطاقات قابلة للنقر */}
+        <div className="space-y-4 mt-6">
           <p className="text-sm font-bold text-center mb-2">{t('payment.choose_method')}</p>
           {paymentMethods.map((method) => (
             <Card 
@@ -107,8 +109,8 @@ const PaymentPage = () => {
           ))}
         </div>
 
-        {/* تنبيه قانوني حول آلية التجديد الآلي وتغيير حالة الحساب */}
-        <div className="bg-primary/5 p-4 rounded-2xl border border-primary/10 flex items-start gap-3">
+        {/* مربع التنبيه أو الملاحظات القانونية أسفل الصفحة */}
+        <div className="bg-primary/5 p-4 rounded-2xl border border-primary/10 flex items-start gap-3 mt-6">
           <CheckCircle2 className="w-5 h-5 text-primary shrink-0 mt-0.5" />
           <p className="text-[10px] text-muted-foreground leading-relaxed">
             {t('payment.legal_notice')}

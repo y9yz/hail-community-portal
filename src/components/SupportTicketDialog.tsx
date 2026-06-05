@@ -1,3 +1,4 @@
+// استيراد المكتبات الأساسية ومكونات واجهة المستخدم وأدوات المساعدة
 import { useState, useEffect, useRef } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -13,6 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
 import { arSA } from "date-fns/locale";
 
+// تعريف واجهة الخصائص المطلوبة للمكون
 interface SupportTicketDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -22,17 +24,20 @@ interface SupportTicketDialogProps {
 const SupportTicketDialog = ({ open, onOpenChange, booking }: SupportTicketDialogProps) => {
   const { t } = useTranslation();
   const { user } = useAuth();
+  
+  // حالة النموذج الخاص بإنشاء تذكرة جديدة
   const [subject, setSubject] = useState("");
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
   
+  // حالة التذكرة المفتوحة والمحادثة الخاصة بها
   const [activeTicket, setActiveTicket] = useState<any>(null);
   const [messages, setMessages] = useState<any[]>([]);
   const [replyText, setReplyText] = useState("");
   const [sendingReply, setSendingReply] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  /* تهيئة البيانات عند فتح النافذة */
+  // إعادة تهيئة النموذج عند فتح النافذة
   useEffect(() => {
     if (open && user) {
       setSubject("");
@@ -43,7 +48,7 @@ const SupportTicketDialog = ({ open, onOpenChange, booking }: SupportTicketDialo
     }
   }, [open, user, booking]);
 
-  /* التحكم في تمرير المحادثة لآخر رسالة */
+  // دالة تمرير شاشة المحادثة للأسفل عند وصول رسالة جديدة
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
@@ -52,7 +57,7 @@ const SupportTicketDialog = ({ open, onOpenChange, booking }: SupportTicketDialo
     scrollToBottom();
   }, [messages]);
 
-  /* تفعيل الاستماع اللحظي للرسائل الجديدة في التذكرة */
+  // إعداد الاستماع اللحظي للرسائل الجديدة في حال كانت التذكرة مفتوحة
   useEffect(() => {
     if (!activeTicket || !user) return;
 
@@ -80,7 +85,7 @@ const SupportTicketDialog = ({ open, onOpenChange, booking }: SupportTicketDialo
     };
   }, [activeTicket, user]);
 
-  /* فحص وجود تذكرة مفتوحة مسبقاً مرتبطة بالطلب الحالي */
+  // البحث عن تذكرة قائمة مرتبطة بنفس الطلب
   const checkExistingTicket = async () => {
     if (!user || !booking) return;
     try {
@@ -102,7 +107,7 @@ const SupportTicketDialog = ({ open, onOpenChange, booking }: SupportTicketDialo
     }
   };
 
-  /* جلب سجل الرسائل للتذكرة النشطة */
+  // جلب سجل المحادثة للتذكرة
   const fetchMessages = async (ticketId: string) => {
     const { data } = await supabase
       .from("support_messages" as any)
@@ -113,7 +118,7 @@ const SupportTicketDialog = ({ open, onOpenChange, booking }: SupportTicketDialo
     setMessages(data || []);
   };
 
-  /* إنشاء تذكرة دعم فني جديدة وإضافة أول رسالة */
+  // إنشاء تذكرة دعم فني جديدة
   const handleCreateTicket = async () => {
     if (!user || !subject.trim() || !message.trim()) {
       toast.error(t('support.fill_subject_message'));
@@ -122,6 +127,7 @@ const SupportTicketDialog = ({ open, onOpenChange, booking }: SupportTicketDialo
 
     setLoading(true);
     try {
+      // إضافة التذكرة الأساسية
       const { data: newTicket, error: ticketError } = await supabase
         .from("support_tickets")
         .insert({
@@ -136,6 +142,7 @@ const SupportTicketDialog = ({ open, onOpenChange, booking }: SupportTicketDialo
 
       if (ticketError) throw ticketError;
 
+      // إضافة الرسالة الأولى للمحادثة
       const { error: msgError } = await supabase
         .from("support_messages" as any)
         .insert({
@@ -146,7 +153,7 @@ const SupportTicketDialog = ({ open, onOpenChange, booking }: SupportTicketDialo
 
       if (msgError) throw msgError;
 
-      // إشعار للمدراء بتذكرة دعم جديدة
+      // إشعار المدراء بوجود تذكرة جديدة
       const { data: admins } = await supabase
         .from("user_roles")
         .select("user_id")
@@ -173,7 +180,7 @@ const SupportTicketDialog = ({ open, onOpenChange, booking }: SupportTicketDialo
     }
   };
 
-  /* إرسال رد جديد في المحادثة */
+  // إرسال رد ضمن تذكرة قائمة
   const handleSendReply = async () => {
     if (!user || !activeTicket || !replyText.trim()) return;
 
@@ -199,7 +206,7 @@ const SupportTicketDialog = ({ open, onOpenChange, booking }: SupportTicketDialo
     }
   };
 
-  /* تحديد لون وشكل الشارة بناءً على حالة التذكرة */
+  // تنسيق شارة حالة التذكرة
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'open': return <Badge className="bg-amber-500 hover:bg-amber-600 gap-1"><Clock className="w-3 h-3" /> {t('support.status.review')}</Badge>;
@@ -225,7 +232,7 @@ const SupportTicketDialog = ({ open, onOpenChange, booking }: SupportTicketDialo
         </DialogHeader>
 
         {!activeTicket ? (
-          /* واجهة فتح بلاغ جديد */
+          // واجهة إنشاء تذكرة جديدة
           <div className="p-6 space-y-6">
             <div className="bg-amber-50/50 p-4 rounded-2xl border border-amber-100 flex items-start gap-3">
               <AlertCircle className="w-5 h-5 text-amber-600 mt-0.5" />
@@ -264,7 +271,7 @@ const SupportTicketDialog = ({ open, onOpenChange, booking }: SupportTicketDialo
             </div>
           </div>
         ) : (
-          /* واجهة المحادثة وتتبع البلاغ */
+          // واجهة المحادثة في تذكرة قائمة
           <div className="flex flex-col h-[500px]">
             <div className="p-4 border-b bg-background flex justify-between items-center shadow-sm z-10">
               <div>
@@ -305,7 +312,6 @@ const SupportTicketDialog = ({ open, onOpenChange, booking }: SupportTicketDialo
               <div ref={messagesEndRef} />
             </div>
 
-            {/* منطقة الإدخال تظهر فقط إذا كانت التذكرة غير مغلقة */}
             {activeTicket.status !== 'closed' ? (
               <div className="p-4 bg-background border-t mt-auto">
                 <div className="flex gap-2">

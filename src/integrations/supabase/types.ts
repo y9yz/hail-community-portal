@@ -1,3 +1,4 @@
+// نوع بيانات مخصص لدعم قيم وحقول JSON بجميع أشكالها (نص، رقم، مصفوفة، كائن)
 export type Json =
   | string
   | number
@@ -6,13 +7,13 @@ export type Json =
   | { [key: string]: Json | undefined }
   | Json[]
 
+// الهيكل الأساسي لقاعدة البيانات الذي يحتوي على جميع الجداول، الدوال، وأنماط البيانات
 export type Database = {
-  // Allows to automatically instantiate createClient with right options
-  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
     PostgrestVersion: "14.1"
   }
   public: {
+    // تعريف جميع الجداول وحقولها (للقراءة Row، للإضافة Insert، وللتحديث Update)
     Tables: {
       bookings: {
         Row: {
@@ -464,6 +465,7 @@ export type Database = {
         Returns: boolean
       }
     }
+    // القيم الثابتة المحددة مسبقاً (Enums) التي تقبلها قاعدة البيانات
     Enums: {
       admin_status: "pending_admin" | "approved" | "rejected"
       app_role: "client" | "provider" | "admin"
@@ -479,10 +481,15 @@ export type Database = {
   }
 }
 
+// ----------------------------------------------------------------------------
+// الأنواع المساعدة (Helper Types) المستخرجة تلقائياً لتسهيل العمل مع الجداول
+// ----------------------------------------------------------------------------
+
 type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">
 
 type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
 
+// استخراج نوع بيانات الصف (Row) لجدول معين
 export type Tables<
   DefaultSchemaTableNameOrOptions extends
     | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
@@ -512,6 +519,7 @@ export type Tables<
       : never
     : never
 
+// استخراج نوع البيانات المطلوب لإدخال صف جديد (Insert) في جدول معين
 export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
@@ -537,6 +545,7 @@ export type TablesInsert<
       : never
     : never
 
+// استخراج نوع البيانات المطلوب لتحديث صف (Update) في جدول معين
 export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
@@ -562,6 +571,7 @@ export type TablesUpdate<
       : never
     : never
 
+// استخراج أنواع الـ Enums بشكل ديناميكي
 export type Enums<
   DefaultSchemaEnumNameOrOptions extends
     | keyof DefaultSchema["Enums"]
@@ -596,6 +606,7 @@ export type CompositeTypes<
     ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
     : never
 
+// ثوابت (Constants) تمثل القيم الممكنة للـ Enums، يسهل استخدامها داخل التطبيق بدلاً من كتابة النصوص يدوياً
 export const Constants = {
   public: {
     Enums: {

@@ -1,3 +1,7 @@
+/*
+ * استيراد مكتبات إدارة الحالة والتوجيه، ومكونات واجهة المستخدم الأساسية.
+ * تم استخدام مكونات مثل Card لعرض الحاويات، و Popover للقوائم المنبثقة، وغيرها لتكوين تخطيط الصفحة.
+ */
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { format } from "date-fns";
@@ -24,6 +28,13 @@ const ServiceDetail = () => {
   const navigate = useNavigate();
   const { t } = useTranslation();
   const { user, role, loading: authLoading } = useAuth();
+  
+  /*
+   * إدارة حالة واجهة المستخدم:
+   * service: تخزن تفاصيل الخدمة لعرضها في أعلى الصفحة (الصورة، العنوان، الوصف).
+   * selectedDate / selectedTime: مدخلات المستخدم لتحديد موعد الحجز في التقويم والأزرار الزمنية.
+   * problemDescription: النص الذي يكتبه المستخدم لوصف المشكلة قبل تأكيد الحجز.
+   */
   const [service, setService] = useState<Service | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedDate, setSelectedDate] = useState<Date>();
@@ -31,17 +42,30 @@ const ServiceDetail = () => {
   const [problemDescription, setProblemDescription] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
+  /*
+   * حالات إدارة أوقات الحجز:
+   * bookedTimes: مصفوفة تحتفظ بالأوقات المحجوزة مسبقاً لتعطيلها (Disabled) في الواجهة.
+   * isCheckingTimes: حالة تحميل فرعية لإظهار تأثير بصري أثناء فحص توفر الأوقات من السيرفر.
+   */
   const [bookedTimes, setBookedTimes] = useState<string[]>([]);
   const [isCheckingTimes, setIsCheckingTimes] = useState(false);
 
-  /* 1. حماية المسار: منع الإدارة والمزودين من الوصول لصفحة الحجز وتوجيههم لصفحاتهم */
+  /*
+   * حماية صلاحيات الوصول للمسار:
+   * تمنع دخول مديري النظام ومقدمي الخدمات لصفحة تقديم طلبات الحجز المخصصة للعملاء فقط،
+   * وتوجههم تلقائياً إلى لوحات التحكم الخاصة بهم لمنع الأخطاء التشغيلية.
+   */
   useEffect(() => {
     if (authLoading) return;
     if (role === "admin") { navigate("/admin", { replace: true }); return; }
     if (role === "provider") { navigate("/provider", { replace: true }); return; }
   }, [role, authLoading, navigate]);
 
-  /* 2. جلب تفاصيل الخدمة آلياً مع صمام الأمان */
+  /*
+   * جلب تفاصيل الخدمة من قاعدة البيانات:
+   * يتم استدعاؤها عند تحميل الصفحة لجلب الغلاف، العنوان، التكلفة، واسم مقدم الخدمة.
+   * يتم استخدام متغير 'mounted' كصمام أمان لمنع تحديث الحالة إذا غادر المستخدم الصفحة قبل اكتمال التحميل.
+   */
   useEffect(() => {
     let mounted = true;
     const fetch = async () => {
@@ -66,7 +90,11 @@ const ServiceDetail = () => {
     return () => { mounted = false; };
   }, [id]);
 
-  /* 🚀 دالة مساعدة ذكية لاستخراج التاريخ بصيغة YYYY-MM-DD محلياً بدون التلاعب بالـ Timezone */
+  /*
+   * معالجة التاريخ محلياً:
+   * دالة مساعدة تأخذ كائن التاريخ وتحوله إلى نص بصيغة (YYYY-MM-DD) بالاعتماد على توقيت جهاز المستخدم،
+   * لتجنب أخطاء ترحيل الأيام التي تحدث عند التحويل الافتراضي إلى توقيت جرينتش.
+   */
   const getLocalDateString = (date?: Date) => {
     if (!date) return "";
     const year = date.getFullYear();
@@ -75,7 +103,11 @@ const ServiceDetail = () => {
     return `${year}-${month}-${day}`;
   };
 
-  /* 3. التحقق من المواعيد المحجوزة مسبقاً لنفس اليوم لمنع التضارب في الحجوزات */
+  /*
+   * التحقق من تضارب المواعيد:
+   * بمجرد أن يختار المستخدم يوماً من التقويم، يتم إرسال طلب لجلب الأوقات التي حجزت مسبقاً في ذلك اليوم.
+   * يتم تفريغ الوقت المختار سابقاً (إن وجد) لتجنب حجز وقت أصبح غير متاح للتو.
+   */
   useEffect(() => {
     let mounted = true;
     const fetchBookedTimes = async () => {
@@ -83,7 +115,6 @@ const ServiceDetail = () => {
       
       setIsCheckingTimes(true);
       try {
-        // 🚀 تم الاستبدال بالتوقيت المحلي الصارم لحل فخ الـ UTC والـ Timezones
         const formattedDate = getLocalDateString(selectedDate);
         
         const { data, error } = await supabase
@@ -114,13 +145,18 @@ const ServiceDetail = () => {
     return () => { mounted = false; };
   }, [selectedDate, service?.provider_id]);
 
+  /* عرض حالة التحميل أو شاشة الخطأ قبل بناء واجهة تفاصيل الخدمة */
   if (loading) return <div className="min-h-screen flex items-center justify-center text-muted-foreground font-black">{t('serviceDetail.loading')}</div>;
   if (!service) return <div className="min-h-screen flex items-center justify-center text-muted-foreground font-black">{t('serviceDetail.not_found')}</div>;
 
   const categoryLabel = categories.find((c) => c.id === service.category)?.label ?? "";
   const canProceed = selectedDate && selectedTime && problemDescription.trim().length > 0;
 
-  /* التحقق مما إذا كان الوقت المختار في الماضي اليوم */
+  /*
+   * تعطيل الأوقات المنقضية:
+   * تقارن الوقت في المصفوفة مع الوقت الحالي لجهاز المستخدم. 
+   * إذا كان اليوم المختار هو اليوم الحالي، يتم استبعاد أي وقت قد مضى لجعله عنصراً مطفياً في الواجهة.
+   */
   const isTimePast = (time: string): boolean => {
     if (!selectedDate) return false;
     
@@ -136,14 +172,17 @@ const ServiceDetail = () => {
     return selectedDateTime < today;
   };
 
-  /* 4. معالجة إنشاء طلب حجز جديد وإرسال إشعار فوري للمزود */
+  /*
+   * معالجة واعتماد الطلب:
+   * تقوم بإدراج الحجز في قاعدة البيانات، ثم إرسال إشعار فوري لمقدم الخدمة لتبليغه بالطلب الجديد.
+   * في حال النجاح، يتم توجيه العميل إلى صفحة "حجوزاتي" لمتابعة حالة الطلب.
+   */
   const handleSubmitRequest = async () => {
     if (!user) { toast.error(t('serviceDetail.login_required')); navigate("/auth"); return; }
     if (role !== "client") { toast.error(t('serviceDetail.clients_only')); return; }
 
     setSubmitting(true);
     try {
-      /* إدراج سجل الطلب في جدول الحجوزات بالتاريخ المحلي الآمن */
       const { data: booking, error } = await supabase.from("bookings").insert({
         client_id: user.id,
         provider_id: service.provider_id,
@@ -152,13 +191,12 @@ const ServiceDetail = () => {
         problem_description: problemDescription,
         fee: 0,
         provider_status: "pending" as any,
-        scheduled_date: getLocalDateString(selectedDate), // 🚀 تاريخ محلي آمن هنا أيضاً
+        scheduled_date: getLocalDateString(selectedDate),
         scheduled_time: selectedTime,
       }).select().single();
 
       if (error) throw error;
 
-      /* توليد إشعار للمزود بوجود طلب جديد للخدمة */
       await supabase.from("notifications").insert({
         recipient_id: service.provider_id,
         sender_id: user.id,
@@ -177,6 +215,7 @@ const ServiceDetail = () => {
 
   return (
     <div className="min-h-screen bg-background" dir="rtl">
+      {/* شريط العنوان العلوي المثبت لتسهيل التصفح والرجوع */}
       <header className="sticky top-0 z-50 bg-card/80 backdrop-blur-lg border-b">
         <div className="container flex items-center h-16 gap-4">
           <Button variant="ghost" size="icon" onClick={() => navigate(-1)} className="rounded-full hover:bg-muted">
@@ -187,10 +226,12 @@ const ServiceDetail = () => {
       </header>
 
       <div className="container py-6 space-y-6 max-w-3xl">
+        {/* الحاوية البصرية لصورة الخدمة */}
         <div className="rounded-[2rem] overflow-hidden h-56 md:h-80 border-2 shadow-sm">
           <img src={service.image_url || "/placeholder.svg"} alt={service.title} className="w-full h-full object-cover" />
         </div>
 
+        {/* الحاوية النصية للمعلومات الوصفية والتصنيفات */}
         <div className="space-y-4 px-2">
           <Badge className="bg-primary/10 text-primary border-primary/20 px-4 py-1.5 rounded-full text-sm font-bold">{categoryLabel}</Badge>
           <h2 className="text-3xl font-black text-foreground">{service.title}</h2>
@@ -216,6 +257,7 @@ const ServiceDetail = () => {
           </div>
         </div>
 
+        {/* بطاقة إدخال تفاصيل المشكلة (Textarea Component) */}
         <Card className="rounded-[2rem] border-2 shadow-sm">
           <CardContent className="p-6 space-y-4">
             <Label htmlFor="problem" className="font-black text-lg">{t('serviceDetail.request_details')}</Label>
@@ -232,6 +274,7 @@ const ServiceDetail = () => {
           </CardContent>
         </Card>
 
+        {/* بطاقة اختيار الموعد عبر القائمة المنبثقة للتقويم وشبكة الأوقات */}
         <Card className="rounded-[2rem] border-2 shadow-sm">
           <CardContent className="p-6 space-y-6">
             <div className="space-y-2">
@@ -249,6 +292,7 @@ const ServiceDetail = () => {
               </Popover>
             </div>
 
+            {/* شبكة الأوقات المتاحة: تظهر فقط بعد اختيار التاريخ */}
             {selectedDate && (
               <div className="space-y-3 animate-in fade-in slide-in-from-bottom-2 duration-300">
                 <h4 className="font-black text-sm text-foreground flex items-center gap-2">
@@ -270,6 +314,7 @@ const ServiceDetail = () => {
                         className={cn(
                           "rounded-xl text-sm h-12 font-bold border-2 transition-all",
                           selectedTime === time && "shadow-lg shadow-primary/20",
+                          /* تطبيق تنسيق العنصر المطفي في حال كان الوقت محجوزاً أو ماضياً */
                           isBooked && "opacity-40 bg-muted/50 text-muted-foreground line-through cursor-not-allowed border-dashed hover:bg-muted/50",
                           isPast && "opacity-40 bg-muted/50 text-muted-foreground line-through cursor-not-allowed border-dashed hover:bg-muted/50"
                         )}
@@ -290,11 +335,13 @@ const ServiceDetail = () => {
           </CardContent>
         </Card>
 
+        {/* زر تأكيد الحجز الرئيسي: يُعطل إذا لم تكتمل كافة المدخلات المطلوبة */}
         <Button className="w-full h-16 text-xl font-black rounded-[1.5rem] gap-2 shadow-xl shadow-primary/20 hover:scale-[1.01] transition-transform" disabled={!canProceed || submitting || isCheckingTimes} onClick={handleSubmitRequest}>
           <Send className="w-6 h-6 rtl:-scale-x-100" />
           {submitting ? t('serviceDetail.submitting') : t('serviceDetail.submit_button')}
         </Button>
 
+        {/* قسم التقييمات المرتبط بالخدمة أسفل الصفحة */}
         <div className="pt-8 border-t-2 border-dashed">
           <ReviewSection serviceId={service.id} />
         </div>

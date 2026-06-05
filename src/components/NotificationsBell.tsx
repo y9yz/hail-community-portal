@@ -1,3 +1,4 @@
+// استيراد المكتبات والمكونات الأساسية
 import { useEffect, useState, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { 
@@ -11,14 +12,16 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 
+// مكون جرس الإشعارات في شريط التنقل
 const NotificationsBell = () => {
   const { t } = useTranslation();
-  const { user, role } = useAuth(); // 🚀 جلبنا الـ role مباشرة لمنع الاستعلام المكرر بالأسفل
+  const { user, role } = useAuth();
   const navigate = useNavigate();
+  
   const [notifications, setNotifications] = useState<any[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
 
-  // 🚀 تغليف الدالة بـ useCallback لمنع إعادة إنشائها في الذاكرة عند كل رندر
+  // جلب الإشعارات الخاصة بالمستخدم من قاعدة البيانات
   const fetchNotifications = useCallback(async () => {
     if (!user?.id) return;
     const { data } = await supabase
@@ -27,15 +30,16 @@ const NotificationsBell = () => {
       .eq("recipient_id", user.id)
       .order("created_at", { ascending: false })
       .limit(20);
+      
     setNotifications(data || []);
     setUnreadCount((data || []).filter((n: any) => !n.is_read).length);
   }, [user?.id]);
 
+  // إعداد المزامنة اللحظية (Realtime) لتحديث الإشعارات فور وصولها
   useEffect(() => {
     if (!user?.id) return;
     fetchNotifications();
 
-    // 🚀 جعل اسم القناة فريداً للمستخدم الحالي لمنع تصادم الـ WebSockets
     const channelName = `notifications:${user.id}`;
     const channel = supabase
       .channel(channelName)
@@ -47,13 +51,13 @@ const NotificationsBell = () => {
       }, () => fetchNotifications())
       .subscribe();
 
-    // 🚀 تنظيف آمن للقناة عند الـ unmount أو تغيير المستخدم
+    // إغلاق القناة عند مغادرة الصفحة
     return () => { 
       supabase.removeChannel(channel); 
     };
-  }, [user?.id, fetchNotifications]); // 🔥 الاعتماد على user.id النصي يمنع نهائياً إعادة الاشتراك اللانهائية عند الـ Window Focus
+  }, [user?.id, fetchNotifications]);
 
-  // دالة ذكية لتحديد الأيقونة واللون بناءً على نوع الإشعار
+  // دالة ذكية لتحديد شكل وألوان الأيقونة بناءً على محتوى نص الإشعار
   const getNotifDetails = (content: string) => {
     const text = content.toLowerCase();
     if (text.includes("رسالة") || text.includes("محادثة")) 
@@ -70,8 +74,8 @@ const NotificationsBell = () => {
     return { icon: <AlertCircle className="w-4 h-4 text-muted-foreground" />, bg: "bg-muted" };
   };
 
+  // معالجة النقر على الإشعار: تحديث الحالة كـ "مقروء" وتوجيه المستخدم للصفحة المناسبة
   const handleNotificationClick = async (notification: any) => {
-    // 1. تحديد كمقروء في القاعدة
     if (!notification.is_read) {
       await supabase
         .from("notifications")
@@ -80,7 +84,6 @@ const NotificationsBell = () => {
       fetchNotifications();
     }
 
-    // 2. التوجيه الذكي الآمن والمعتمد على الـ role الجاهز من الـ Context
     const text = notification.content.toLowerCase();
     if (text.includes("تذكرة") || text.includes("بلاغ")) {
       navigate("/support");
@@ -89,6 +92,7 @@ const NotificationsBell = () => {
     }
   };
 
+  // تعيين جميع الإشعارات كمقروءة
   const markAllRead = async () => {
     if (!user?.id) return;
     const { error } = await supabase
@@ -103,6 +107,7 @@ const NotificationsBell = () => {
     }
   };
 
+  // حذف جميع الإشعارات بعد تأكيد المستخدم
   const clearAll = async () => {
     if (!user?.id) return;
     if (!confirm(t('notifications.clear_confirm'))) return;
@@ -127,6 +132,7 @@ const NotificationsBell = () => {
       </PopoverTrigger>
       
       <PopoverContent className="w-[340px] p-0 rounded-3xl border-2 shadow-2xl overflow-hidden" align="end">
+        {/* رأس قائمة الإشعارات */}
         <div className="bg-primary text-primary-foreground p-4 flex items-center justify-between shadow-md">
           <div className="flex items-center gap-2">
             <Bell className="w-4 h-4 fill-current" />
@@ -139,6 +145,7 @@ const NotificationsBell = () => {
           )}
         </div>
 
+        {/* قائمة الإشعارات */}
         <div className="max-h-[400px] overflow-y-auto scrollbar-thin">
           {notifications.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 text-muted-foreground opacity-30">
@@ -166,7 +173,7 @@ const NotificationsBell = () => {
                     </div>
                     <div className="flex-1 space-y-1">
                       <p className={`text-xs leading-relaxed ${!n.is_read ? "font-black text-foreground" : "font-medium text-muted-foreground"}`}>
-                        ={n.content}
+                        {n.content}
                       </p>
                       <div className="flex justify-between items-center">
                         <p className="text-[9px] text-muted-foreground font-bold flex items-center gap-1">
@@ -183,6 +190,7 @@ const NotificationsBell = () => {
           )}
         </div>
         
+        {/* تذييل القائمة */}
         <div className="p-3 bg-muted/10 text-center border-t">
           <p className="text-[9px] text-muted-foreground font-black tracking-tight">{t('notifications.footer')} — {new Date().getFullYear()}</p>
         </div>

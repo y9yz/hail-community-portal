@@ -1,3 +1,4 @@
+// استيراد الأيقونات والمكونات والأدوات اللازمة
 import { Search, User, LogOut, ClipboardList, Moon, Sun, Edit, MessageCircle, Globe } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,7 +15,7 @@ import NotificationsBell from "@/components/NotificationsBell";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useState, useEffect } from "react";
-import { useTranslation } from "react-i18next"; // 🌍 استدعاء مكتبة الترجمة
+import { useTranslation } from "react-i18next";
 
 interface NavbarProps {
   searchQuery?: string;
@@ -24,60 +25,63 @@ interface NavbarProps {
 const Navbar = ({ searchQuery = "", onSearchChange }: NavbarProps) => {
   const navigate = useNavigate();
   const { user, role, profile, signOut } = useAuth();
-  const { t, i18n } = useTranslation(); // 🌍 استخدام الترجمة واللغة الحالية
+  const { t, i18n } = useTranslation();
 
+  // الحالة المحلية للبحث مع تفعيل خاصية التأخير (Debounce) لتقليل عدد الطلبات
   const [localSearch, setLocalSearch] = useState(searchQuery);
   const debouncedSearch = useDebounce(localSearch, 500);
 
-  /* شيك على الثيم.. ليل ولا نهار */
+  // حالة التحكم في الثيم (Dark/Light) ونافذة تعديل البروفايل
   const [dark, setDark] = useState(() => document.documentElement.classList.contains("dark"));
   const [editOpen, setEditOpen] = useState(false);
   const [reqName, setReqName] = useState(profile?.full_name || "");
   const [reqPhone, setReqPhone] = useState(profile?.phone || "");
   const [submitting, setSubmitting] = useState(false);
 
-  /* إذا تغير البروفايل.. حدث البيانات اللي بالخانات */
+  // تحديث بيانات النموذج عند تغير بيانات البروفايل
   useEffect(() => {
     setReqName(profile?.full_name || "");
     setReqPhone(profile?.phone || "");
   }, [profile]);
 
+  // مزامنة البحث المحلي مع القيمة الممررة من الخارج
   useEffect(() => {
     setLocalSearch(searchQuery);
   }, [searchQuery]);
 
+  // إرسال قيم البحث للخارج بعد انتهاء فترة التأخير (Debounce)
   useEffect(() => {
     if (onSearchChange && debouncedSearch !== searchQuery) {
       onSearchChange(debouncedSearch);
     }
   }, [debouncedSearch, onSearchChange, searchQuery]);
 
-  /* اقلب اللمبة.. فاتح ولا داكن */
+  // التبديل بين النمط الداكن والفاتح
   const toggleDark = () => {
     document.documentElement.classList.toggle("dark");
     setDark(!dark);
   };
 
-  /* 🌍 تبديل اللغة بين عربي وإنجليزي */
+  // تبديل لغة التطبيق
   const toggleLanguage = () => {
     const nextLang = i18n.language === 'ar' ? 'en' : 'ar';
     i18n.changeLanguage(nextLang);
   };
 
-  /* تسجيل الخروج.. ودعناهم */
+  // تسجيل الخروج
   const handleSignOut = async () => {
     await signOut();
     navigate("/auth");
   };
 
-  /* ضغطة الشعار.. يوديك لمكانك حسب رتبتك */
+  // التنقل للصفحة الرئيسية بناءً على دور المستخدم
   const handleLogoClick = () => {
     if (role === "provider") navigate("/provider");
     else if (role === "admin") navigate("/admin");
     else navigate("/");
   };
 
-  /* يرسل طلب تعديل بياناتك للإدارة.. مراجعة وتدقيق */
+  // إرسال طلب تعديل البيانات للإدارة للمراجعة
   const handleProfileEditRequest = async () => {
     if (!user) return;
     setSubmitting(true);
@@ -88,23 +92,22 @@ const Navbar = ({ searchQuery = "", onSearchChange }: NavbarProps) => {
         requested_phone: reqPhone.trim() || null,
       } as any);
       if (error) throw error;
-      toast.success(t('edit_success')); // 🌍 رسالة مترجمة
+      toast.success(t('edit_success'));
       setEditOpen(false);
     } catch (err: any) {
-      toast.error(err.message || t('error_occurred')); // 🌍 رسالة مترجمة
+      toast.error(err.message || t('error_occurred'));
     } finally {
       setSubmitting(false);
     }
   };
 
-  /* البحث ما يظهر إلا للعملاء الدوارة */
   const showSearch = role === "client" && onSearchChange;
 
   return (
     <>
       <header className="sticky top-0 z-50 bg-card/80 backdrop-blur-lg border-b">
         <div className="container flex items-center justify-between h-16 gap-4">
-          {/* شعار البوابة.. ضغطة وحدة ترجعك لبيتك */}
+          {/* شعار المنصة */}
           <h1
             className="text-xl font-extrabold text-primary cursor-pointer shrink-0"
             onClick={handleLogoClick}
@@ -112,12 +115,12 @@ const Navbar = ({ searchQuery = "", onSearchChange }: NavbarProps) => {
             {t("portal.name")}
           </h1>
 
-          {/* خانة البحث.. دور لك على خدمة */}
+          {/* خانة البحث تظهر فقط للعملاء */}
           {showSearch && (
             <div className="relative flex-1 max-w-md">
               <Search className="absolute start-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input
-                placeholder={t('search_placeholder')} // 🌍
+                placeholder={t('search_placeholder')}
                 value={localSearch}
                 onChange={(e) => setLocalSearch(e.target.value)}
                 className="ps-10 rounded-xl bg-secondary border-0"
@@ -125,10 +128,8 @@ const Navbar = ({ searchQuery = "", onSearchChange }: NavbarProps) => {
             </div>
           )}
 
-          {/* أزرار التحكم والبروفايل */}
+          {/* قائمة الأدوات والتحكم */}
           <div className="flex items-center gap-1">
-            
-            {/* 🌍 زر تبديل اللغة */}
             <Button variant="ghost" size="icon" onClick={toggleLanguage} title={i18n.language === 'ar' ? "English" : "العربية"}>
               <Globe className="w-5 h-5" />
             </Button>
@@ -137,9 +138,10 @@ const Navbar = ({ searchQuery = "", onSearchChange }: NavbarProps) => {
               {dark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
             </Button>
 
+            {/* أيقونة الإشعارات (تظهر للمستخدمين الموثقين فقط) */}
             {user && profile?.is_verified && <NotificationsBell />}
 
-            {/* الدعم الفني.. تواصل معهم بأي وقت */}
+            {/* روابط سريعة (دعم، حجوزات) للمستخدمين المسجلين */}
             {user && (
               <Button variant="ghost" size="icon" onClick={() => navigate("/support")} title={t('support')}>
                 <MessageCircle className="w-5 h-5" /> 
@@ -152,8 +154,8 @@ const Navbar = ({ searchQuery = "", onSearchChange }: NavbarProps) => {
               </Button>
             )}
 
+            {/* قائمة البروفايل */}
             {user ? (
-              /* قائمة المستخدم.. إعدادات وخروج */
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" size="icon" title={t('settings')}>
@@ -188,7 +190,7 @@ const Navbar = ({ searchQuery = "", onSearchChange }: NavbarProps) => {
         </div>
       </header>
 
-      {/* نافذة تعديل البيانات.. ترسل الطلب وتنتظر المراجعة */}
+      {/* نافذة طلب تعديل البيانات */}
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>

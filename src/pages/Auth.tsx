@@ -1,3 +1,4 @@
+// استيراد المكتبات الأساسية، مكونات واجهة المستخدم، وأدوات الاتصال بقاعدة البيانات
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
@@ -12,6 +13,7 @@ import { useTranslation } from 'react-i18next';
 import { supabase } from "@/integrations/supabase/client";
 
 const Auth = () => {
+  // تهيئة أدوات التنقل والترجمة والوظائف الخاصة بالمصادقة
   const navigate = useNavigate();
   const { 
     signIn, signUp, verifyOtp, resetPasswordEmail, updatePassword, 
@@ -19,10 +21,12 @@ const Auth = () => {
   } = useAuth();
   const { t } = useTranslation();
   
+  // متغيرات الحالة للتحكم في الواجهة المعروضة وحالة التحميل
   const [view, setView] = useState<"login" | "signup" | "verify-otp" | "forgot-password" | "reset-password">("login");
   const [role, setRole] = useState<"client" | "provider">("client");
   const [loading, setLoading] = useState(false);
 
+  // متغيرات الحالة لتخزين البيانات المدخلة في النماذج
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
@@ -30,7 +34,7 @@ const Auth = () => {
   const [otpCode, setOtpCode] = useState("");
   const [newPassword, setNewPassword] = useState("");
 
-  // ✅ التوجيه التلقائي بناءً على الدور (Role)
+  // توجيه المستخدم تلقائياً إلى الصفحة المناسبة له إذا كان مسجل الدخول مسبقاً
   useEffect(() => {
     if (authLoading) return;
     if (user && userRole) {
@@ -39,6 +43,7 @@ const Auth = () => {
     }
   }, [authLoading, user, userRole, navigate]);
 
+  // معالجة عملية تسجيل الدخول
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -51,8 +56,11 @@ const Auth = () => {
     }
   };
 
+  // معالجة عملية إنشاء حساب جديد
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // التحقق من تعبئة الحقول الإلزامية
     if (!name.trim() || !email.trim() || !password.trim()) {
       toast.error(t('auth.fill_required'));
       return;
@@ -60,7 +68,7 @@ const Auth = () => {
 
     setLoading(true);
     try {
-      // الفحص الاستباقي للإيميل المكرر
+      // التحقق مسبقاً مما إذا كان البريد الإلكتروني مسجلاً بالفعل في قاعدة البيانات
       const { data: checkEmail } = await (supabase.from("profiles") as any)
         .select("id")
         .eq("email", email.trim().toLowerCase())
@@ -72,11 +80,13 @@ const Auth = () => {
         return;
       }
 
+      // إنشاء الحساب وإرسال رمز التحقق
       await signUp(email, password, name, phone, role);
       toast.success(t('auth.verification_sent'));
-      setView("verify-otp");
+      setView("verify-otp"); // تحويل المستخدم لواجهة إدخال رمز التحقق
       
     } catch (err: any) {
+      // التعامل مع أخطاء التسجيل وإظهار رسالة مناسبة للمستخدم
       if (err.message?.includes("User already registered")) {
         toast.error(t('auth.email_already_registered'));
       } else {
@@ -87,19 +97,19 @@ const Auth = () => {
     }
   };
 
-  // 🚀 الدالة المحدثة: توثيق تلقائي عند إدخال الـ OTP
+  // معالجة التحقق من الرمز السري (OTP) وتفعيل الحساب
   const handleVerifyOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     try {
-      // 1. تفعيل الحساب في Supabase Auth
+      // إرسال الرمز للتحقق منه
       await verifyOtp(email, otpCode, 'signup');
       
-      // 2. جلب بيانات المستخدم الحالي للحصول على الـ ID
+      // جلب بيانات المستخدم لمعرفة المعرف الخاص به (ID)
       const { data: { user: authUser } } = await supabase.auth.getUser();
       
       if (authUser) {
-        // 3. تحديث جدول البروفايلات ليصبح "موثقاً" تلقائياً
+        // تحديث حالة الحساب في قاعدة البيانات ليصبح موثقاً
         await (supabase
           .from("profiles")
           .update({ is_verified: true } as any)
@@ -107,7 +117,7 @@ const Auth = () => {
       }
 
       toast.success(t('auth.verified_success'));
-      // الـ useEffect بالأعلى سيتكفل بنقله للصفحة المناسبة فوراً
+      // بعد النجاح، سيقوم الـ useEffect الموجود بالأعلى بنقل المستخدم لصفحته المناسبة تلقائياً
     } catch (err: any) {
       toast.error(translateError(err.message));
     } finally {
@@ -115,13 +125,15 @@ const Auth = () => {
     }
   };
 
+  // معالجة طلب استعادة كلمة المرور
   const handleForgotPassword = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     try {
+      // إرسال رمز التحقق الخاص باستعادة كلمة المرور للبريد الإلكتروني
       await resetPasswordEmail(email);
       toast.success(t('auth.password_recovery_sent'));
-      setView("reset-password");
+      setView("reset-password"); // الانتقال لواجهة تعيين كلمة المرور الجديدة
     } catch (err: any) {
       toast.error(translateError(err.message));
     } finally {
@@ -129,14 +141,16 @@ const Auth = () => {
     }
   };
 
+  // معالجة تعيين كلمة مرور جديدة
   const handleResetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     try {
+      // التحقق من الرمز وتحديث كلمة المرور في خطوة واحدة
       await verifyOtp(email, otpCode, 'recovery');
       await updatePassword(newPassword);
       toast.success(t('auth.password_updated'));
-      setView("login");
+      setView("login"); // العودة لواجهة تسجيل الدخول بعد النجاح
     } catch (err: any) {
       toast.error(translateError(err.message));
     } finally {
@@ -144,9 +158,12 @@ const Auth = () => {
     }
   };
 
+  // واجهة المستخدم (Render)
   return (
     <div className="min-h-screen bg-secondary flex items-center justify-center p-4" dir="rtl">
       <div className="w-full max-w-md animate-fade-in">
+        
+        {/* الترويسة والعنوان الرئيسي للواجهة */}
         <div className="text-center mb-8">
           <h1 className="text-3xl font-black text-primary tracking-tighter">{t('portal.name')}</h1>
           <p className="text-muted-foreground mt-2">{t('portal.subtitle')}</p>
@@ -154,6 +171,8 @@ const Auth = () => {
 
         <Card className="rounded-[2rem] shadow-xl overflow-hidden border-none bg-white/80 backdrop-blur-sm">
           <CardContent className="p-0">
+            
+            {/* عرض تبويبات تسجيل الدخول وإنشاء الحساب */}
             {(view === "login" || view === "signup") && (
               <Tabs value={view} onValueChange={(v) => setView(v as any)} className="w-full">
                   <TabsList className="grid w-full grid-cols-2 rounded-none h-14 bg-muted/10 p-1">
@@ -162,6 +181,7 @@ const Auth = () => {
                 </TabsList>
 
                 <div className="p-6">
+                  {/* نموذج تسجيل الدخول */}
                   <TabsContent value="login" className="mt-0 space-y-4">
                     <form className="space-y-4" onSubmit={handleLogin}>
                       <div className="space-y-2">
@@ -189,6 +209,7 @@ const Auth = () => {
                     </form>
                   </TabsContent>
 
+                  {/* نموذج إنشاء حساب جديد */}
                   <TabsContent value="signup" className="mt-0 space-y-4">
                     <form className="space-y-4" onSubmit={handleSignup}>
                       <div className="space-y-2">
@@ -197,6 +218,7 @@ const Auth = () => {
                           <Button type="button" variant={role === "client" ? "default" : "outline"} className="rounded-xl h-10 font-bold" onClick={() => setRole("client")}>{t('roles.client')}</Button>
                           <Button type="button" variant={role === "provider" ? "default" : "outline"} className="rounded-xl h-10 font-bold" onClick={() => setRole("provider")}>{t('roles.provider')}</Button>
                         </div>
+                        {/* عرض تنبيه خاص إذا اختار المستخدم التسجيل كمزود خدمة */}
                         {role === "provider" && (
                           <div className="bg-amber-50 border border-amber-100 rounded-xl p-3 mt-2 flex items-start gap-2 animate-in fade-in slide-in-from-top-1">
                             <ShieldAlert className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
@@ -243,6 +265,7 @@ const Auth = () => {
               </Tabs>
             )}
 
+            {/* واجهة إدخال رمز التحقق للبريد الإلكتروني */}
             {view === "verify-otp" && (
               <div className="p-8 text-center space-y-6">
                 <div className="bg-primary/10 w-16 h-16 rounded-full flex items-center justify-center mx-auto">
@@ -275,7 +298,7 @@ const Auth = () => {
               </div>
             )}
 
-            {/* باقي الواجهات (نسيت كلمة المرور / تعيين كلمة جديدة) تبقى كما هي */}
+            {/* واجهة طلب استعادة كلمة المرور */}
             {view === "forgot-password" && (
               <div className="p-8 space-y-6">
                 <div className="text-center space-y-2">
@@ -293,6 +316,7 @@ const Auth = () => {
               </div>
             )}
 
+            {/* واجهة تعيين كلمة مرور جديدة */}
             {view === "reset-password" && (
               <div className="p-8 space-y-6">
                 <div className="text-center space-y-2">
@@ -320,6 +344,7 @@ const Auth = () => {
           </CardContent>
         </Card>
 
+        {/* زر العودة إلى الصفحة الرئيسية */}
         <Button variant="ghost" className="w-full mt-6 text-muted-foreground font-bold hover:text-primary transition-colors" onClick={() => navigate("/") }>
           <ArrowRight className="w-4 h-4 ms-2" />
           {t('common.back_home')}

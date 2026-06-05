@@ -1,4 +1,9 @@
+/* استيراد أدوات React الأساسية ومكتبات التوجيه والترجمة */
 import { useState, useEffect, useRef, useCallback } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
+import { useTranslation } from 'react-i18next';
+
+/* استيراد أدوات المصادقة وقاعدة البيانات والواجهة المرئية */
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -6,36 +11,48 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
+import Navbar from "@/components/Navbar";
+
+/* استيراد الأيقونات المستخدمة لتحسين التجربة البصرية */
 import {
   Send, MessageCircle, ArrowRight, User as UserIcon,
   LifeBuoy, Check, CheckCheck, ImagePlus, X, Loader2, Lock
 } from "lucide-react";
-import Navbar from "@/components/Navbar";
-import { useNavigate, useLocation } from "react-router-dom";
-import { useTranslation } from 'react-i18next';
 
 const SupportTickets = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, role } = useAuth();
   const { t } = useTranslation();
+
+  /* إدارة حالة الواجهة (UI State):
+    - tickets: القائمة الجانبية للتذاكر.
+    - selectedTicket: التذكرة المفتوحة حالياً لعرض تفاصيلها.
+    - messages: فقاعات الدردشة داخل التذكرة.
+    - signedUrls: الروابط الآمنة المؤقتة لعرض الصور المرفقة.
+  */
   const [tickets, setTickets] = useState<any[]>([]);
   const [selectedTicket, setSelectedTicket] = useState<any>(null);
   const [messages, setMessages] = useState<any[]>([]);
   const [signedUrls, setSignedUrls] = useState<Record<string, string>>({});
+  
+  /* حالة صندوق الإدخال وحالة التحميل */
   const [newMessage, setNewMessage] = useState("");
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [pendingImage, setPendingImage] = useState<File | null>(null);
 
+  /* مراجع (Refs) للتحكم المباشر في عناصر DOM (صندوق رفع الملفات والتمرير التلقائي لأسفل المحادثة) */
   const fileInputRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
-
   const signedUrlsRef = useRef<Record<string, string>>({});
 
-  // تحديد ما إذا كانت المحادثة مقفلة
+  /* 🔒 التحقق من صلاحية الرد: يمنع المستخدم من الكتابة إذا كانت التذكرة مغلقة من الإدارة */
   const isReadOnly = location.state?.readOnly || selectedTicket?.status === 'closed';
 
+  /* تحديث حالة الرسائل إلى "مقروءة" (Read Receipt):
+    تعمل بمجرد فتح التذكرة لتحديث مؤشرات القراءة (الصح المزدوج) للطرف الآخر.
+  */
   const markAsRead = useCallback(async (ticketId: string) => {
     if (!user || !ticketId || isReadOnly) return;
     try {
@@ -49,6 +66,9 @@ const SupportTickets = () => {
     }
   }, [user?.id, isReadOnly]);
 
+  /* جلب التذاكر لملء القائمة الجانبية:
+    تعتمد على الصلاحية؛ الإدارة ترى جميع التذاكر، والمستخدم العادي يرى تذاكره فقط.
+  */
   const fetchTickets = useCallback(async () => {
     if (!user) return;
     try {
@@ -71,6 +91,9 @@ const SupportTickets = () => {
     }
   }, [user?.id, role]);
 
+  /* جلب تاريخ الدردشة (Chat History):
+    يقوم بجلب الرسائل المرتبطة بالتذكرة، ويولد روابط عرض مؤقتة (Public URLs) لأي صورة مرفقة لضمان الحماية.
+  */
   const fetchMessages = useCallback(async (ticketId: string) => {
     const { data } = await (supabase
       .from("support_messages" as any)
@@ -102,10 +125,14 @@ const SupportTickets = () => {
     }
   }, []);
 
+  /* تحميل التذاكر عند فتح الصفحة لأول مرة */
   useEffect(() => {
     fetchTickets();
   }, [fetchTickets]);
 
+  /* 🚀 الاتصال اللحظي (Real-time Subscription):
+    عند فتح تذكرة، نستمع لأي رسالة جديدة في قاعدة البيانات لتحديث شاشة الدردشة فوراً دون الحاجة لعمل Refresh.
+  */
   useEffect(() => {
     if (!selectedTicket) return;
 
@@ -134,6 +161,7 @@ const SupportTickets = () => {
     };
   }, [selectedTicket?.id, fetchMessages, markAsRead]);
 
+  /* فتح تذكرة معينة تلقائياً إذا تم تمرير الـ ID عبر روابط التوجيه (مثلاً من الإشعارات) */
   useEffect(() => {
     if (tickets.length > 0 && location.state?.ticketId) {
       const target = tickets.find(t => t.id === location.state.ticketId);
@@ -144,6 +172,7 @@ const SupportTickets = () => {
     }
   }, [tickets, location.state]);
 
+  /* تمرير الشاشة تلقائياً للأسفل (Auto-scroll) عند وصول رسالة جديدة */
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTo({
@@ -153,6 +182,9 @@ const SupportTickets = () => {
     }
   }, [messages]);
 
+  /* إرسال الردود:
+    يعالج رفع الصور للصندوق السحابي (Storage)، ثم يحفظ نص الرسالة، ويرسل إشعاراً للمستخدم المعني.
+  */
   const sendMessage = async () => {
     if (isReadOnly || (!newMessage.trim() && !pendingImage) || !selectedTicket || !user) return;
     setSending(true);
@@ -176,10 +208,13 @@ const SupportTickets = () => {
       } as any));
 
       if (error) throw error;
+      
+      /* تفريغ حقول الإدخال بعد نجاح الإرسال */
       setNewMessage("");
       setPendingImage(null);
       if (fileInputRef.current) fileInputRef.current.value = "";
 
+      /* إرسال إشعار للمستخدم إذا كان المرسل هو الإدارة */
       if (role === "admin" && selectedTicket.user_id !== user.id) {
         await supabase.from("notifications").insert({
           recipient_id: selectedTicket.user_id,
@@ -199,11 +234,10 @@ const SupportTickets = () => {
     <div className="h-[100dvh] bg-[#f8fafc] flex flex-col overflow-hidden" dir="rtl">
       <Navbar />
       
-      {/* 🚀 Header الجديد والمحسن مع زر العودة للصفحة السابقة */}
+      {/* 🏷️ شريط العنوان العلوي (Header Layout) */}
       <header className="sticky top-16 z-30 bg-white border-b shadow-sm">
         <div className="container py-3 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            {/* زر العودة للصفحة السابقة */}
             <Button
               variant="outline"
               className="gap-2 rounded-xl border-border hover:bg-secondary text-muted-foreground hover:text-foreground font-bold shadow-sm"
@@ -228,7 +262,9 @@ const SupportTickets = () => {
       <div className="flex-1 container py-4 md:py-6 flex flex-col overflow-hidden">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 flex-1 overflow-hidden">
 
-          {/* Ticket List */}
+          {/* 📋 القائمة الجانبية (Sidebar):
+             تعرض التذاكر المتاحة. يتم إخفاؤها في شاشات الجوال عند فتح محادثة (selectedTicket) لتوفير المساحة.
+          */}
           <Card className={`md:col-span-1 rounded-[2rem] border-none shadow-xl overflow-hidden bg-white flex-col h-full ${selectedTicket ? 'hidden md:flex' : 'flex'}`}>
             <CardHeader className="border-b bg-primary/5 p-6 shrink-0">
               <CardTitle className="flex items-center gap-2 text-primary font-black text-xl">
@@ -254,7 +290,7 @@ const SupportTickets = () => {
                     onClick={() => setSelectedTicket(ticket)}
                     className={`p-5 border-b cursor-pointer transition-all hover:bg-primary/5 ${
                       selectedTicket?.id === ticket.id
-                        ? "bg-primary/10 border-r-4 border-r-primary"
+                        ? "bg-primary/10 border-r-4 border-r-primary" /* تمييز بصري للتذكرة النشطة */
                         : ""
                     } ${ticket.status === 'closed' ? 'opacity-60' : ''}`}
                   >
@@ -289,13 +325,15 @@ const SupportTickets = () => {
             </CardContent>
           </Card>
 
-          {/* Chat Area */}
+          {/* 💬 منطقة المحادثة (Chat Area):
+             تحتل ثلثي الشاشة في الديسكتوب، وتغطي الشاشة كاملة في الجوال عند التفعيل.
+          */}
           <Card className={`md:col-span-2 rounded-[2rem] border-none shadow-2xl overflow-hidden bg-white flex-col h-full ${selectedTicket ? 'flex' : 'hidden md:flex'}`}>
             {selectedTicket ? (
               <>
                 <CardHeader className="border-b bg-white py-4 px-6 shrink-0 flex flex-row items-center justify-between">
                   <div className="flex items-center gap-4">
-                    {/* 🚀 زر العودة لقائمة التذاكر (يظهر فقط في الجوال داخل المحادثة) */}
+                    {/* زر الرجوع للقائمة مخصص لشاشات الجوال فقط */}
                     <Button 
                       variant="ghost" 
                       size="icon" 
@@ -326,6 +364,7 @@ const SupportTickets = () => {
                   ref={scrollRef}
                   className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4 bg-[#f1f5f9] scrollbar-thin"
                 >
+                  {/* عرض الشكوى الأساسية للمستخدم في أعلى المحادثة كنقطة مرجعية */}
                   <div className="flex justify-center mb-8">
                     <div className="max-w-[90%] w-full p-5 rounded-[1.5rem] bg-white border-2 border-dashed border-amber-200 text-amber-900 shadow-sm relative">
                         <div className="absolute -top-3 right-6 bg-amber-500 text-white px-3 py-1 rounded-full text-[9px] font-black">
@@ -337,6 +376,7 @@ const SupportTickets = () => {
                     </div>
                   </div>
 
+                  {/* رسم فقاعات الدردشة ومحاذاتها بناءً على هوية المرسل (يمين/يسار) */}
                   {messages.map((msg) => (
                     <div
                       key={msg.id}
@@ -347,10 +387,11 @@ const SupportTickets = () => {
                       <div
                         className={`max-w-[85%] md:max-w-[75%] p-4 rounded-2xl shadow-sm relative ${
                           msg.sender_id === user?.id
-                            ? "bg-primary text-white rounded-tr-sm"
-                            : "bg-white text-foreground rounded-tl-sm border border-border"
+                            ? "bg-primary text-white rounded-tr-sm" /* تنسيق رسائل المستخدم الحالي */
+                            : "bg-white text-foreground rounded-tl-sm border border-border" /* تنسيق رسائل الطرف الآخر */
                         }`}
                       >
+                        {/* عرض الصورة المرفقة إذا وجدت */}
                         {msg.image_url && signedUrls[msg.image_url] && (
                           <a
                             href={signedUrls[msg.image_url]}
@@ -370,6 +411,7 @@ const SupportTickets = () => {
                             {msg.message}
                           </p>
                         )}
+                        {/* مؤشرات الوقت وحالة القراءة (الصح الأزرق) */}
                         <div className="flex items-center gap-1 mt-2 justify-end opacity-70">
                           <span className="text-[9px] font-black">
                             {new Date(msg.created_at).toLocaleTimeString("ar-SA", {
@@ -393,14 +435,17 @@ const SupportTickets = () => {
                   ))}
                 </CardContent>
 
+                {/* 📝 منطقة كتابة الرد (Input Area) */}
                 <div className="p-3 md:p-4 border-t bg-white shrink-0">
                     {isReadOnly ? (
+                    /* واجهة الإغلاق: إخفاء حقل الإدخال إذا كانت التذكرة مغلقة */
                     <div className="bg-muted/50 p-4 rounded-2xl border border-dashed text-center flex flex-col items-center gap-2">
                       <Lock className="w-5 h-5 text-muted-foreground" />
                       <p className="text-sm font-black text-muted-foreground">{t('support.closed_message')}</p>
                     </div>
                   ) : (
                     <>
+                      {/* معاينة الصورة قبل إرسالها */}
                       {pendingImage && (
                         <div className="flex items-center gap-3 mb-3 p-2 bg-primary/5 rounded-2xl border border-primary/10">
                           <img
@@ -420,6 +465,8 @@ const SupportTickets = () => {
                           </Button>
                         </div>
                       )}
+                      
+                      {/* شريط الإدخال الرئيسي */}
                       <div className="flex gap-2 items-center">
                         <input
                           ref={fileInputRef}
@@ -440,7 +487,7 @@ const SupportTickets = () => {
                           placeholder={t('support.reply_placeholder')}
                           value={newMessage}
                           onChange={(e) => setNewMessage(e.target.value)}
-                          onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && sendMessage()}
+                          onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && sendMessage()} /* تفعيل الإرسال بزر الإدخال (Enter) */
                           className="rounded-2xl h-12 border-none bg-muted/30 focus-visible:ring-primary font-bold px-4"
                         />
                         <Button
@@ -456,6 +503,7 @@ const SupportTickets = () => {
                 </div>
               </>
             ) : (
+              /* واجهة الانتظار (Empty State): تظهر في الشاشات الكبيرة قبل اختيار أي تذكرة */
               <div className="h-full flex flex-col items-center justify-center text-center p-10 space-y-6">
                 <div className="bg-primary/5 p-8 rounded-full animate-bounce">
                   <MessageCircle className="w-20 h-20 text-primary/20" />

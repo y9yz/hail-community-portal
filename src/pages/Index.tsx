@@ -1,3 +1,4 @@
+// استيراد المكتبات والمكونات الأساسية المطلوبة
 import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
@@ -15,30 +16,28 @@ const Index = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { role, loading: authLoading } = useAuth();
+  
+  // تعريف متغيرات الحالة للبحث، التصنيفات، الخدمات، التحميل، والترتيب
   const [searchQuery, setSearchQuery] = useState("");
   const [activeCategory, setActiveCategory] = useState("all");
   const [services, setServices] = useState<Service[]>([]);
   const [loading, setLoading] = useState(true);
   const [sortBy, setSortBy] = useState("newest");
 
-  /* 
-      1. توجيه المستخدمين (Role-based Redirect): 
-      المتجر مخصص للعملاء والزوار فقط؛ المشرف والمزود يتم تحويلهم فوراً.
-  */
+  // إعادة توجيه المستخدمين (المدير ومقدم الخدمة لا يمكنهم تصفح المتجر كعملاء)
   useEffect(() => {
     if (authLoading) return;
     if (role === "admin") { navigate("/admin", { replace: true }); return; }
     if (role === "provider") { navigate("/provider", { replace: true }); return; }
   }, [role, authLoading, navigate]);
 
-  /* 
-      2. جلب الخدمات المعتمدة فقط مع صمام أمان لمنع وميض البيانات والـ Memory Leaks
-  */
+  // جلب الخدمات المعتمدة من قاعدة البيانات مع حساب التقييمات
   useEffect(() => {
     let mounted = true;
 
     const fetchServices = async () => {
       try {
+        // جلب الخدمات التي تم الموافقة عليها فقط من قبل الإدارة
         const { data: svcData } = await supabase
           .from("services")
           .select("*, provider:profiles!services_provider_id_fkey(full_name)")
@@ -47,6 +46,7 @@ const Index = () => {
 
         const svcs = (svcData as any[]) || [];
 
+        // إذا وجدت خدمات، قم بجلب التقييمات الخاصة بها لحساب المتوسط
         if (svcs.length > 0) {
           const serviceIds = svcs.map((s) => s.id);
           const { data: reviewData } = await supabase
@@ -54,7 +54,7 @@ const Index = () => {
             .select("service_id, rating")
             .in("service_id", serviceIds);
 
-          // بناء خارطة (Map) لإحصائيات التقييم لرفع كفاءة المعالجة
+          // تجميع التقييمات لكل خدمة لمعرفة المجموع وعدد المراجعات
           const reviewStats: Record<string, { sum: number; count: number }> = {};
           (reviewData || []).forEach((r: any) => {
             if (!reviewStats[r.service_id]) reviewStats[r.service_id] = { sum: 0, count: 0 };
@@ -62,7 +62,7 @@ const Index = () => {
             reviewStats[r.service_id].count += 1;
           });
 
-          // دمج النتائج مع مصفوفة الخدمات الأساسية
+          // إضافة متوسط التقييم وعدد المراجعات لكل خدمة في المصفوفة
           svcs.forEach((s) => {
             const stats = reviewStats[s.id];
             s.avg_rating = stats ? stats.sum / stats.count : 0;
@@ -70,6 +70,7 @@ const Index = () => {
           });
         }
 
+        // تحديث الحالة فقط إذا كان المكون لا يزال معروضاً على الشاشة
         if (mounted) {
           setServices(svcs);
           setLoading(false);
@@ -80,20 +81,20 @@ const Index = () => {
       }
     };
 
-    // 🚀 صمام الأمان: لا تجلب الخدمات من السيرفر إذا كان المستخدم سيتم طرده (أدمن أو مزود)
+    // منع جلب البيانات إذا كان المستخدم على وشك أن يتم إعادة توجيهه
     if (!authLoading && role !== "admin" && role !== "provider") {
       fetchServices();
     }
 
+    // تنظيف يتم تنفيذه عند تدمير المكون لمنع تسريب الذاكرة
     return () => {
-      mounted = false; // إلغاء تفعيل التحديثات الخلفية عند الخروج من الصفحة
+      mounted = false; 
     };
   }, [authLoading, role]);
 
-  /* 
-      3. التصفية والفرز الصارم والمقاوم للتلاعب الواجهي
-  */
+  // تصفية وترتيب الخدمات بناءً على مدخلات المستخدم
   const filtered = useMemo(() => {
+    // التصفية حسب نص البحث والتصنيف المختار
     let result = services.filter((s) => {
       const lowerQuery = searchQuery.toLowerCase();
       const matchesSearch = s.title.toLowerCase().includes(lowerQuery);
@@ -101,17 +102,17 @@ const Index = () => {
       return matchesSearch && matchesCategory;
     });
 
+    // الترتيب حسب الأعلى تقييماً أو الأحدث
     if (sortBy === "rating") {
       result = [...result].sort((a, b) => (b.avg_rating || 0) - (a.avg_rating || 0));
     } else if (sortBy === "newest") {
-      // 🚀 ترتيب حتمي صارم يعتمد على الطابع الزمني للخدمة عند التبديل العكسي
       result = [...result].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
     }
 
     return result;
   }, [services, searchQuery, activeCategory, sortBy]);
 
-  // حاجز عرض مؤقت لمنع وميض الهيكل الإنشائي أثناء تحديد الرتبة الصارمة
+  // عرض واجهة تحميل أثناء التحقق من الصلاحيات أو التوجيه
   if (authLoading || role === "admin" || role === "provider") {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -120,11 +121,12 @@ const Index = () => {
     );
   }
 
+  // واجهة المتجر الرئيسية
   return (
     <div className="min-h-screen bg-background">
       <Navbar searchQuery={searchQuery} onSearchChange={setSearchQuery} />
 
-      {/* قسم الـ Hero: واجهة ترحيبية بتأثير Gradient لتحسين قراءة النصوص */}
+      {/* قسم الترحيب (الـ Hero) */}
       <section className="relative h-72 md:h-96 overflow-hidden">
         <img src={heroImage} alt="مدينة حائل" className="w-full h-full object-cover" />
         <div className="absolute inset-0 bg-gradient-to-t from-background via-background/60 to-transparent" />
@@ -139,7 +141,7 @@ const Index = () => {
       </section>
 
       <div className="container py-6">
-        {/* أدوات التحكم: تصفية حسب التصنيف وترتيب النتائج */}
+        {/* أشرطة التصفية (التصنيفات والترتيب) */}
         <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
           <div className="flex gap-2 flex-wrap">
             {categories.map((cat) => (
@@ -166,18 +168,17 @@ const Index = () => {
       </div>
 
       <main className="container pb-16">
+        {/* عرض حالة التحميل أو الخدمات أو رسالة عدم وجود نتائج */}
         {loading ? (
           <p className="text-center text-muted-foreground py-16">{t('home.loading')}</p>
         ) : (
           <>
-            {/* عرض شبكة الخدمات المستجيبة (Responsive Grid) */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
               {filtered.map((service) => (
                 <ServiceCard key={service.id} service={service} />
               ))}
             </div>
             
-            {/* حالة عدم وجود نتائج */}
             {filtered.length === 0 && (
               <p className="text-center text-muted-foreground py-16 text-lg">
                 {t('home.no_services')}
