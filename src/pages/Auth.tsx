@@ -17,7 +17,7 @@ const Auth = () => {
   const navigate = useNavigate();
   const { 
     signIn, signUp, verifyOtp, resetPasswordEmail, updatePassword, 
-    user, profile, role: userRole, loading: authLoading 
+    user, role: userRole, loading: authLoading 
   } = useAuth();
   const { t } = useTranslation();
   
@@ -33,6 +33,22 @@ const Auth = () => {
   const [phone, setPhone] = useState("");
   const [otpCode, setOtpCode] = useState("");
   const [newPassword, setNewPassword] = useState("");
+
+  // دالة معالجة وتصحيح رقم الهاتف تلقائياً (إضافة الصفر إذا بدأ بـ 5)
+  const handlePhoneChange = (value: string) => {
+    // تنظيف المدخلات للسماح بالأرقام فقط
+    let cleaned = value.replace(/\D/g, "");
+    
+    // إذا بدأ الرقم بـ 5 وكان طوله أقل من أو يساوي 9 أرقام، نقوم بإضافة الصفر تلقائياً
+    if (cleaned.startsWith("5") && cleaned.length <= 9) {
+      cleaned = "0" + cleaned;
+    }
+    
+    // تحديد الحد الأقصى بـ 10 أرقام (تنسيق الهواتف في السعودية)
+    if (cleaned.length <= 10) {
+      setPhone(cleaned);
+    }
+  };
 
   // توجيه المستخدم تلقائياً إلى الصفحة المناسبة له إذا كان مسجل الدخول مسبقاً
   useEffect(() => {
@@ -60,8 +76,8 @@ const Auth = () => {
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // التحقق من تعبئة الحقول الإلزامية
-    if (!name.trim() || !email.trim() || !password.trim()) {
+    // التحقق من تعبئة كافة الحقول الإلزامية بما فيها حقل الهاتف المحدث
+    if (!name.trim() || !email.trim() || !password.trim() || !phone.trim()) {
       toast.error(t('auth.fill_required'));
       return;
     }
@@ -175,7 +191,7 @@ const Auth = () => {
             {/* عرض تبويبات تسجيل الدخول وإنشاء الحساب */}
             {(view === "login" || view === "signup") && (
               <Tabs value={view} onValueChange={(v) => setView(v as any)} className="w-full">
-                  <TabsList className="grid w-full grid-cols-2 rounded-none h-14 bg-muted/10 p-1">
+                <TabsList className="grid w-full grid-cols-2 rounded-none h-14 bg-muted/10 p-1">
                   <TabsTrigger value="login" className="text-base font-bold data-[state=active]:bg-white data-[state=active]:text-primary rounded-xl transition-all">{t('auth.login_tab')}</TabsTrigger>
                   <TabsTrigger value="signup" className="text-base font-bold data-[state=active]:bg-white data-[state=active]:text-primary rounded-xl transition-all">{t('auth.signup_tab')}</TabsTrigger>
                 </TabsList>
@@ -218,7 +234,6 @@ const Auth = () => {
                           <Button type="button" variant={role === "client" ? "default" : "outline"} className="rounded-xl h-10 font-bold" onClick={() => setRole("client")}>{t('roles.client')}</Button>
                           <Button type="button" variant={role === "provider" ? "default" : "outline"} className="rounded-xl h-10 font-bold" onClick={() => setRole("provider")}>{t('roles.provider')}</Button>
                         </div>
-                        {/* عرض تنبيه خاص إذا اختار المستخدم التسجيل كمزود خدمة */}
                         {role === "provider" && (
                           <div className="bg-amber-50 border border-amber-100 rounded-xl p-3 mt-2 flex items-start gap-2 animate-in fade-in slide-in-from-top-1">
                             <ShieldAlert className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
@@ -228,20 +243,40 @@ const Auth = () => {
                           </div>
                         )}
                       </div>
+                      
                       <div className="space-y-2">
-                        <Label className="font-bold">{t('auth.full_name_label')}</Label>
+                        <Label className="font-bold">
+                           {role === "provider" ? t('auth.provider_name_label') : t('auth.client_name_label')}
+                        </Label>
                         <div className="relative">
                           <User className="absolute start-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                          <Input placeholder={t('auth.full_name_placeholder')} className="ps-10 h-11 rounded-xl" value={name} onChange={e => setName(e.target.value)} required />
+                          <Input 
+                            placeholder={role === "provider" ? t('auth.provider_name_placeholder') : t('auth.client_name_placeholder')} 
+                            className="ps-10 h-11 rounded-xl" 
+                            value={name} 
+                            onChange={e => setName(e.target.value)} 
+                            required 
+                          />
                         </div>
                       </div>
+
                       <div className="space-y-2">
                         <Label className="font-bold">{t('auth.phone_label')}</Label>
                         <div className="relative">
                           <Phone className="absolute start-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                          <Input type="tel" placeholder={t('auth.phone_placeholder')} className="ps-10 h-11 rounded-xl" dir="ltr" value={phone} onChange={e => setPhone(e.target.value)} />
+                          <Input 
+                            type="tel" 
+                            placeholder="05XXXXXXXX" 
+                            className="ps-10 h-11 rounded-xl" 
+                            dir="ltr" 
+                            value={phone} 
+                            onChange={e => handlePhoneChange(e.target.value)}
+                            maxLength={10}
+                            required 
+                          />
                         </div>
                       </div>
+
                       <div className="space-y-2">
                         <Label className="font-bold">{t('auth.email_label')}</Label>
                         <div className="relative">
@@ -249,6 +284,7 @@ const Auth = () => {
                           <Input type="email" placeholder={t('auth.email_placeholder')} className="ps-10 h-11 rounded-xl" dir="ltr" value={email} onChange={e => setEmail(e.target.value)} required />
                         </div>
                       </div>
+
                       <div className="space-y-2">
                         <Label className="font-bold">{t('auth.password_label')}</Label>
                         <div className="relative">
@@ -256,6 +292,7 @@ const Auth = () => {
                           <Input type="password" placeholder={t('auth.password_placeholder')} className="ps-10 h-11 rounded-xl" dir="ltr" value={password} onChange={e => setPassword(e.target.value)} required />
                         </div>
                       </div>
+
                       <Button className="w-full h-12 text-base font-black rounded-xl bg-primary hover:bg-primary/90 shadow-lg shadow-primary/20" type="submit" disabled={loading}>
                         {loading ? t('auth.processing') : t('auth.create_account')}
                       </Button>
@@ -265,7 +302,7 @@ const Auth = () => {
               </Tabs>
             )}
 
-            {/* واجهة إدخال رمز التحقق للبريد الإلكتروني */}
+            {/* واجهة إدخال رمز التحقق OTP */}
             {view === "verify-otp" && (
               <div className="p-8 text-center space-y-6">
                 <div className="bg-primary/10 w-16 h-16 rounded-full flex items-center justify-center mx-auto">
@@ -298,7 +335,7 @@ const Auth = () => {
               </div>
             )}
 
-            {/* واجهة طلب استعادة كلمة المرور */}
+            {/* واجهة نسيت كلمة المرور */}
             {view === "forgot-password" && (
               <div className="p-8 space-y-6">
                 <div className="text-center space-y-2">
@@ -309,14 +346,19 @@ const Auth = () => {
                   <p className="text-sm text-muted-foreground">{t('auth.forgot_password_instructions')}</p>
                 </div>
                 <form onSubmit={handleForgotPassword} className="space-y-4">
-                  <Input type="email" placeholder={t('auth.email_placeholder')} className="h-12 text-center text-lg rounded-xl" dir="ltr" value={email} onChange={e => setEmail(e.target.value)} required />
+                  <div className="space-y-2">
+                    <div className="relative">
+                      <Mail className="absolute start-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                      <Input type="email" placeholder={t('auth.email_placeholder')} className="ps-10 h-12 text-center text-lg rounded-xl" dir="ltr" value={email} onChange={e => setEmail(e.target.value)} required />
+                    </div>
+                  </div>
                   <Button className="w-full h-12 font-black rounded-xl shadow-lg shadow-primary/20" type="submit" disabled={loading}>{t('auth.send_code_btn')}</Button>
                   <Button type="button" variant="ghost" className="w-full font-bold" onClick={() => setView("login")}>{t('auth.back_to_login')}</Button>
                 </form>
               </div>
             )}
 
-            {/* واجهة تعيين كلمة مرور جديدة */}
+            {/* واجهة تعيين كلمة المرور الجديدة */}
             {view === "reset-password" && (
               <div className="p-8 space-y-6">
                 <div className="text-center space-y-2">
@@ -336,7 +378,10 @@ const Auth = () => {
                     required 
                   />
                   <Label className="text-xs font-bold text-muted-foreground">{t('auth.new_password_label')}</Label>
-                  <Input type="password" placeholder={t('auth.password_placeholder')} className="h-12 rounded-xl" dir="ltr" value={newPassword} onChange={e => setNewPassword(e.target.value)} required />
+                  <div className="relative">
+                    <Lock className="absolute start-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <Input type="password" placeholder={t('auth.password_placeholder')} className="ps-10 h-12 rounded-xl" dir="ltr" value={newPassword} onChange={e => setNewPassword(e.target.value)} required />
+                  </div>
                   <Button className="w-full h-12 font-black rounded-xl mt-2 shadow-lg shadow-primary/20" type="submit" disabled={loading}>{t('auth.update_password_btn')}</Button>
                 </form>
               </div>
@@ -344,7 +389,7 @@ const Auth = () => {
           </CardContent>
         </Card>
 
-        {/* زر العودة إلى الصفحة الرئيسية */}
+        {/* زر العودة للرئيسية */}
         <Button variant="ghost" className="w-full mt-6 text-muted-foreground font-bold hover:text-primary transition-colors" onClick={() => navigate("/") }>
           <ArrowRight className="w-4 h-4 ms-2" />
           {t('common.back_home')}

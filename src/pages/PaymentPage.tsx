@@ -6,7 +6,7 @@ import { useTranslation } from "react-i18next";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { ArrowRight, CheckCircle2 } from "lucide-react";
+import { ArrowRight, CheckCircle2, CreditCard } from "lucide-react"; // تم إضافة CreditCard كأيقونة موحدة وجذابة للبطاقات
 import Navbar from "@/components/Navbar";
 
 // تعريف مكون صفحة الدفع
@@ -55,11 +55,11 @@ const PaymentPage = () => {
     }
   };
 
-  // قائمة بوسائل الدفع المتاحة مع شعاراتها التوضيحية
+  // قائمة بوسائل الدفع المتاحة بدون روابط خارجية مكسورة
   const paymentMethods = [
-    { name: "Apple Pay", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b0/Apple_Pay_logo.svg/1200px-Apple_Pay_logo.svg.png" },
-    { name: "مدى mada", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c5/Mada_Logo.svg/1200px-Mada_Logo.svg.png" },
-    { name: "Visa / MasterCard", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/5/5e/Visa_Inc._logo.svg/2560px-Visa_Inc._logo.svg.png" }
+    { name: "Apple Pay" },
+    { name: "مدى mada" },
+    { name: "Visa / MasterCard" }
   ];
 
   // هيكل واجهة المستخدم للمكون
@@ -101,8 +101,9 @@ const PaymentPage = () => {
               className="cursor-pointer hover:border-primary border-2 transition-all rounded-2xl overflow-hidden group shadow-sm active:scale-95"
               onClick={() => handlePayment(method.name)}
             >
-              <CardContent className="p-4 flex items-center justify-between">
-                <img src={method.img} alt={method.name} className="h-8 object-contain transition-all" />
+              <CardContent className="p-4 flex items-center justify-between gap-4">
+                {/* تم استبدال الـ img بـ Icon متناسق يتفاعل لونه عند تمرير الفأرة (Hover) */}
+                <CreditCard className="w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors shrink-0" />
                 <span className="text-sm font-bold">{method.name}</span>
               </CardContent>
             </Card>

@@ -1,4 +1,4 @@
-// استيراد المكتبات والمكونات الأساسية المطلوبة
+// استيراد المكتبات والمكونات الأساسية
 import { useEffect, useState, useCallback } from "react";
 import i18n from "@/i18n/config";
 import { useTranslation } from 'react-i18next';
@@ -15,7 +15,9 @@ import RatingDialog from "@/components/RatingDialog";
 import SupportTicketDialog from "@/components/SupportTicketDialog";
 import { toast } from "sonner";
 
-// دالة لتحديد حالة الطلب وإرجاع النص، اللون، والأيقونة المناسبة للعرض
+/**
+ * دالة مساعدة لتحديد حالة الطلب وإرجاع التنسيق البصري المناسب
+ */
 const getBookingStatus = (b: any) => {
   if (b.status === "completed") return { label: i18n.t('bookings.status.completed'), color: "bg-green-500 text-white border-none", icon: CheckCheck };
   if (b.provider_status === "declined") return { label: i18n.t('bookings.status.declined'), color: "bg-destructive text-white border-none", icon: XCircle };
@@ -24,20 +26,19 @@ const getBookingStatus = (b: any) => {
   return { label: "—", color: "bg-secondary", icon: Clock };
 };
 
-// المكون الرئيسي لصفحة "طلباتي"
 const MyBookings = () => {
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
   const { t } = useTranslation();
   
-  // تعريف متغيرات الحالة (States)
+  // حالات المكون
   const [bookings, setBookings] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [chatBooking, setChatBooking] = useState<any>(null);
   const [ratingBooking, setRatingBooking] = useState<any>(null);
   const [supportBooking, setSupportBooking] = useState<any>(null);
 
-  // دالة لجلب طلبات المستخدم من قاعدة البيانات مع تفاصيل مزود الخدمة
+  // جلب الطلبات من قاعدة البيانات مع بيانات المزود والخدمة
   const fetchBookings = useCallback(async () => {
     if (!user?.id) return;
     try {
@@ -56,14 +57,13 @@ const MyBookings = () => {
     }
   }, [user?.id]);
 
-  // تنفيذ جلب الطلبات وإعداد الاستماع الفوري للتحديثات عند تحميل الصفحة
+  // إعداد التحقق من الهوية والاشتراك في تحديثات قاعدة البيانات (Realtime)
   useEffect(() => {
     if (authLoading) return;
     if (!user?.id) { navigate("/auth"); return; }
     
     fetchBookings();
 
-    // إعداد قناة اتصال (Realtime) لتحديث القائمة فور حدوث تغيير في قاعدة البيانات
     const channelName = `realtime-bookings:${user.id}`;
     const channel = supabase
       .channel(channelName)
@@ -77,13 +77,12 @@ const MyBookings = () => {
       })
       .subscribe();
 
-    // إغلاق الاتصال عند مغادرة الصفحة لتوفير الموارد
     return () => { 
       supabase.removeChannel(channel); 
     };
   }, [user?.id, authLoading, fetchBookings, navigate]);
 
-  // دالة لمعالجة إلغاء الطلب من قبل العميل
+  // دالة إلغاء الطلب
   const handleCancel = async (booking: any) => {
     if (!window.confirm(i18n.t('bookings.cancel_confirm'))) return;
     try {
@@ -100,7 +99,6 @@ const MyBookings = () => {
     }
   };
 
-  // واجهة التحميل التي تظهر قبل جاهزية البيانات
   if (authLoading || loading) {
     return (
       <div className="min-h-screen bg-background">
@@ -110,12 +108,11 @@ const MyBookings = () => {
     );
   }
 
-  // واجهة الصفحة الرئيسية
   return (
     <div className="min-h-screen bg-background" dir="rtl">
       <Navbar />
       
-      // الشريط العلوي (الترويسة) وزر العودة للصفحة الرئيسية
+      {/* الترويسة الرئيسية */}
       <header className="sticky top-16 z-40 bg-card/80 backdrop-blur-lg border-b">
         <div className="container flex items-center justify-between h-16 gap-4">
           <div className="flex items-center gap-3">
@@ -128,8 +125,8 @@ const MyBookings = () => {
       </header>
       
       <div className="container py-6 max-w-2xl">
-        // عرض واجهة فارغة في حال لم يقم العميل بأي طلبات
         {bookings.length === 0 ? (
+          /* حالة عدم وجود طلبات */
           <Card className="rounded-3xl border-dashed border-2 py-20 bg-muted/5">
             <CardContent className="text-center space-y-4">
               <ClipboardList className="w-12 h-12 mx-auto opacity-20 text-primary" />
@@ -138,21 +135,18 @@ const MyBookings = () => {
             </CardContent>
           </Card>
         ) : (
-          // عرض قائمة الطلبات
+          /* عرض قائمة الطلبات */
           <div className="space-y-6">
             {bookings.map((b) => {
               const status = getBookingStatus(b);
               const StatusIcon = status.icon;
               
-              // تحديد صلاحيات عرض الأزرار بناءً على حالة الطلب
               const canCancel = b.provider_status === "pending";
               const canChat = b.status !== "completed" && b.provider_status !== "declined";
               const canRate = b.status === "completed" && b.has_review !== true;
               
               return (
                 <Card key={b.id} className="rounded-3xl border-2 hover:shadow-lg transition-all overflow-hidden border-primary/5">
-                  
-                  // رأس بطاقة الطلب (العنوان، رقم الطلب، وحالة الطلب)
                   <div className="p-5 border-b bg-muted/10 flex items-center justify-between">
                     <div className="space-y-1 text-right">
                       <h3 className="font-black text-lg">{b.service_title}</h3>
@@ -164,7 +158,6 @@ const MyBookings = () => {
                     </Badge>
                   </div>
 
-                  // تفاصيل الطلب (الوصف، بيانات المزود، المواعيد)
                   <div className="p-5 space-y-4 text-right">
                     <div className="bg-muted/30 p-4 rounded-2xl border-r-4 border-primary/20">
                         <p className="text-sm text-muted-foreground italic leading-relaxed">"{b.problem_description}"</p>
@@ -181,7 +174,6 @@ const MyBookings = () => {
                       </div>
                     </div>
 
-                    // عرض تاريخ ووقت الموعد إن وجد
                     {b.scheduled_date && (
                       <div className="flex items-center gap-2 text-[11px] font-bold text-muted-foreground bg-muted/20 p-2 rounded-lg">
                         <Clock className="w-4 h-4 text-primary" />
@@ -189,24 +181,20 @@ const MyBookings = () => {
                       </div>
                     )}
 
-                    // أزرار الإجراءات الخاصة بالطلب
                     <div className="flex gap-2 flex-wrap pt-2">
                       {canRate && (
                         <Button className="rounded-2xl gap-2 flex-1 h-12 text-md font-black shadow-xl shadow-primary/20 bg-primary hover:bg-primary/90" onClick={() => setRatingBooking(b)}>
                           <Star className="w-5 h-5 fill-white" /> {t('bookings.rate_now')}
                         </Button>
                       )}
-                      
                       {canChat && (
                         <Button variant="outline" className="rounded-2xl gap-2 flex-1 h-12 border-2 border-primary text-primary font-bold" onClick={() => setChatBooking(b)}>
                           <MessageCircle className="w-5 h-5" /> {t('bookings.chat')}
                         </Button>
                       )}
-                      
                       <Button variant="secondary" className="rounded-2xl gap-2 flex-1 h-12 font-bold" onClick={() => setSupportBooking(b)}>
                         <LifeBuoy className="w-5 h-5" /> {t('bookings.support')}
                       </Button>
-
                       {canCancel && (
                         <Button variant="ghost" className="rounded-2xl gap-2 flex-1 h-12 text-destructive font-bold hover:bg-destructive/5" onClick={() => handleCancel(b)}>
                           <Ban className="w-5 h-5" /> {t('bookings.cancel')}
@@ -221,7 +209,7 @@ const MyBookings = () => {
         )}
       </div>
 
-      // النوافذ المنبثقة (Modal Dialogs) التي تظهر عند تفعيل أحد الإجراءات
+      {/* الحوارات المنبثقة (Modals) */}
       {ratingBooking && (
         <RatingDialog
           open={!!ratingBooking}
@@ -237,7 +225,12 @@ const MyBookings = () => {
       )}
 
       {chatBooking && (
-        <ChatDialog open={!!chatBooking} onOpenChange={(open) => !open && setChatBooking(null)} bookingId={chatBooking.id} otherName={chatBooking.provider?.full_name || t('roles.provider')} />
+        <ChatDialog 
+            open={!!chatBooking} 
+            onOpenChange={(open) => !open && setChatBooking(null)} 
+            bookingId={chatBooking.id} 
+            otherName={chatBooking.provider?.full_name || t('roles.provider')} 
+        />
       )}
 
       <SupportTicketDialog
