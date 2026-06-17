@@ -19,21 +19,41 @@ import {
   LifeBuoy, Check, CheckCheck, ImagePlus, X, Loader2, Lock
 } from "lucide-react";
 
+// ─── Types ────────────────────────────────────────────────────────────────────
+interface SupportTicket {
+  id: string;
+  user_id: string;
+  subject: string;
+  message: string;
+  status: 'open' | 'closed';
+  booking_id?: string | null;
+  created_at: string;
+  user?: {
+    full_name: string;
+    phone: string | null;
+  } | null;
+}
+
+interface SupportMessage {
+  id: string;
+  ticket_id: string;
+  sender_id: string;
+  message: string | null;
+  image_url: string | null;
+  is_read: boolean;
+  created_at: string;
+}
+
 const SupportTickets = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, role } = useAuth();
   const { t } = useTranslation();
 
-  /* إدارة حالة الواجهة (UI State):
-    - tickets: القائمة الجانبية للتذاكر.
-    - selectedTicket: التذكرة المفتوحة حالياً لعرض تفاصيلها.
-    - messages: فقاعات الدردشة داخل التذكرة.
-    - signedUrls: الروابط الآمنة المؤقتة لعرض الصور المرفقة.
-  */
-  const [tickets, setTickets] = useState<any[]>([]);
-  const [selectedTicket, setSelectedTicket] = useState<any>(null);
-  const [messages, setMessages] = useState<any[]>([]);
+  /* إدارة حالة الواجهة (UI State) مع تعيين الأنواع الصريحة بدلاً من any */
+  const [tickets, setTickets] = useState<SupportTicket[]>([]);
+  const [selectedTicket, setSelectedTicket] = useState<SupportTicket | null>(null);
+  const [messages, setMessages] = useState<SupportMessage[]>([]);
   const [signedUrls, setSignedUrls] = useState<Record<string, string>>({});
   
   /* حالة صندوق الإدخال وحالة التحميل */
@@ -42,7 +62,7 @@ const SupportTickets = () => {
   const [sending, setSending] = useState(false);
   const [pendingImage, setPendingImage] = useState<File | null>(null);
 
-  /* مراجع (Refs) للتحكم المباشر في عناصر DOM (صندوق رفع الملفات والتمرير التلقائي لأسفل المحادثة) */
+  /* مراجع (Refs) للتحكم المباشر في عناصر DOM والتمرير التلقائي */
   const fileInputRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const signedUrlsRef = useRef<Record<string, string>>({});
@@ -50,30 +70,26 @@ const SupportTickets = () => {
   /* 🔒 التحقق من صلاحية الرد: يمنع المستخدم من الكتابة إذا كانت التذكرة مغلقة من الإدارة */
   const isReadOnly = location.state?.readOnly || selectedTicket?.status === 'closed';
 
-  /* تحديث حالة الرسائل إلى "مقروءة" (Read Receipt):
-    تعمل بمجرد فتح التذكرة لتحديث مؤشرات القراءة (الصح المزدوج) للطرف الآخر.
-  */
+  /* تحديث حالة الرسائل إلى "مقروءة" (Read Receipt) بتجاوز فحص المخطط المحلي */
   const markAsRead = useCallback(async (ticketId: string) => {
-    if (!user || !ticketId || isReadOnly) return;
+    if (!user?.id || !ticketId || isReadOnly) return;
     try {
-      await (supabase.from("support_messages" as any)
-        .update({ is_read: true } as any)
+      await (supabase.from as any)("support_messages")
+        .update({ is_read: true })
         .eq("ticket_id", ticketId)
         .neq("sender_id", user.id)
-        .eq("is_read", false) as any);
+        .eq("is_read", false);
     } catch (err) {
       console.error("Read status update failed:", err);
     }
   }, [user?.id, isReadOnly]);
 
-  /* جلب التذاكر لملء القائمة الجانبية:
-    تعتمد على الصلاحية؛ الإدارة ترى جميع التذاكر، والمستخدم العادي يرى تذاكره فقط.
-  */
+  /* جلب التذاكر لملء القائمة الجانبية بناءً على هوية وصلاحية المستخدم */
   const fetchTickets = useCallback(async () => {
-    if (!user) return;
+    if (!user?.id) return;
     try {
       let query = supabase
-        .from("support_tickets" as any)
+        .from("support_tickets")
         .select("*, user:profiles(full_name, phone)")
         .order("created_at", { ascending: false });
 
@@ -83,61 +99,70 @@ const SupportTickets = () => {
 
       const { data, error } = await query;
       if (error) throw error;
-      setTickets(data || []);
-    } catch (err: any) {
-      console.error("Error fetching tickets:", err.message);
+      setTickets((data as unknown as SupportTicket[]) || []);
+    } catch (err) {
+      const error = err as Error;
+      console.error("Error fetching tickets:", error.message);
     } finally {
       setLoading(false);
     }
   }, [user?.id, role]);
 
-  /* جلب تاريخ الدردشة (Chat History):
-    يقوم بجلب الرسائل المرتبطة بالتذكرة، ويولد روابط عرض مؤقتة (Public URLs) لأي صورة مرفقة لضمان الحماية.
-  */
+  /* جلب تاريخ الدردشة وتوليد مسارات العرض الآمنة للصور */
   const fetchMessages = useCallback(async (ticketId: string) => {
-    const { data } = await (supabase
-      .from("support_messages" as any)
-      .select("*")
-      .eq("ticket_id", ticketId)
-      .order("created_at", { ascending: true }) as any);
+    if (!ticketId) return;
+    try {
+      const { data, error } = await (supabase.from as any)("support_messages")
+        .select("*")
+        .eq("ticket_id", ticketId)
+        .order("created_at", { ascending: true });
 
-    const msgs = data || [];
-    setMessages(msgs);
+      if (error) throw error;
 
-    const imagesToFetch = msgs.filter(
-      (m: any) => m.image_url && !signedUrlsRef.current[m.image_url]
-    );
+      const msgs = (data as SupportMessage[]) || [];
+      setMessages(msgs);
 
-    if (imagesToFetch.length > 0) {
-      const updates: Record<string, string> = {};
-      imagesToFetch.forEach((m: any) => {
-        const { data: publicUrlData } = supabase.storage
-          .from("public-assets")
-          .getPublicUrl(m.image_url);
-        if (publicUrlData?.publicUrl) {
-          updates[m.image_url] = publicUrlData.publicUrl;
-          signedUrlsRef.current[m.image_url] = publicUrlData.publicUrl;
+      const imagesToFetch = msgs.filter(
+        (m) => m.image_url && !signedUrlsRef.current[m.image_url]
+      );
+
+      if (imagesToFetch.length > 0) {
+        const updates: Record<string, string> = {};
+        imagesToFetch.forEach((m) => {
+          if (m.image_url) {
+            const { data: publicUrlData } = supabase.storage
+              .from("public-assets")
+              .getPublicUrl(m.image_url);
+            if (publicUrlData?.publicUrl) {
+              updates[m.image_url] = publicUrlData.publicUrl;
+              signedUrlsRef.current[m.image_url] = publicUrlData.publicUrl;
+            }
+          }
+        });
+        if (Object.keys(updates).length > 0) {
+          setSignedUrls((prev) => ({ ...prev, ...updates }));
         }
-      });
-      if (Object.keys(updates).length > 0) {
-        setSignedUrls((prev) => ({ ...prev, ...updates }));
       }
+    } catch (err) {
+      console.error("Error fetching messages:", err);
     }
   }, []);
 
-  /* تحميل التذاكر عند فتح الصفحة لأول مرة */
+  /* تحميل التذاكر عند فتح الصفحة لأول مرة بأمان مع تأجيل استدعاء الحالة */
   useEffect(() => {
-    fetchTickets();
+    queueMicrotask(() => {
+      fetchTickets();
+    });
   }, [fetchTickets]);
 
-  /* 🚀 الاتصال اللحظي (Real-time Subscription):
-    عند فتح تذكرة، نستمع لأي رسالة جديدة في قاعدة البيانات لتحديث شاشة الدردشة فوراً دون الحاجة لعمل Refresh.
-  */
+  /* 🚀 الاتصال اللحظي الفوري لرسائل الدعم الفني (Real-time Subscription) */
   useEffect(() => {
-    if (!selectedTicket) return;
+    if (!selectedTicket?.id) return;
 
-    fetchMessages(selectedTicket.id);
-    markAsRead(selectedTicket.id);
+    queueMicrotask(() => {
+      fetchMessages(selectedTicket.id);
+      markAsRead(selectedTicket.id);
+    });
 
     const channel = supabase
       .channel(`support-${selectedTicket.id}`)
@@ -161,12 +186,14 @@ const SupportTickets = () => {
     };
   }, [selectedTicket?.id, fetchMessages, markAsRead]);
 
-  /* فتح تذكرة معينة تلقائياً إذا تم تمرير الـ ID عبر روابط التوجيه (مثلاً من الإشعارات) */
+  /* فتح تذكرة معينة تلقائياً إذا تم تمرير الـ ID عبر الإشعارات */
   useEffect(() => {
     if (tickets.length > 0 && location.state?.ticketId) {
       const target = tickets.find(t => t.id === location.state.ticketId);
       if (target) {
-        setSelectedTicket(target);
+        queueMicrotask(() => {
+          setSelectedTicket(target);
+        });
         window.history.replaceState({}, document.title);
       }
     }
@@ -182,9 +209,7 @@ const SupportTickets = () => {
     }
   }, [messages]);
 
-  /* إرسال الردود:
-    يعالج رفع الصور للصندوق السحابي (Storage)، ثم يحفظ نص الرسالة، ويرسل إشعاراً للمستخدم المعني.
-  */
+  /* إرسال الردود ورفع الصور إلى لوحة التخزين السحابي */
   const sendMessage = async () => {
     if (isReadOnly || (!newMessage.trim() && !pendingImage) || !selectedTicket || !user) return;
     setSending(true);
@@ -199,13 +224,13 @@ const SupportTickets = () => {
         if (upErr) throw upErr;
       }
 
-      const { error } = await (supabase.from("support_messages" as any).insert({
+      const { error } = await (supabase.from as any)("support_messages").insert({
         ticket_id: selectedTicket.id,
         sender_id: user.id,
         message: newMessage.trim() || null,
         image_url: imagePath,
         is_read: false,
-      } as any));
+      });
 
       if (error) throw error;
       
@@ -222,7 +247,7 @@ const SupportTickets = () => {
           content: t('support.notification_admin_reply', { subject: selectedTicket.subject }),
         });
       }
-    } catch (err: any) {
+    } catch (err) {
       toast.error(t('support.send_failed'));
       console.error(err);
     } finally {
@@ -231,7 +256,7 @@ const SupportTickets = () => {
   };
 
   return (
-    <div className="h-[100dvh] bg-[#f8fafc] flex flex-col overflow-hidden" dir="rtl">
+    <div className="h-dvh bg-[#f8fafc] flex flex-col overflow-hidden" dir="rtl">
       <Navbar />
       
       {/* 🏷️ شريط العنوان العلوي (Header Layout) */}
@@ -247,7 +272,7 @@ const SupportTickets = () => {
               <span className="hidden sm:inline">{t('common.back')}</span>
             </Button>
 
-            <div className="h-6 w-[2px] bg-muted/50 hidden sm:block mx-1"></div>
+            <div className="h-6 w-0.5 bg-muted/50 hidden sm:block mx-1"></div>
 
             <div className="flex items-center gap-2">
               <LifeBuoy className="w-6 h-6 text-primary" />
@@ -262,10 +287,8 @@ const SupportTickets = () => {
       <div className="flex-1 container py-4 md:py-6 flex flex-col overflow-hidden">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 flex-1 overflow-hidden">
 
-          {/* 📋 القائمة الجانبية (Sidebar):
-             تعرض التذاكر المتاحة. يتم إخفاؤها في شاشات الجوال عند فتح محادثة (selectedTicket) لتوفير المساحة.
-          */}
-          <Card className={`md:col-span-1 rounded-[2rem] border-none shadow-xl overflow-hidden bg-white flex-col h-full ${selectedTicket ? 'hidden md:flex' : 'flex'}`}>
+          /* 📋 القائمة الجانبية (Sidebar) */
+          <Card className={`md:col-span-1 rounded-4xl border-none shadow-xl overflow-hidden bg-white flex-col h-full ${selectedTicket ? 'hidden md:flex' : 'flex'}`}>
             <CardHeader className="border-b bg-primary/5 p-6 shrink-0">
               <CardTitle className="flex items-center gap-2 text-primary font-black text-xl">
                 <LifeBuoy className="w-7 h-7" />
@@ -284,56 +307,55 @@ const SupportTickets = () => {
                   <p className="text-sm font-black">{t('support.no_tickets')}</p>
                 </div>
               ) : (
-                tickets.map((ticket) => (
-                  <div
-                    key={ticket.id}
-                    onClick={() => setSelectedTicket(ticket)}
-                    className={`p-5 border-b cursor-pointer transition-all hover:bg-primary/5 ${
-                      selectedTicket?.id === ticket.id
-                        ? "bg-primary/10 border-r-4 border-r-primary" /* تمييز بصري للتذكرة النشطة */
-                        : ""
-                    } ${ticket.status === 'closed' ? 'opacity-60' : ''}`}
-                  >
-                    <div className="flex justify-between items-start mb-2">
-                      <div className="flex items-center gap-2">
-                        {ticket.status === 'closed' && <Lock className="w-3 h-3 text-muted-foreground" />}
-                        <p className={`font-black text-sm line-clamp-1 ${ticket.status === 'closed' ? 'text-muted-foreground' : 'text-foreground'}`}>
-                          {ticket.subject}
+                <div className="divide-y">
+                  {tickets.map((ticket) => (
+                    <div
+                      key={ticket.id}
+                      onClick={() => setSelectedTicket(ticket)}
+                      className={`p-5 cursor-pointer transition-all hover:bg-primary/5 ${
+                        selectedTicket?.id === ticket.id
+                          ? "bg-primary/10 border-r-4 border-r-primary"
+                          : ""
+                      } ${ticket.status === 'closed' ? 'opacity-60' : ''}`}
+                    >
+                      <div className="flex justify-between items-start mb-2">
+                        <div className="flex items-center gap-2">
+                          {ticket.status === 'closed' && <Lock className="w-3 h-3 text-muted-foreground" />}
+                          <p className={`font-black text-sm line-clamp-1 ${ticket.status === 'closed' ? 'text-muted-foreground' : 'text-foreground'}`}>
+                            {ticket.subject}
+                          </p>
+                        </div>
+                          <Badge
+                          className={`border-none text-[9px] px-2 rounded-full font-bold shadow-sm ${
+                            ticket.status === "open"
+                              ? "bg-amber-500 text-white"
+                              : "bg-emerald-500 text-white"
+                          }`}
+                        >
+                          {ticket.status === "open" ? t('support.status.active') : t('support.status.closed')}
+                        </Badge>
+                      </div>
+                      <div className="flex justify-between items-center mt-3">
+                          <p className="text-[9px] text-muted-foreground font-black bg-muted/50 px-2 py-1 rounded-lg">
+                          {ticket.booking_id ? t('support.linked_booking') : t('support.general_inquiry')}
+                        </p>
+                        <p className="text-[10px] text-muted-foreground font-medium">
+                          {new Date(ticket.created_at).toLocaleDateString("ar-SA", { year: 'numeric', month: '2-digit', day: '2-digit' })}
                         </p>
                       </div>
-                        <Badge
-                        className={`border-none text-[9px] px-2 rounded-full font-bold shadow-sm ${
-                          ticket.status === "open"
-                            ? "bg-amber-500 text-white"
-                            : "bg-emerald-500 text-white"
-                        }`}
-                      >
-                        {ticket.status === "open" ? t('support.status.active') : t('support.status.closed')}
-                      </Badge>
                     </div>
-                    <div className="flex justify-between items-center mt-3">
-                        <p className="text-[9px] text-muted-foreground font-black bg-muted/50 px-2 py-1 rounded-lg">
-                        {ticket.booking_id ? t('support.linked_booking') : t('support.general_inquiry')}
-                      </p>
-                      <p className="text-[10px] text-muted-foreground font-medium">
-                        {new Date(ticket.created_at).toLocaleDateString("ar-SA", { year: 'numeric', month: '2-digit', day: '2-digit' })}
-                      </p>
-                    </div>
-                  </div>
-                ))
+                  ))}
+                </div>
               )}
             </CardContent>
           </Card>
 
-          {/* 💬 منطقة المحادثة (Chat Area):
-             تحتل ثلثي الشاشة في الديسكتوب، وتغطي الشاشة كاملة في الجوال عند التفعيل.
-          */}
-          <Card className={`md:col-span-2 rounded-[2rem] border-none shadow-2xl overflow-hidden bg-white flex-col h-full ${selectedTicket ? 'flex' : 'hidden md:flex'}`}>
+          {/* 💬 منطقة المحادثة (Chat Area) */}
+          <Card className={`md:col-span-2 rounded-4xl border-none shadow-2xl overflow-hidden bg-white flex-col h-full ${selectedTicket ? 'flex' : 'hidden md:flex'}`}>
             {selectedTicket ? (
               <>
                 <CardHeader className="border-b bg-white py-4 px-6 shrink-0 flex flex-row items-center justify-between">
                   <div className="flex items-center gap-4">
-                    {/* زر الرجوع للقائمة مخصص لشاشات الجوال فقط */}
                     <Button 
                       variant="ghost" 
                       size="icon" 
@@ -353,7 +375,7 @@ const SupportTickets = () => {
                       </div>
                       <p className="text-[10px] md:text-xs font-bold text-muted-foreground mt-1">
                         {role === "admin"
-                          ? `${t('support.sender_label')}: ${selectedTicket.user?.full_name}`
+                          ? `${t('support.sender_label')}: ${selectedTicket.user?.full_name || '—'}`
                           : t('support.default_sender')}
                       </p>
                     </div>
@@ -364,9 +386,8 @@ const SupportTickets = () => {
                   ref={scrollRef}
                   className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4 bg-[#f1f5f9] scrollbar-thin"
                 >
-                  {/* عرض الشكوى الأساسية للمستخدم في أعلى المحادثة كنقطة مرجعية */}
                   <div className="flex justify-center mb-8">
-                    <div className="max-w-[90%] w-full p-5 rounded-[1.5rem] bg-white border-2 border-dashed border-amber-200 text-amber-900 shadow-sm relative">
+                    <div className="max-w-[90%] w-full p-5 rounded-3xl bg-white border-2 border-dashed border-amber-200 text-amber-900 shadow-sm relative">
                         <div className="absolute -top-3 right-6 bg-amber-500 text-white px-3 py-1 rounded-full text-[9px] font-black">
                         {t('support.original_message_label')}
                       </div>
@@ -376,7 +397,6 @@ const SupportTickets = () => {
                     </div>
                   </div>
 
-                  {/* رسم فقاعات الدردشة ومحاذاتها بناءً على هوية المرسل (يمين/يسار) */}
                   {messages.map((msg) => (
                     <div
                       key={msg.id}
@@ -387,11 +407,10 @@ const SupportTickets = () => {
                       <div
                         className={`max-w-[85%] md:max-w-[75%] p-4 rounded-2xl shadow-sm relative ${
                           msg.sender_id === user?.id
-                            ? "bg-primary text-white rounded-tr-sm" /* تنسيق رسائل المستخدم الحالي */
-                            : "bg-white text-foreground rounded-tl-sm border border-border" /* تنسيق رسائل الطرف الآخر */
+                            ? "bg-primary text-white rounded-tr-sm"
+                            : "bg-white text-foreground rounded-tl-sm border border-border"
                         }`}
                       >
-                        {/* عرض الصورة المرفقة إذا وجدت */}
                         {msg.image_url && signedUrls[msg.image_url] && (
                           <a
                             href={signedUrls[msg.image_url]}
@@ -411,7 +430,6 @@ const SupportTickets = () => {
                             {msg.message}
                           </p>
                         )}
-                        {/* مؤشرات الوقت وحالة القراءة (الصح الأزرق) */}
                         <div className="flex items-center gap-1 mt-2 justify-end opacity-70">
                           <span className="text-[9px] font-black">
                             {new Date(msg.created_at).toLocaleTimeString("ar-SA", {
@@ -435,22 +453,21 @@ const SupportTickets = () => {
                   ))}
                 </CardContent>
 
-                {/* 📝 منطقة كتابة الرد (Input Area) */}
+                {/* 📝 منطقة كتابة الرد */}
                 <div className="p-3 md:p-4 border-t bg-white shrink-0">
                     {isReadOnly ? (
-                    /* واجهة الإغلاق: إخفاء حقل الإدخال إذا كانت التذكرة مغلقة */
                     <div className="bg-muted/50 p-4 rounded-2xl border border-dashed text-center flex flex-col items-center gap-2">
                       <Lock className="w-5 h-5 text-muted-foreground" />
                       <p className="text-sm font-black text-muted-foreground">{t('support.closed_message')}</p>
                     </div>
                   ) : (
                     <>
-                      {/* معاينة الصورة قبل إرسالها */}
                       {pendingImage && (
                         <div className="flex items-center gap-3 mb-3 p-2 bg-primary/5 rounded-2xl border border-primary/10">
                           <img
                             src={URL.createObjectURL(pendingImage)}
                             className="w-10 h-10 rounded-lg object-cover border-2 border-white shadow"
+                            alt="Preview"
                           />
                           <span className="flex-1 truncate text-xs font-black text-primary italic">
                             {pendingImage.name}
@@ -466,7 +483,6 @@ const SupportTickets = () => {
                         </div>
                       )}
                       
-                      {/* شريط الإدخال الرئيسي */}
                       <div className="flex gap-2 items-center">
                         <input
                           ref={fileInputRef}
@@ -487,7 +503,7 @@ const SupportTickets = () => {
                           placeholder={t('support.reply_placeholder')}
                           value={newMessage}
                           onChange={(e) => setNewMessage(e.target.value)}
-                          onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && sendMessage()} /* تفعيل الإرسال بزر الإدخال (Enter) */
+                          onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && sendMessage()}
                           className="rounded-2xl h-12 border-none bg-muted/30 focus-visible:ring-primary font-bold px-4"
                         />
                         <Button
@@ -503,7 +519,6 @@ const SupportTickets = () => {
                 </div>
               </>
             ) : (
-              /* واجهة الانتظار (Empty State): تظهر في الشاشات الكبيرة قبل اختيار أي تذكرة */
               <div className="h-full flex flex-col items-center justify-center text-center p-10 space-y-6">
                 <div className="bg-primary/5 p-8 rounded-full animate-bounce">
                   <MessageCircle className="w-20 h-20 text-primary/20" />

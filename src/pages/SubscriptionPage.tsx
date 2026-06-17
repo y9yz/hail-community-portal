@@ -148,7 +148,7 @@ const SubscriptionPage = () => {
         </h1>
         
         {/* 💳 بطاقة عرض الخطة (Pricing Card Component) */}
-        <Card className="border-2 border-primary/20 shadow-xl overflow-hidden rounded-[2rem] bg-card">
+        <Card className="border-2 border-primary/20 shadow-xl overflow-hidden rounded-4xl bg-card">
           
           {/* شريط تمييز علوي يعطي إيحاء بـ "الخطة الاحترافية" */}
           <div className="bg-primary p-4 text-primary-foreground text-center shadow-sm">

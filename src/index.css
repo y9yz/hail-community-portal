@@ -1,102 +1,111 @@
-/* استدعاء مكتبات Tailwind CSS الأساسية، المكونات، والأدوات المساعدة */
-@tailwind base; 
-@tailwind components; 
-@tailwind utilities;
+@import "tailwindcss";
 
-@layer base { 
-  /* إعدادات الوضع النهاري */
-  :root { 
-    --background: 0 0% 100%; /* لون أبيض للخلفية الأساسية */
-    --foreground: 220 20% 10%; /* لون غامق للنصوص */
 
-    --card: 0 0% 100%; /* خلفية البطاقات أو الكروت */
-    --card-foreground: 220 20% 10%; /* لون نصوص البطاقات */
+@theme {
 
-    --popover: 0 0% 100%; /* خلفية القوائم والنافذة المنبثقة */
-    --popover-foreground: 220 20% 10%; /* لون نصوص القوائم المنبثقة */
+  --radius-lg: 0.75rem;
 
-    /* ألوان هوية البوابة (الأخضر) */
-    --primary: 142 71% 45%; /* اللون الأخضر الأساسي للهوية */
-    --primary-foreground: 0 0% 100%; /* لون النص فوق الأخضر الأساسي (أبيض) */
+  
+  --color-background: hsl(0 0% 100%);
+  --color-foreground: hsl(220 20% 10%);
 
-    --secondary: 220 14% 96%; /* خلفية العناصر الثانوية (رمادي فاتح) */
-    --secondary-foreground: 220 20% 10%; /* لون النص فوق العناصر الثانوية */
+  --color-card: hsl(0 0% 100%);
+  --color-card-foreground: hsl(220 20% 10%);
 
-    --muted: 220 14% 96%; /* خلفية العناصر المطفية أو غير النشطة */
-    --muted-foreground: 220 9% 46%; /* لون النص الباهت للعناصر المطفية */
+  --color-popover: hsl(0 0% 100%);
+  --color-popover-foreground: hsl(220 20% 10%);
 
-    /* ألوان التمييز عند التمرير (Hover) */
-    --accent: 142 71% 95%; /* خلفية التمييز والـ Hover (أخضر فاتح جداً) */
-    --accent-foreground: 142 71% 25%; /* لون النص عند التمرير والـ Hover */
+  --color-primary: hsl(142 71% 45%);
+  --color-primary-foreground: hsl(0 0% 100%);
 
-    --destructive: 0 84% 60%; /* لون إجراءات الحذف أو الخطر (أحمر) */
-    --destructive-foreground: 0 0% 100%; /* لون النص لأزرار الحذف (أبيض) */
+  --color-secondary: hsl(220 14% 96%);
+  --color-secondary-foreground: hsl(220 20% 10%);
 
-    --border: 220 13% 91%; /* اللون الافتراضي للحدود والفواصل */
-    --input: 220 13% 91%; /* لون حدود حقول الإدخال للفورم */
-    --ring: 142 71% 45%; /* لون إطار التحديد عند الضغط على عنصر */
+  --color-muted: hsl(220 14% 96%);
+  --color-muted-foreground: hsl(220 9% 46%);
 
-    /* إعدادات انحناء الحواف */
-    --radius: 0.75rem; /* مقدار تدوير حواف العناصر */
 
-    /* إعدادات القائمة الجانبية (Sidebar) */
-    --sidebar-background: 0 0% 99%; /* خلفية القائمة الجانبية */
-    --sidebar-foreground: 220 20% 25%; /* لون نصوص القائمة الجانبية */
-    --sidebar-primary: 142 71% 45%; /* خلفية العنصر النشط في القائمة */
-    --sidebar-primary-foreground: 0 0% 100%; /* لون نص العنصر النشط بالقائمة */
-    --sidebar-accent: 142 71% 95%; /* خلفية العنصر عند التمرير بالقائمة */
-    --sidebar-accent-foreground: 142 71% 25%; /* لون نص العنصر عند التمرير بالقائمة */
-    --sidebar-border: 220 13% 91%; /* لون فواصل القائمة الجانبية */
-    --sidebar-ring: 142 71% 45%; /* لون إطار التحديد داخل القائمة */
+  --color-accent: hsl(142 71% 95%);
+  --color-accent-foreground: hsl(142 71% 25%);
 
-    /* ألوان حالات النظام والتنبيهات */
-    --success: 142 71% 45%; /* لون حالة النجاح (أخضر) */
-    --success-foreground: 0 0% 100%; /* لون نص حالة النجاح */
-    --warning: 38 92% 50%; /* لون حالة التحذير (برتقالي) */
-    --warning-foreground: 0 0% 100%; /* لون نص حالة التحذير */
-    --info: 217 91% 60%; /* لون حالة الإرشادات والمعلومات (أزرق) */
-    --info-foreground: 0 0% 100%; /* لون نص الإرشادات */
-  } 
+  --color-destructive: hsl(0 84% 60%);
+  --color-destructive-foreground: hsl(0 0% 100%);
 
-  /* إعدادات الوضع الليلي */
-  .dark { 
-    --background: 220 20% 6%; /* لون خلفية داكن ومريح للعين */
-    --foreground: 0 0% 95%; /* لون فاتح للنصوص لزيادة التباين */
-    --card: 220 20% 8%; /* خلفية داكنة للبطاقات */
-    --card-foreground: 0 0% 95%; /* لون نص البطاقات بالوضع الليلي */
-    --popover: 220 20% 8%; /* خلفية داكنة للقوائم المنبثقة */
-    --popover-foreground: 0 0% 95%; /* لون نص القوائم المنبثقة */
-    --primary: 142 71% 45%; /* لون الهوية الأخضر يبقى ثابت */
-    --primary-foreground: 0 0% 100%; /* لون نص الأخضر يبقى أبيض */
-    --secondary: 220 14% 14%; /* رمادي داكن للعناصر الثانوية */
-    --secondary-foreground: 0 0% 95%; /* لون نص العناصر الثانوية بالليلي */
-    --muted: 220 14% 14%; /* خلفية داكنة للعناصر المطفية */
-    --muted-foreground: 220 9% 55%; /* لون رمادي متوسط لنصوص العناصر المطفية */
-    --accent: 142 71% 15%; /* خلفية داكنة للـ Hover (أخضر غامق) */
-    --accent-foreground: 142 71% 85%; /* لون نص الـ Hover بالوضع الليلي */
-    --destructive: 0 62% 30%; /* أحمر داكن لإجراءات الحذف */
-    --destructive-foreground: 0 0% 95%; /* لون نص أزرار الحذف بالليلي */
-    --border: 220 14% 18%; /* لون فواصل وحدود داكنة */
-    --input: 220 14% 18%; /* حدود داكنة لحقول الإدخال */
-    --ring: 142 71% 45%; /* إطار التحديد يبقى أخضر */
-    --sidebar-background: 220 20% 8%; /* خلفية داكنة للقائمة الجانبية */
-    --sidebar-foreground: 0 0% 85%; /* لون نص فاتح للقائمة الجانبية */
-    --sidebar-primary: 142 71% 45%; /* لون العنصر النشط بالقائمة يبقى أخضر */
-    --sidebar-primary-foreground: 0 0% 100%; /* نص العنصر النشط بالقائمة يبقى أبيض */
-    --sidebar-accent: 142 71% 15%; /* خلفية الـ Hover بالقائمة (أخضر غامق) */
-    --sidebar-accent-foreground: 142 71% 85%; /* لون نص الـ Hover بالقائمة بالليلي */
-    --sidebar-border: 220 14% 18%; /* فواصل داكنة للقائمة الجانبية */
-    --sidebar-ring: 142 71% 45%; /* إطار التحديد بالقائمة يبقى أخضر */
-  } 
-} 
+  
+  --color-border: hsl(220 13% 91%);
+  --color-input: hsl(220 13% 91%);
+  --color-ring: hsl(142 71% 45%);
 
-@layer base { 
-  /* ربط متغيرات الألوان بعناصر الـ HTML الأساسية */
-  * { 
-    @apply border-border; /* توحيد لون الحدود لجميع عناصر الصفحة */
+  
+  --color-sidebar-background: hsl(0 0% 99%);
+  --color-sidebar-foreground: hsl(220 20% 25%);
+  --color-sidebar-primary: hsl(142 71% 45%);
+  --color-sidebar-primary-foreground: hsl(0 0% 100%);
+  --color-sidebar-accent: hsl(142 71% 95%);
+  --color-sidebar-accent-foreground: hsl(142 71% 25%);
+  --color-sidebar-border: hsl(220 13% 91%);
+  --color-sidebar-ring: hsl(142 71% 45%);
+
+
+  --color-success: hsl(142 71% 45%);
+  --color-success-foreground: hsl(0 0% 100%);
+  --color-warning: hsl(38 92% 50%);
+  --color-warning-foreground: hsl(0 0% 100%);
+  --color-info: hsl(217 91% 60%);
+  --color-info-foreground: hsl(0 0% 100%);
+}
+
+
+@variant dark (&:where(.dark, .dark *));
+
+@layer base {
+  .dark {
+    --color-background: hsl(220 20% 6%);
+    --color-foreground: hsl(0 0% 95%);
+    --color-card: hsl(220 20% 8%);
+    --color-card-foreground: hsl(0 0% 95%);
+    --color-popover: hsl(220 20% 8%);
+    --color-popover-foreground: hsl(0 0% 95%);
+    --color-primary: hsl(142 71% 45%);
+    --color-primary-foreground: hsl(0 0% 100%);
+    --color-secondary: hsl(220 14% 14%);
+    --color-secondary-foreground: hsl(0 0% 95%);
+    --color-muted: hsl(220 14% 14%);
+    --color-muted-foreground: hsl(220 9% 55%);
+    --color-accent: hsl(142 71% 15%);
+    --color-accent-foreground: hsl(142 71% 85%);
+    --color-destructive: hsl(0 62% 30%);
+    --color-destructive-foreground: hsl(0 0% 95%);
+    --color-border: hsl(220 14% 18%);
+    --color-input: hsl(220 14% 18%);
+    --color-ring: hsl(142 71% 45%);
+    --color-sidebar-background: hsl(220 20% 8%);
+    --color-sidebar-foreground: hsl(0 0% 85%);
+    --color-sidebar-primary: hsl(142 71% 45%);
+    --color-sidebar-primary-foreground: hsl(0 0% 100%);
+    --color-sidebar-accent: hsl(142 71% 15%);
+    --color-sidebar-accent-foreground: hsl(142 71% 85%);
+    --color-sidebar-border: hsl(220 14% 18%);
+    --color-sidebar-ring: hsl(142 71% 45%);
+  }
+}
+
+
+@utility border-border {
+  border-color: var(--color-border);
+}
+
+@layer base {
+
+  * {
+    border-color: var(--color-border);
   }
 
-  body { 
-    @apply bg-background text-foreground font-tajawal antialiased; /* تطبيق خلفية الصفحة، لون الخط، خط تاجويل، وتنعيم الحواف */
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-family: 'Tajawal', sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
 }

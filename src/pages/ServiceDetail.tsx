@@ -227,7 +227,7 @@ const ServiceDetail = () => {
 
       <div className="container py-6 space-y-6 max-w-3xl">
         {/* الحاوية البصرية لصورة الخدمة */}
-        <div className="rounded-[2rem] overflow-hidden h-56 md:h-80 border-2 shadow-sm">
+        <div className="rounded-4xl overflow-hidden h-56 md:h-80 border-2 shadow-sm">
           <img src={service.image_url || "/placeholder.svg"} alt={service.title} className="w-full h-full object-cover" />
         </div>
 
@@ -258,13 +258,13 @@ const ServiceDetail = () => {
         </div>
 
         {/* بطاقة إدخال تفاصيل المشكلة (Textarea Component) */}
-        <Card className="rounded-[2rem] border-2 shadow-sm">
+        <Card className="rounded-4xl border-2 shadow-sm">
           <CardContent className="p-6 space-y-4">
             <Label htmlFor="problem" className="font-black text-lg">{t('serviceDetail.request_details')}</Label>
             <Textarea
               id="problem"
               placeholder={t('serviceDetail.request_placeholder')}
-              className="min-h-[140px] rounded-2xl bg-muted/20 border-2 focus-visible:ring-primary resize-none p-4"
+              className="min-h-35 rounded-2xl bg-muted/20 border-2 focus-visible:ring-primary resize-none p-4"
               value={problemDescription}
               onChange={(e) => setProblemDescription(e.target.value)}
               dir="rtl"
@@ -275,7 +275,7 @@ const ServiceDetail = () => {
         </Card>
 
         {/* بطاقة اختيار الموعد عبر القائمة المنبثقة للتقويم وشبكة الأوقات */}
-        <Card className="rounded-[2rem] border-2 shadow-sm">
+        <Card className="rounded-4xl border-2 shadow-sm">
           <CardContent className="p-6 space-y-6">
             <div className="space-y-2">
               <h3 className="font-black text-lg">{t('serviceDetail.choose_date')}</h3>
@@ -336,7 +336,7 @@ const ServiceDetail = () => {
         </Card>
 
         {/* زر تأكيد الحجز الرئيسي: يُعطل إذا لم تكتمل كافة المدخلات المطلوبة */}
-        <Button className="w-full h-16 text-xl font-black rounded-[1.5rem] gap-2 shadow-xl shadow-primary/20 hover:scale-[1.01] transition-transform" disabled={!canProceed || submitting || isCheckingTimes} onClick={handleSubmitRequest}>
+        <Button className="w-full h-16 text-xl font-black rounded-3xl gap-2 shadow-xl shadow-primary/20 hover:scale-[1.01] transition-transform" disabled={!canProceed || submitting || isCheckingTimes} onClick={handleSubmitRequest}>
           <Send className="w-6 h-6 rtl:-scale-x-100" />
           {submitting ? t('serviceDetail.submitting') : t('serviceDetail.submit_button')}
         </Button>

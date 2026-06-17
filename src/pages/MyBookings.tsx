@@ -1,4 +1,3 @@
-// استيراد المكتبات والمكونات الأساسية
 import { useEffect, useState, useCallback } from "react";
 import i18n from "@/i18n/config";
 import { useTranslation } from 'react-i18next';
@@ -15,10 +14,29 @@ import RatingDialog from "@/components/RatingDialog";
 import SupportTicketDialog from "@/components/SupportTicketDialog";
 import { toast } from "sonner";
 
+// ─── Types ────────────────────────────────────────────────────────────────────
+interface BookingData {
+  id: string;
+  order_number?: string;
+  service_title: string;
+  service_id: string;
+  problem_description?: string;
+  provider_status: string;
+  status: string;
+  created_at: string;
+  scheduled_date?: string;
+  scheduled_time?: string;
+  client_id: string;
+  provider_id: string;
+  has_review?: boolean;
+  provider?: { full_name: string; phone: string | null };
+  service?: { maps_link: string | null };
+}
+
 /**
  * دالة مساعدة لتحديد حالة الطلب وإرجاع التنسيق البصري المناسب
  */
-const getBookingStatus = (b: any) => {
+const getBookingStatus = (b: BookingData) => {
   if (b.status === "completed") return { label: i18n.t('bookings.status.completed'), color: "bg-green-500 text-white border-none", icon: CheckCheck };
   if (b.provider_status === "declined") return { label: i18n.t('bookings.status.declined'), color: "bg-destructive text-white border-none", icon: XCircle };
   if (b.provider_status === "pending") return { label: i18n.t('bookings.status.pending'), color: "bg-amber-500 text-white border-none", icon: Clock };
@@ -31,12 +49,12 @@ const MyBookings = () => {
   const { user, loading: authLoading } = useAuth();
   const { t } = useTranslation();
   
-  // حالات المكون
-  const [bookings, setBookings] = useState<any[]>([]);
+  // حالات المكون مع إسناد الأنواع الصريحة بدلاً من any
+  const [bookings, setBookings] = useState<BookingData[]>([]);
   const [loading, setLoading] = useState(true);
-  const [chatBooking, setChatBooking] = useState<any>(null);
-  const [ratingBooking, setRatingBooking] = useState<any>(null);
-  const [supportBooking, setSupportBooking] = useState<any>(null);
+  const [chatBooking, setChatBooking] = useState<BookingData | null>(null);
+  const [ratingBooking, setRatingBooking] = useState<BookingData | null>(null);
+  const [supportBooking, setSupportBooking] = useState<BookingData | null>(null);
 
   // جلب الطلبات من قاعدة البيانات مع بيانات المزود والخدمة
   const fetchBookings = useCallback(async () => {
@@ -49,9 +67,10 @@ const MyBookings = () => {
         .order("created_at", { ascending: false });
 
       if (error) throw error;
-      setBookings(data || []);
-    } catch (err: any) {
-      console.error("Fetch error:", err.message);
+      setBookings((data as unknown as BookingData[]) || []);
+    } catch (err) {
+      const error = err as Error;
+      console.error("Fetch error:", error.message);
     } finally {
       setLoading(false);
     }
@@ -62,7 +81,10 @@ const MyBookings = () => {
     if (authLoading) return;
     if (!user?.id) { navigate("/auth"); return; }
     
-    fetchBookings();
+    // تأجيل استدعاء جلب البيانات والـ state لمنع الـ Cascading Renders المتزامنة
+    queueMicrotask(() => {
+      fetchBookings();
+    });
 
     const channelName = `realtime-bookings:${user.id}`;
     const channel = supabase
@@ -83,18 +105,19 @@ const MyBookings = () => {
   }, [user?.id, authLoading, fetchBookings, navigate]);
 
   // دالة إلغاء الطلب
-  const handleCancel = async (booking: any) => {
+  const handleCancel = async (booking: BookingData) => {
     if (!window.confirm(i18n.t('bookings.cancel_confirm'))) return;
     try {
       const { error } = await supabase
         .from("bookings")
-        .update({ provider_status: "declined" } as any)
+        .update({ provider_status: "declined" })
         .eq("id", booking.id);
       if (error) throw error;
       
       toast.success(t('bookings.cancelled_success'));
       fetchBookings();
-    } catch (err: any) {
+    } catch (err) {
+      console.error(err);
       toast.error(t('bookings.cancel_failed'));
     }
   };
@@ -234,13 +257,13 @@ const MyBookings = () => {
       )}
 
       <SupportTicketDialog
-        open={!!supportBooking}
-        onOpenChange={(open) => !open && setSupportBooking(null)}
-        booking={supportBooking ? { 
-          id: supportBooking.id, 
-          order_number: supportBooking.order_number, 
-          service_title: supportBooking.service_title 
-        } : undefined}
+  open={!!supportBooking}
+  onOpenChange={(open) => !open && setSupportBooking(null)}
+  booking={supportBooking ? { 
+    id: supportBooking.id, 
+    order_number: supportBooking.order_number ? Number(supportBooking.order_number) : 0, 
+    service_title: supportBooking.service_title 
+  } : undefined}
       />
     </div>
   );

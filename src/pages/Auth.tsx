@@ -185,7 +185,7 @@ const Auth = () => {
           <p className="text-muted-foreground mt-2">{t('portal.subtitle')}</p>
         </div>
 
-        <Card className="rounded-[2rem] shadow-xl overflow-hidden border-none bg-white/80 backdrop-blur-sm">
+        <Card className="rounded-4xl shadow-xl overflow-hidden border-none bg-white/80 backdrop-blur-sm">
           <CardContent className="p-0">
             
             {/* عرض تبويبات تسجيل الدخول وإنشاء الحساب */}

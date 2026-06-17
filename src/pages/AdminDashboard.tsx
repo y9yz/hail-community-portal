@@ -47,7 +47,7 @@ const AdminDashboard = () => {
   const [viewingDocUrl, setViewingDocUrl] = useState<string | null>(null);
   const [isDocLoading, setIsDocLoading] = useState(false);
 
-  // استخدام useRef لمنع تكرار جلب البيانات لنفس المستخدم عند إعادة تصيير المكون
+// استخدام useRef لمنع تكرار جلب البيانات لنفس المستخدم عند إعادة تصيير المكون
   const fetchedForUserId = useRef<string | null>(null);
 
   // التحقق من الصلاحيات وجلب البيانات عند تحميل الصفحة
@@ -55,18 +55,25 @@ const AdminDashboard = () => {
     if (authLoading) return;
     
     // طرد المستخدم إذا لم يكن مسجلاً أو لا يملك صلاحية مدير
-    if (!user || role !== "admin") { navigate(user ? "/permission-denied" : "/auth"); return; }
+    if (!user || role !== "admin") { 
+      navigate(user ? "/permission-denied" : "/auth"); 
+      return; 
+    }
 
     // منع جلب البيانات إذا تم جلبها مسبقاً لنفس المدير
     if (fetchedForUserId.current === user.id) return;
 
     fetchedForUserId.current = user.id;
-    fetchData();
-  }, [user?.id, role, authLoading]);
 
+    // تأجيل استدعاء جلب البيانات باستخدام queueMicrotask لمنع الـ Cascading Renders المتزامنة
+    queueMicrotask(() => {
+      fetchData();
+    });
+  }, [user?.id, role, authLoading]);
   // دالة لجلب جميع الإحصائيات والبيانات من قاعدة البيانات دفعة واحدة
-  const fetchData = async () => {
-    setLoading(true);
+async function fetchData() {
+  
+  setLoading(true);
     try {
       const { data: svc } = await supabase.from("services").select("*, provider:profiles(full_name)").order("created_at", { ascending: false });
       const { data: profs } = await supabase.from("profiles").select("*").order("created_at", { ascending: false });
@@ -243,7 +250,7 @@ const AdminDashboard = () => {
 
         {/* التبويبات للتنقل بين أقسام لوحة الإدارة */}
         <Tabs defaultValue="verify" className="w-full">
-          <TabsList className="grid w-full grid-cols-3 lg:grid-cols-7 h-16 rounded-[1.5rem] bg-muted/50 p-1.5 mb-10 shadow-inner">
+          <TabsList className="grid w-full grid-cols-3 lg:grid-cols-7 h-16 rounded-3xl bg-muted/50 p-1.5 mb-10 shadow-inner">
             <TabsTrigger value="verify" className="rounded-xl font-black">{t('admin.tab_verify')}</TabsTrigger>
             <TabsTrigger value="services" className="rounded-xl font-black">{t('admin.tab_services')}</TabsTrigger>
             <TabsTrigger value="users" className="rounded-xl font-black">{t('admin.tab_users')}</TabsTrigger>
@@ -256,9 +263,9 @@ const AdminDashboard = () => {
           {/* تبويب الرسوم البيانية والإحصائيات */}
           <TabsContent value="reports" className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-               <Card className="rounded-[2rem] border-2 p-6 shadow-sm">
+               <Card className="rounded-4xl border-2 p-6 shadow-sm">
                   <h3 className="font-black text-xl mb-6 flex items-center justify-center gap-2"><Users className="w-6 h-6 text-primary" /> {t('admin.users_distribution_title')}</h3>
-                  <div className="h-[300px]">
+                  <div className="h-75">
                      <ResponsiveContainer width="100%" height="100%">
                         <PieChart>
                             <Pie data={rolesChartData} cx="50%" cy="50%" innerRadius={70} outerRadius={110} paddingAngle={5} dataKey="value">
@@ -270,9 +277,9 @@ const AdminDashboard = () => {
                      </ResponsiveContainer>
                   </div>
                </Card>
-               <Card className="rounded-[2rem] border-2 p-6 shadow-sm">
+               <Card className="rounded-4xl border-2 p-6 shadow-sm">
                   <h3 className="font-black text-xl mb-6 flex items-center justify-center gap-2"><Package className="w-6 h-6 text-emerald-600" /> {t('admin.orders_statistics_title')}</h3>
-                  <div className="h-[300px]">
+                  <div className="h-75">
                      <ResponsiveContainer width="100%" height="100%">
                         <BarChart data={ordersChartData}>
                             <CartesianGrid strokeDasharray="3 3" opacity={0.2} vertical={false} />
@@ -349,7 +356,7 @@ const AdminDashboard = () => {
             {bookings.map(b => {
               const linkedTicket = tickets.find(t => t.booking_id === b.id);
               return (
-                <Card key={b.id} className="rounded-[2rem] p-6 border-2 hover:border-primary transition-all bg-card shadow-sm">
+                <Card key={b.id} className="rounded-4xl p-6 border-2 hover:border-primary transition-all bg-card shadow-sm">
                   <div className="flex flex-col space-y-4">
                     <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                       <div className="flex items-center gap-4">
@@ -458,7 +465,7 @@ const AdminDashboard = () => {
           <TabsContent value="verify" className="space-y-4">
               {pendingServices.map(s => (
                 <Card key={s.id} className="rounded-3xl border-2 p-5 flex flex-col md:flex-row gap-6 items-center bg-amber-50/5">
-                   <img src={s.image_url} className="w-32 h-32 rounded-[1.5rem] object-cover" />
+                   <img src={s.image_url} className="w-32 h-32 rounded-3xl object-cover" />
                    <div className="flex-1 text-center md:text-right">
                      <h3 className="font-black text-xl">{s.title}</h3>
                      <Button onClick={() => setViewingService(s)} className="rounded-2xl h-12 px-6 font-black mt-4">{t('admin.review_and_verify')}</Button>
@@ -506,7 +513,7 @@ const AdminDashboard = () => {
         <DialogContent className="rounded-[2.5rem] text-right max-w-2xl" dir="rtl">
             <DialogHeader><DialogTitle className="text-2xl font-black text-center">{t('admin.service_info_title', { title: viewingService?.title })}</DialogTitle></DialogHeader>
             <div className="space-y-4 py-4">
-              <img src={viewingService?.image_url} className="w-full h-48 object-cover rounded-[1.5rem] border shadow-inner" />
+              <img src={viewingService?.image_url} className="w-full h-48 object-cover rounded-3xl border shadow-inner" />
               <div className="bg-muted/50 p-4 rounded-2xl">
                 <p className="text-sm font-bold text-muted-foreground mb-1">{t('admin.service_description_label')}</p>
                 <p className="text-sm italic">"{viewingService?.description}"</p>

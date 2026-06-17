@@ -37,7 +37,40 @@ const SupportTicketDialog = ({ open, onOpenChange, booking }: SupportTicketDialo
   const [sendingReply, setSendingReply] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  
+
   // إعادة تهيئة النموذج عند فتح النافذة
+  const fetchMessages = async (ticketId: string) => {
+  const { data } = await supabase
+    .from("support_messages" as any)
+    .select("*, sender:profiles(full_name, role)")
+    .eq("ticket_id", ticketId)
+    .order("created_at", { ascending: true });
+
+  setMessages(data || []);
+};
+
+const checkExistingTicket = async () => {
+  if (!user || !booking) return;
+  try {
+    const { data, error } = await supabase
+      .from("support_tickets")
+      .select("*")
+      .eq("booking_id", booking.id)
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (data) {
+      setActiveTicket(data);
+      fetchMessages(data.id);
+    }
+  } catch (err) {
+    console.error("Error checking ticket:", err);
+  }
+};
+
   useEffect(() => {
     if (open && user) {
       setSubject("");
@@ -84,39 +117,6 @@ const SupportTicketDialog = ({ open, onOpenChange, booking }: SupportTicketDialo
       supabase.removeChannel(channel);
     };
   }, [activeTicket, user]);
-
-  // البحث عن تذكرة قائمة مرتبطة بنفس الطلب
-  const checkExistingTicket = async () => {
-    if (!user || !booking) return;
-    try {
-      const { data, error } = await supabase
-        .from("support_tickets")
-        .select("*")
-        .eq("booking_id", booking.id)
-        .eq("user_id", user.id)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      if (data) {
-        setActiveTicket(data);
-        fetchMessages(data.id);
-      }
-    } catch (err) {
-      console.error("Error checking ticket:", err);
-    }
-  };
-
-  // جلب سجل المحادثة للتذكرة
-  const fetchMessages = async (ticketId: string) => {
-    const { data } = await supabase
-      .from("support_messages" as any)
-      .select("*, sender:profiles(full_name, role)")
-      .eq("ticket_id", ticketId)
-      .order("created_at", { ascending: true });
-    
-    setMessages(data || []);
-  };
 
   // إنشاء تذكرة دعم فني جديدة
   const handleCreateTicket = async () => {
@@ -218,7 +218,7 @@ const SupportTicketDialog = ({ open, onOpenChange, booking }: SupportTicketDialo
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl rounded-[2rem] p-0 overflow-hidden" dir="rtl">
+      <DialogContent className="max-w-2xl rounded-4xl p-0 overflow-hidden" dir="rtl">
         <DialogHeader className="p-6 bg-muted/30 border-b">
           <DialogTitle className="flex items-center gap-2 text-2xl font-black text-primary">
             <LifeBuoy className="w-6 h-6" />
@@ -258,7 +258,7 @@ const SupportTicketDialog = ({ open, onOpenChange, booking }: SupportTicketDialo
                   placeholder={t('support.ticket_details_placeholder')} 
                   value={message} 
                   onChange={(e) => setMessage(e.target.value)}
-                  className="min-h-[120px] rounded-xl bg-muted/20 resize-none p-4"
+                  className="min-h-30 rounded-xl bg-muted/20 resize-none p-4"
                 />
               </div>
             </div>
@@ -272,7 +272,7 @@ const SupportTicketDialog = ({ open, onOpenChange, booking }: SupportTicketDialo
           </div>
         ) : (
           // واجهة المحادثة في تذكرة قائمة
-          <div className="flex flex-col h-[500px]">
+          <div className="flex flex-col h-125">
             <div className="p-4 border-b bg-background flex justify-between items-center shadow-sm z-10">
               <div>
                 <h3 className="font-black text-lg">{activeTicket.subject}</h3>

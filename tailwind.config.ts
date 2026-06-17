@@ -1,7 +1,8 @@
 import type { Config } from "tailwindcss";
+import tailwindcssAnimate from "tailwindcss-animate";
 
 export default {
-  darkMode: ["class"],
+  darkMode: "class",
   content: ["./pages/**/*.{ts,tsx}", "./components/**/*.{ts,tsx}", "./app/**/*.{ts,tsx}", "./src/**/*.{ts,tsx}"],
   prefix: "",
   theme: {
@@ -14,6 +15,7 @@ export default {
     },
     extend: {
       fontFamily: {
+        // إضافة خط التاجوال لضمان هوية بصرية عربية احترافية وسلسة للمنصة
         tajawal: ["Tajawal", "sans-serif"],
       },
       colors: {
@@ -104,5 +106,6 @@ export default {
       },
     },
   },
-  plugins: [require("tailwindcss-animate")],
+  // تمرير التابع المستورد بصيغة الـ ESM الحديثة مباشرة لتفادي مشاكل الـ CommonJS القديمة
+  plugins: [tailwindcssAnimate],
 } satisfies Config;

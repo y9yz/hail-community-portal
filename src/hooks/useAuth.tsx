@@ -45,14 +45,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const fetchedForUserId = useRef<string | null>(null);
 
   // دالة لجلب بيانات المستخدم (الصلاحية والملف الشخصي) مع آلية لإعادة المحاولة وتحديد وقت أقصى للاستجابة
-  const fetchUserData = useCallback(async (userId: string, retryCount = 0) => {
-    const maxRetries = 2; 
-    const queryTimeout = 10000; 
+  const fetchUserData = useCallback(async (userId: string): Promise<void> => {
+  const maxRetries = 2;
+  const queryTimeout = 10000;
 
+  for (let retryCount = 0; retryCount <= maxRetries; retryCount++) {
     console.log(`Fetching user data for: ${userId} (attempt ${retryCount + 1}/${maxRetries + 1})`);
 
     try {
-      // تنفيذ استعلامات قاعدة البيانات بشكل متوازٍ لتقليل وقت الانتظار
       const rolesPromise = Promise.race([
         supabase.from("user_roles").select("role").eq("user_id", userId),
         new Promise((_, reject) =>
@@ -77,49 +77,44 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         { data: { full_name: string; phone: string | null; is_verified: boolean } | null; error: Error | null }
       ];
 
-      // تسجيل الأخطاء إن وجدت، دون إيقاف سير العمل الأساسي
       if (rolesError) console.error("Roles query error:", rolesError);
       if (profError) console.error("Profile query error:", profError);
 
-      // تحديث حالة الصلاحية (Role) أو تعيين القيمة الافتراضية
       if (roles && roles.length > 0) {
         setRole(roles[0].role as "client" | "provider" | "admin");
-        console.log("Role set to:", roles[0].role);
       } else {
         setRole("client");
-        console.log("Role defaulted to: client");
       }
 
-      // تحديث بيانات الملف الشخصي
-      if (prof) {
-        setProfile(prof);
-        console.log("Profile set:", prof.full_name);
-      } else {
-        setProfile(null);
-        console.log("Profile not found, set to null");
-      }
+      if (prof) setProfile(prof);
+      else setProfile(null);
 
       console.log("fetchUserData completed successfully");
+      return; // success — stop the loop here
     } catch (err) {
       console.error(`Error in user queries (attempt ${retryCount + 1}):`, err);
 
-      // آلية إعادة المحاولة في حال فشل الاتصال
       if (retryCount < maxRetries) {
         console.log(`Retrying fetchUserData in 1.5 seconds... (${retryCount + 1}/${maxRetries})`);
-        await new Promise(resolve => setTimeout(resolve, 1500)); 
-        return fetchUserData(userId, retryCount + 1);
+        await new Promise(resolve => setTimeout(resolve, 1500));
+        continue; // next loop iteration instead of recursive call
       }
 
       console.log("All retries failed, using defaults");
       setRole("client");
       setProfile(null);
     }
-  }, []);
+  }
+}, []);
 
   // الاستماع لتغيرات حالة المصادقة (تسجيل الدخول، تسجيل الخروج، تجديد الجلسة)
   useEffect(() => {
     let mounted = true;
-    setLoading(true);
+    
+    // حل مشكلة التحديث المتزامن الصارم لـ Linter بتأجيل مواءمة الحالة لنهاية طابور المهام الدقيقة
+    queueMicrotask(() => {
+      if (mounted) setLoading(true);
+    });
 
     // تسجيل مراقب للاستماع لأحداث مصادقة Supabase
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, currentSession) => {
@@ -172,11 +167,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, [fetchUserData]);
 
   // مجموعة دوال مساعدة مغلفة بـ useCallback لضمان استقرارها وتقليل إعادة التصيير (Re-renders)
-  const signUp = useCallback(async (email: string, password: string, fullName: string, phone: string, role: "client" | "provider") => {
+  const signUp = useCallback(async (email: string, password: string, fullName: string, phone: string, roleName: "client" | "provider") => {
     const { error } = await supabase.auth.signUp({
       email,
       password,
-      options: { data: { full_name: fullName, phone, role } },
+      options: { data: { full_name: fullName, phone, role: roleName } },
     });
     if (error) throw new Error(error.message);
   }, []);
@@ -216,7 +211,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   }, []);
 
-  // حفظ القيم המمررة للسياق في الذاكرة لتجنب إعادة تصيير المكونات المستهلكة بلا حاجة
+  // حفظ القيم الممررة للسياق في الذاكرة لتجنب إعادة تصيير المكونات المستهلكة بلا حاجة
   const value = useMemo(() => ({
     user, session, role, profile, loading,
     signUp, signIn, signOut, verifyOtp,

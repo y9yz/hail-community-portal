@@ -1,12 +1,12 @@
 // استيراد المكتبات والمكونات اللازمة
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  CheckCircle2, XCircle, Clock, MessageSquare, Plus, Package, Inbox, Upload,
-  Image, FileText, Edit, Phone, MessageCircle, CheckCheck, TrendingUp, BarChart3, Download, Star, MapPin, Wallet, AlertTriangle, ArrowLeft, LifeBuoy, Calendar, BellRing
+  CheckCircle2, Clock, Plus, Package, Inbox, Upload,
+  Image, FileText, Edit, MapPin, BarChart3, MessageCircle, Star, Download, BellRing, LifeBuoy, Calendar
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -27,27 +27,73 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 // ألوان مخصصة للرسوم البيانية
 const COLORS = ["#10b981", "#f59e0b", "#3b82f6", "#ef4444"];
 
+// ─── Types ────────────────────────────────────────────────────────────────────
+interface Subscription {
+  status: string;
+  expires_at?: string;
+  trial_ends_at?: string;
+  provider_id: string;
+  created_at: string;
+}
+
+interface Booking {
+  id: string;
+  order_number?: string;
+  service_title: string;
+  problem_description?: string;
+  provider_status: string;
+  status: string;
+  created_at: string;
+  scheduled_date?: string;
+  scheduled_time?: string;
+  client_id: string;
+  provider_id: string;
+  client?: { full_name: string; phone: string };
+}
+
+interface Review {
+  rating: number;
+  comment?: string;
+  service_id: string;
+}
+
+interface RecentReview {
+  rating: number;
+  comment: string;
+  serviceTitle: string;
+}
+
+interface ProviderStats {
+  total: number;
+  accepted: number;
+  pending: number;
+  completed: number;
+  declined: number;
+  avgRating: number;
+}
+
+// ─── Component ────────────────────────────────────────────────────────────────
 const ProviderDashboard = () => {
   const navigate = useNavigate();
   const { t } = useTranslation();
   const { user, role, loading: authLoading } = useAuth();
-  
+
   // تعريف متغيرات الحالة (State) الخاصة بالبيانات والتحميل
   const [services, setServices] = useState<Service[]>([]);
-  const [bookings, setBookings] = useState<any[]>([]);
-  const [subscription, setSubscription] = useState<any | null>(null);
+  const [bookings, setBookings] = useState<Booking[]>([]);
+  const [subscription, setSubscription] = useState<Subscription | null>(null);
   const [loading, setLoading] = useState(true);
   const [subscriptionLoading, setSubscriptionLoading] = useState(false);
-  
+
   // متغيرات حالة الإحصائيات والتقييمات والرسوم البيانية
-  const [providerStats, setProviderStats] = useState({
+  const [providerStats, setProviderStats] = useState<ProviderStats>({
     total: 0, accepted: 0, pending: 0, completed: 0, declined: 0, avgRating: 0
   });
-  const [recentReviews, setRecentReviews] = useState<{rating: number, comment: string, serviceTitle: string}[]>([]);
-  const [timelineData, setTimelineData] = useState<{date: string, orders: number}[]>([]);
+  const [recentReviews, setRecentReviews] = useState<RecentReview[]>([]);
+  const [timelineData, setTimelineData] = useState<{ date: string; orders: number }[]>([]);
 
   // متغيرات حالة النوافذ المنبثقة (المحادثة والدعم الفني)
-  const [chatBooking, setChatBooking] = useState<any>(null);
+  const [chatBooking, setChatBooking] = useState<Booking | null>(null);
   const [supportOpen, setSupportOpen] = useState(false);
 
   // متغيرات حالة نموذج إضافة خدمة جديدة
@@ -59,60 +105,117 @@ const ProviderDashboard = () => {
   const [serviceImage, setServiceImage] = useState<File | null>(null);
   const [licenseFile, setLicenseFile] = useState<File | null>(null);
   const [addingService, setAddingService] = useState(false);
-  
+
   const imageInputRef = useRef<HTMLInputElement>(null);
   const licenseInputRef = useRef<HTMLInputElement>(null);
-
   const fetchedForUserId = useRef<string | null>(null);
   const unsubscribeRef = useRef<(() => void) | null>(null);
 
-  // حساب الأيام المتبقية في الفترة التجريبية
-  const calculateTrialDays = () => {
-    if (subscription) {
-      if (subscription.status === 'active') return 30; 
-      if (subscription.status === 'expired') return 0;
-      
-      const endDate = subscription.expires_at || subscription.trial_ends_at;
-      if (endDate) {
-        const remainingTime = new Date(endDate).getTime() - Date.now();
-        return Math.max(0, Math.floor(remainingTime / (1000 * 60 * 60 * 24)));
+  // تخزين وقت تحميل لوحة التحكم لمرة واحدة كمستند حالة نقي لتفادي مشاكل الحسابات غير المستقرة أثناء الرندر
+  const [dashboardStartTime] = useState(() => Date.now());
+
+  // ─── جلب وتحديث بيانات الاشتراك ─────────────────────────────────────────
+  const refetchSubscription = useCallback(async () => {
+    if (!user?.id) return;
+    setSubscriptionLoading(true);
+    try {
+      const { data: subData, error: subError } = await supabase
+        .from("subscriptions")
+        .select("*")
+        .eq("provider_id", user.id)
+        .order("created_at", { ascending: false });
+
+      if (!subError && subData && subData.length > 0) {
+        const activeSub = (subData as unknown as Subscription[]).find((s) => s.status === 'active');
+        setSubscription((activeSub || (subData as unknown as Subscription[])[0]) ?? null);
+      } else {
+        setSubscription(null);
       }
-    }
-
-    const creationDate = user?.created_at;
-    if (!creationDate) return 30; 
-    const createdTime = new Date(creationDate).getTime();
-    const currentTime = Date.now();
-    const daysPassed = Math.floor((currentTime - createdTime) / (1000 * 60 * 60 * 24));
-    return Math.max(0, 30 - daysPassed);
-  };
-
-  const trialDaysLeft = calculateTrialDays();
-  const isSubscribed = subscription && subscription.status === 'active';
-
-  // التأكد من تسجيل الدخول وصلاحية المستخدم كمقدم خدمة
-  useEffect(() => {
-    if (authLoading) return;
-    if (!user || role !== "provider") { navigate("/", { replace: true }); return; }
-
-    if (fetchedForUserId.current === user.id) return;
-    fetchedForUserId.current = user.id;
-    fetchData();
-    setupRealtimeListener();
-  }, [user?.id, role, authLoading, navigate]);
-
-  // التحقق من حالة الدفع عبر رابط الصفحة لتحديث حالة الاشتراك فوراً
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const justPaid = params.get('payment_success');
-    if (justPaid === 'true' && user?.id) {
-      refetchSubscription();
-      window.history.replaceState({}, document.title, window.location.pathname);
+    } catch (err) {
+      console.error('[RefetchSubscription] Error:', err);
+    } finally {
+      setSubscriptionLoading(false);
     }
   }, [user?.id]);
 
-  // إعداد الاستماع الفوري لقاعدة البيانات (تحديث الطلبات والاشتراكات بدون إعادة تحميل)
-  const setupRealtimeListener = () => {
+  // ─── جلب كافة البيانات الأساسية للوحة التحكم ────────────────────────────
+  const fetchData = useCallback(async () => {
+    if (!user) return;
+    setLoading(true);
+
+    try {
+      const { data: subData, error: subError } = await supabase
+        .from("subscriptions")
+        .select("*")
+        .eq("provider_id", user.id)
+        .order("created_at", { ascending: false });
+
+      if (!subError && subData && subData.length > 0) {
+        const activeSub = (subData as unknown as Subscription[]).find((s) => s.status === 'active');
+        setSubscription((activeSub || (subData as unknown as Subscription[])[0]) ?? null);
+      } else {
+        setSubscription(null);
+      }
+    } catch {
+      setSubscription(null);
+    }
+
+    try {
+      const [resSvc, resBk, resReview] = await Promise.all([
+        supabase.from("services").select("*").eq("provider_id", user.id).order("created_at", { ascending: false }),
+        supabase.from("bookings").select("*, client:profiles!bookings_client_id_fkey(full_name, phone)").eq("provider_id", user.id).order("created_at", { ascending: false }),
+        supabase.from("reviews").select("rating, comment, service_id").order("created_at", { ascending: false }),
+      ]);
+
+      const svc = (resSvc.data || []) as Service[];
+      const bk = (resBk.data || []) as unknown as Booking[];
+      const reviewData = (resReview.data || []) as Review[];
+
+      setServices(svc);
+      setBookings(bk);
+
+      // axستخراج وتنسيق بيانات الرسم البياني الزمني للطلبات
+      const timelineMap: Record<string, number> = {};
+      bk.forEach((b) => {
+        const dateStr = new Date(b.created_at).toLocaleDateString('ar-SA', { month: 'short', day: 'numeric' });
+        timelineMap[dateStr] = (timelineMap[dateStr] || 0) + 1;
+      });
+      const tData = Object.entries(timelineMap).map(([date, orders]) => ({ date, orders })).reverse();
+      setTimelineData(tData);
+
+      // تجهيز قائمة التقييمات وحساب متوسط التقييم
+      const svcIds = new Set(svc.map((s) => s.id));
+      const myReviews = reviewData.filter((r) => svcIds.has(r.service_id));
+      const avg = myReviews.length > 0 ? myReviews.reduce((s, r) => s + r.rating, 0) / myReviews.length : 0;
+
+      const commentsWithTitles: RecentReview[] = myReviews
+        .filter((r) => r.comment && r.comment.trim() !== '')
+        .map((r) => ({
+          rating: r.rating,
+          comment: r.comment!,
+          serviceTitle: svc.find((s) => s.id === r.service_id)?.title || t('service.default_title')
+        }));
+      setRecentReviews(commentsWithTitles);
+
+      // تعيين الإحصائيات النهائية
+      setProviderStats({
+        total: bk.length,
+        accepted: bk.filter((b) => b.provider_status === "accepted").length,
+        pending: bk.filter((b) => b.provider_status === "pending").length,
+        completed: bk.filter((b) => b.status === "completed").length,
+        declined: bk.filter((b) => b.provider_status === "declined").length,
+        avgRating: Math.round(avg * 10) / 10
+      });
+    } catch (err: unknown) {
+      toast.error(t('provider.fetch_error'));
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  }, [user, t]);
+
+  // ─── إعداد الاستماع الفوري لقاعدة البيانات ───────────────────────────────
+  const setupRealtimeListener = useCallback(() => {
     if (!user?.id) return;
 
     const subChannel = supabase
@@ -130,7 +233,7 @@ const ProviderDashboard = () => {
         } else if (payload.eventType === 'UPDATE') {
           toast.info('تم تحديث حالة أحد الطلبات 🔄');
         }
-        fetchData(); 
+        fetchData();
       })
       .subscribe();
 
@@ -138,117 +241,59 @@ const ProviderDashboard = () => {
       supabase.removeChannel(subChannel);
       supabase.removeChannel(bookingsChannel);
     };
-  };
+  }, [user?.id, refetchSubscription, fetchData]);
 
-  // جلب وتحديث بيانات الاشتراك الخاص بمقدم الخدمة
-  const refetchSubscription = async () => {
-    if (!user?.id) return;
-    setSubscriptionLoading(true);
-    try {
-      const { data: subData, error: subError } = await supabase
-        .from("subscriptions" as any)
-        .select("*")
-        .eq("provider_id", user.id)
-        .order("created_at", { ascending: false });
-
-      if (!subError && subData && subData.length > 0) {
-        const activeSub = subData.find((s: any) => s.status === 'active');
-        setSubscription(activeSub || subData[0]);
-      } else {
-        setSubscription(null);
+  // ─── حساب الأيام المتبقية في الفترة التجريبية ────────────────────────────
+  const calculateTrialDays = useCallback((): number => {
+    if (subscription) {
+      if (subscription.status === 'active') return 30;
+      if (subscription.status === 'expired') return 0;
+      const endDate = subscription.expires_at || subscription.trial_ends_at;
+      if (endDate) {
+        const remainingTime = new Date(endDate).getTime() - dashboardStartTime;
+        return Math.max(0, Math.floor(remainingTime / (1000 * 60 * 60 * 24)));
       }
-    } catch (err) {
-      console.error('[RefetchSubscription] Error:', err);
-    } finally {
-      setSubscriptionLoading(false);
     }
-  };
+    const creationDate = user?.created_at;
+    if (!creationDate) return 30;
+    const createdTime = new Date(creationDate).getTime();
+    const daysPassed = Math.floor((dashboardStartTime - createdTime) / (1000 * 60 * 60 * 24));
+    return Math.max(0, 30 - daysPassed);
+  }, [subscription, user?.created_at, dashboardStartTime]);
 
-  // جلب كافة البيانات الأساسية للوحة التحكم (خدمات، طلبات، تقييمات، إحصائيات)
-  const fetchData = async () => {
-    if (!user) return;
-    setLoading(true);
-    
-    try {
-      const { data: subData, error: subError } = await supabase
-        .from("subscriptions" as any)
-        .select("*")
-        .eq("provider_id", user.id)
-        .order("created_at", { ascending: false });
+  const trialDaysLeft = calculateTrialDays();
+  const isSubscribed = subscription?.status === 'active';
 
-      if (!subError && subData && subData.length > 0) {
-        const activeSub = subData.find((s: any) => s.status === 'active');
-        setSubscription(activeSub || subData[0]);
-      } else {
-        setSubscription(null);
-      }
-    } catch (subErr) {
-      setSubscription(null);
+  // ─── التأكد من تسجيل الدخول وصلاحية المستخدم ────────────────────────────
+  useEffect(() => {
+    if (authLoading) return;
+    if (!user || role !== "provider") { navigate("/", { replace: true }); return; }
+    if (fetchedForUserId.current === user.id) return;
+    fetchedForUserId.current = user.id;
+    fetchData();
+    setupRealtimeListener();
+  }, [user?.id, role, authLoading, navigate, fetchData, setupRealtimeListener]);
+
+  // ─── التحقق من حالة الدفع عبر رابط الصفحة ───────────────────────────────
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const justPaid = params.get('payment_success');
+    if (justPaid === 'true' && user?.id) {
+      refetchSubscription();
+      window.history.replaceState({}, document.title, window.location.pathname);
     }
+  }, [user?.id, refetchSubscription]);
 
-    try {
-      const [resSvc, resBk, resReview] = await Promise.all([
-        supabase.from("services").select("*").eq("provider_id", user.id).order("created_at", { ascending: false }),
-        supabase.from("bookings").select("*, client:profiles!bookings_client_id_fkey(full_name, phone)").eq("provider_id", user.id).order("created_at", { ascending: false }),
-        supabase.from("reviews").select("rating, comment, service_id").order("created_at", { ascending: false }),
-      ]);
-
-      const svc = resSvc.data || [];
-      const bk = resBk.data || [];
-      const reviewData = resReview.data || [];
-
-      setServices(svc);
-      setBookings(bk);
-
-      // استخراج وتنسيق بيانات الرسم البياني الزمني للطلبات
-      const timelineMap: Record<string, number> = {};
-      bk.forEach((b: any) => {
-        const dateStr = new Date(b.created_at).toLocaleDateString('ar-SA', { month: 'short', day: 'numeric' });
-        timelineMap[dateStr] = (timelineMap[dateStr] || 0) + 1;
-      });
-      const tData = Object.entries(timelineMap).map(([date, orders]) => ({ date, orders })).reverse();
-      setTimelineData(tData);
-
-      // تجهيز قائمة التقييمات وحساب متوسط التقييم
-      const myReviews = reviewData.filter((r: any) => svc.map(s => s.id).includes(r.service_id));
-      const avg = myReviews.length > 0 ? myReviews.reduce((s: number, r: any) => s + r.rating, 0) / myReviews.length : 0;
-      
-      const commentsWithTitles = myReviews
-        .filter((r: any) => r.comment && r.comment.trim() !== '')
-        .map((r: any) => ({
-          rating: r.rating,
-          comment: r.comment,
-          serviceTitle: svc.find((s: any) => s.id === r.service_id)?.title || t('service.default_title')
-        }));
-      setRecentReviews(commentsWithTitles);
-
-      // تعيين الإحصائيات النهائية
-      setProviderStats({
-        total: bk.length,
-        accepted: bk.filter((b: any) => b.provider_status === "accepted").length,
-        pending: bk.filter((b: any) => b.provider_status === "pending").length,
-        completed: bk.filter((b: any) => b.status === "completed").length,
-        declined: bk.filter((b: any) => b.provider_status === "declined").length,
-        avgRating: Math.round(avg * 10) / 10
-      });
-    } catch (err: any) {
-      toast.error(t('provider.fetch_error'));
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // توجيه المستخدم لصفحة الدفع في حال انتهاء الفترة التجريبية وعدم التجديد
+  // ─── توجيه المستخدم لصفحة الدفع عند انتهاء الفترة التجريبية ─────────────
   useEffect(() => {
     if (loading || authLoading) return;
     if (isSubscribed) return;
     if (trialDaysLeft > 0) return;
-
     toast.error(t('provider.trial_expired_alert'));
     navigate('/payment', { replace: true });
-  }, [loading, authLoading, subscriptionLoading, isSubscribed, trialDaysLeft, navigate, t]);
+  }, [loading, authLoading, isSubscribed, trialDaysLeft, navigate, t]);
 
-  // إزالة الاستماع الفوري عند تفريغ المكون
+  // ─── إزالة الاستماع الفوري عند تفريغ المكون ──────────────────────────────
   useEffect(() => {
     return () => {
       if (unsubscribeRef.current) unsubscribeRef.current();
@@ -269,8 +314,8 @@ const ProviderDashboard = () => {
     }
 
     const headers = ['رقم الطلب', 'اسم الخدمة', 'اسم العميل', 'رقم الجوال', 'تاريخ الطلب', 'تاريخ التنفيذ', 'حالة الطلب'];
-    
-    const csvData = bookings.map(b => [
+
+    const csvData = bookings.map((b) => [
       b.order_number || b.id.substring(0, 8),
       b.service_title,
       b.client?.full_name || 'غير متوفر',
@@ -282,19 +327,17 @@ const ProviderDashboard = () => {
 
     const csvContent = [
       headers.join(','),
-      ...csvData.map(row => row.map(cell => `"${cell}"`).join(','))
+      ...csvData.map((row) => row.map((cell) => `"${cell}"`).join(','))
     ].join('\n');
 
     const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     const url = URL.createObjectURL(blob);
-    
     link.setAttribute('href', url);
-    link.setAttribute('download', `تقرير_طلبات_${new Date().toLocaleDateString('en-GB').replace(/\//g,'-')}.csv`);
+    link.setAttribute('download', `تقرير_طلبات_${new Date().toLocaleDateString('en-GB').replace(/\//g, '-')}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    
     toast.success('تم تصدير التقرير بنجاح!');
   };
 
@@ -306,25 +349,36 @@ const ProviderDashboard = () => {
     if (!user || !isFormValid) return;
     setAddingService(true);
     try {
-      const imagePath = `${user.id}/${Date.now()}-svc.jpg`;
+      // استخدام الـ Timestamp بأمان تام داخل دالة الحدث المنعزلة
+      // eslint-disable-next-line react-hooks/purity
+      const timestamp = Date.now();
+      const imagePath = `${user.id}/${timestamp}-svc.jpg`;
       await supabase.storage.from("public-assets").upload(imagePath, serviceImage!);
       const { data: imgUrl } = supabase.storage.from("public-assets").getPublicUrl(imagePath);
 
-      const licensePath = `${user.id}/${Date.now()}-lic.jpg`;
+      const licensePath = `${user.id}/${timestamp}-lic.jpg`;
       await supabase.storage.from("private-documents").upload(licensePath, licenseFile!);
 
       const { error } = await supabase.from("services").insert({
-        provider_id: user.id, title, category, description,
-        image_url: imgUrl.publicUrl, license_url: licensePath,
-        address_name: neighborhood, maps_link: mapsLink, 
-      } as any);
+        provider_id: user.id,
+        title,
+        category,
+        description,
+        image_url: imgUrl.publicUrl,
+        license_url: licensePath,
+        address_name: neighborhood,
+        maps_link: mapsLink,
+      });
 
       if (error) throw error;
       toast.success(t('provider.service_published'));
       handleManualRefresh();
       setTitle(""); setCategory(""); setDescription(""); setNeighborhood(""); setMapsLink(""); setServiceImage(null); setLicenseFile(null);
-    } catch (err: any) { toast.error(err.message); }
-    finally { setAddingService(false); }
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'حدث خطأ');
+    } finally {
+      setAddingService(false);
+    }
   };
 
   // بيانات مخطط التوزيع الخاص بحالة الطلبات
@@ -336,7 +390,7 @@ const ProviderDashboard = () => {
 
   // إخفاء المحتوى إذا انتهت الفترة التجريبية
   if (!loading && !authLoading && !isSubscribed && trialDaysLeft <= 0) {
-    return null; 
+    return null;
   }
 
   // شاشة التحميل الأولية
@@ -347,7 +401,7 @@ const ProviderDashboard = () => {
   return (
     <div className="min-h-screen bg-background pb-10 text-right flex flex-col" dir="rtl">
       <Navbar />
-      
+
       {/* الشريط العلوي الخاص بلوحة التحكم */}
       <header className="sticky top-16 z-40 bg-card/80 backdrop-blur-lg border-b shadow-sm">
         <div className="container flex flex-col md:flex-row items-start md:items-center justify-between h-auto md:h-16 gap-3 md:gap-4 py-3">
@@ -373,23 +427,23 @@ const ProviderDashboard = () => {
           </Button>
         </div>
       </header>
-      
+
       <div className="container py-4 max-w-6xl space-y-4 flex-1 overflow-auto">
-        
+
         {/* التنبيه بضرورة تفعيل الاشتراك في حال الاعتماد على الفترة التجريبية */}
         {!isSubscribed && trialDaysLeft > 0 && (
-          <Card className="rounded-[2rem] border-2 p-6 flex flex-col md:flex-row items-center justify-between gap-6 shadow-sm transition-all border-primary/20 bg-primary/5">
-             <div className="space-y-2 text-center md:text-right">
-                <h3 className="text-xl font-black flex items-center gap-2 justify-center md:justify-start text-primary">
-                  <Clock className="w-6 h-6" /> {t('provider.trial_active', { days: trialDaysLeft })}
-                </h3>
-                <p className="text-sm font-bold text-muted-foreground">
-                  {t('provider.trial_active_desc')}
-                </p>
-             </div>
-             <Button onClick={() => navigate("/payment")} className="rounded-2xl h-14 px-8 font-black shadow-lg hover:scale-105 transition-transform text-lg w-full md:w-auto">
-                {t('provider.activate_subscription')}
-             </Button>
+          <Card className="rounded-4xl border-2 p-6 flex flex-col md:flex-row items-center justify-between gap-6 shadow-sm transition-all border-primary/20 bg-primary/5">
+            <div className="space-y-2 text-center md:text-right">
+              <h3 className="text-xl font-black flex items-center gap-2 justify-center md:justify-start text-primary">
+                <Clock className="w-6 h-6" /> {t('provider.trial_active', { days: trialDaysLeft })}
+              </h3>
+              <p className="text-sm font-bold text-muted-foreground">
+                {t('provider.trial_active_desc')}
+              </p>
+            </div>
+            <Button onClick={() => navigate("/payment")} className="rounded-2xl h-14 px-8 font-black shadow-lg hover:scale-105 transition-transform text-lg w-full md:w-auto">
+              {t('provider.activate_subscription')}
+            </Button>
           </Card>
         )}
 
@@ -415,7 +469,7 @@ const ProviderDashboard = () => {
           </div>
 
           {/* قائمة أحدث تقييمات العملاء */}
-          <Card className="rounded-3xl border-2 bg-primary/5 border-primary/10 flex flex-col overflow-hidden max-h-[260px] lg:max-h-full">
+          <Card className="rounded-3xl border-2 bg-primary/5 border-primary/10 flex flex-col overflow-hidden max-h-65 lg:max-h-full">
             <div className="bg-primary text-primary-foreground px-4 py-3 font-black flex items-center gap-2 shadow-sm z-10 shrink-0">
               <Star className="w-5 h-5 fill-current" /> {t('provider.top_reviews')}
             </div>
@@ -434,7 +488,7 @@ const ProviderDashboard = () => {
                 ))
               ) : (
                 <div className="flex flex-col items-center justify-center h-full opacity-50 space-y-2 py-8">
-                  <MessageSquare className="w-8 h-8 text-muted-foreground" />
+                  <Inbox className="w-8 h-8 text-muted-foreground" />
                   <p className="text-xs font-black">{t('provider.no_reviews')}</p>
                 </div>
               )}
@@ -444,7 +498,7 @@ const ProviderDashboard = () => {
 
         {/* التبويبات الخاصة بلوحة التحكم */}
         <Tabs defaultValue="requests" className="w-full">
-          <TabsList className="flex overflow-x-auto overflow-y-hidden w-full h-auto min-h-[4rem] rounded-[1.5rem] bg-muted/50 p-1.5 mb-8 shadow-inner justify-start sm:grid sm:grid-cols-4 snap-x [&::-webkit-scrollbar]:hidden [-ms-overflow-style:'none'] [scrollbar-width:'none'] gap-1">
+          <TabsList className="flex overflow-x-auto overflow-y-hidden w-full h-auto min-h-16 rounded-3xl bg-muted/50 p-1.5 mb-8 shadow-inner justify-start sm:grid sm:grid-cols-4 snap-x [&::-webkit-scrollbar]:hidden [-ms-overflow-style:'none'] [scrollbar-width:'none'] gap-1">
             <TabsTrigger value="requests" className="rounded-xl font-black whitespace-nowrap shrink-0 snap-start px-6 sm:px-3 py-3 data-[state=active]:bg-white data-[state=active]:shadow-sm">
               {t('provider.tabs.requests')}
             </TabsTrigger>
@@ -461,7 +515,7 @@ const ProviderDashboard = () => {
 
           {/* تبويب: الطلبات */}
           <TabsContent value="requests" className="space-y-4">
-            {bookings.map(b => (
+            {bookings.map((b) => (
               <Card key={b.id} className="rounded-3xl border-2 overflow-hidden hover:border-primary/30 transition-all bg-card">
                 <div className="p-6 flex flex-col md:flex-row justify-between gap-6">
                   <div className="space-y-4 flex-1">
@@ -476,7 +530,7 @@ const ProviderDashboard = () => {
                     </div>
 
                     <p className="text-sm bg-muted/30 p-4 rounded-2xl italic leading-relaxed">"{b.problem_description}"</p>
-                    
+
                     <div className="flex flex-wrap items-center gap-3">
                       <Badge variant="secondary" className="px-3 py-1 font-bold">{t('provider.customer')}: {b.client?.full_name}</Badge>
                       <Badge variant="outline" className="px-3 py-1 font-bold font-mono">{b.client?.phone}</Badge>
@@ -486,12 +540,12 @@ const ProviderDashboard = () => {
                       </div>
                     </div>
                   </div>
-                  
-                  <div className="flex flex-col gap-2 min-w-[160px] justify-center border-t md:border-t-0 md:border-r pt-4 md:pt-0 md:pr-6 border-dashed">
+
+                  <div className="flex flex-col gap-2 min-w-40 justify-center border-t md:border-t-0 md:border-r pt-4 md:pt-0 md:pr-6 border-dashed">
                     {b.provider_status === 'pending' ? (
                       <>
                         <Button onClick={async () => {
-                          const { error } = await supabase.from('bookings').update({provider_status:'accepted'}).eq('id', b.id);
+                          const { error } = await supabase.from('bookings').update({ provider_status: 'accepted' }).eq('id', b.id);
                           if (!error) {
                             await supabase.from("notifications").insert({
                               recipient_id: b.client_id,
@@ -503,7 +557,7 @@ const ProviderDashboard = () => {
                           }
                         }} className="rounded-2xl h-12 font-black bg-blue-500 hover:bg-blue-600">{t('provider.accept_order')}</Button>
                         <Button onClick={async () => {
-                          const { error } = await supabase.from('bookings').update({provider_status:'declined'}).eq('id', b.id);
+                          const { error } = await supabase.from('bookings').update({ provider_status: 'declined' }).eq('id', b.id);
                           if (!error) {
                             await supabase.from("notifications").insert({
                               recipient_id: b.client_id,
@@ -516,10 +570,10 @@ const ProviderDashboard = () => {
                         }} variant="outline" className="rounded-2xl h-12 font-black text-destructive border-destructive hover:bg-destructive/10">{t('provider.decline_order')}</Button>
                       </>
                     ) : b.provider_status === 'declined' ? (
-                       <Badge className="bg-destructive/10 text-destructive py-3 justify-center border-none font-black rounded-2xl text-sm">{t('provider.declined_badge')}</Badge>
+                      <Badge className="bg-destructive/10 text-destructive py-3 justify-center border-none font-black rounded-2xl text-sm">{t('provider.declined_badge')}</Badge>
                     ) : b.status !== 'completed' ? (
                       <Button onClick={async () => {
-                        const { error } = await supabase.from('bookings').update({status:'completed'}).eq('id', b.id);
+                        const { error } = await supabase.from('bookings').update({ status: 'completed' }).eq('id', b.id);
                         if (!error) {
                           await supabase.from("notifications").insert({
                             recipient_id: b.client_id,
@@ -533,7 +587,7 @@ const ProviderDashboard = () => {
                     ) : (
                       <Badge className="bg-emerald-100 text-emerald-700 py-3 justify-center border-none font-black rounded-2xl text-sm">{t('provider.completed_badge')}</Badge>
                     )}
-                    
+
                     {b.status !== 'completed' && b.provider_status !== 'declined' && (
                       <Button variant="ghost" onClick={() => setChatBooking(b)} className="rounded-2xl h-12 font-bold mt-2 bg-muted/50 hover:bg-primary/10 hover:text-primary">
                         <MessageCircle className="w-5 h-5 me-2" /> {t('provider.contact_client')}
@@ -548,72 +602,72 @@ const ProviderDashboard = () => {
 
           {/* تبويب: التقارير والرسوم البيانية */}
           <TabsContent value="reports" className="space-y-6">
-              <Card className="rounded-[2rem] border-2 p-6">
-                <div className="flex flex-col md:flex-row justify-between items-center gap-4 mb-6">
-                  <h3 className="font-black text-lg text-center md:text-right">{t('provider.reports.timeline') || 'التسلسل الزمني للطلبات'}</h3>
-                  <Button variant="outline" onClick={handleExportCSV} className="rounded-xl font-bold gap-2 bg-primary/5 text-primary hover:bg-primary/10 border-primary/20 w-full md:w-auto">
-                    <Download className="w-4 h-4" />
-                    {t('provider.export_data') || 'تصدير التقرير (Excel)'}
-                  </Button>
-                </div>
-                <div className="h-[300px]">
-                   <ResponsiveContainer width="100%" height="100%">
-                      <AreaChart data={timelineData}>
-                         <defs>
-                           <linearGradient id="colorOrders" x1="0" y1="0" x2="0" y2="1">
-                             <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.8}/>
-                             <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
-                           </linearGradient>
-                         </defs>
-                         <CartesianGrid strokeDasharray="3 3" opacity={0.1} vertical={false} />
-                         <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontWeight: 'bold', fontSize: 12 }} />
-                         <YAxis axisLine={false} tickLine={false} allowDecimals={false} />
-                         <Tooltip contentStyle={{ borderRadius: '1rem', fontWeight: 'bold', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
-                         <Area type="monotone" dataKey="orders" name="عدد الطلبات" stroke="#3b82f6" strokeWidth={3} fillOpacity={1} fill="url(#colorOrders)" />
-                      </AreaChart>
-                   </ResponsiveContainer>
+            <Card className="rounded-4xl border-2 p-6">
+              <div className="flex flex-col md:flex-row justify-between items-center gap-4 mb-6">
+                <h3 className="font-black text-lg text-center md:text-right">{t('provider.reports.timeline') || 'التسلسل الزمني للطلبات'}</h3>
+                <Button variant="outline" onClick={handleExportCSV} className="rounded-xl font-bold gap-2 bg-primary/5 text-primary hover:bg-primary/10 border-primary/20 w-full md:w-auto">
+                  <Download className="w-4 h-4" />
+                  {t('provider.export_data') || 'تصدير التقرير (Excel)'}
+                </Button>
+              </div>
+              <div className="h-75">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={timelineData}>
+                    <defs>
+                      <linearGradient id="colorOrders" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.8} />
+                        <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" opacity={0.1} vertical={false} />
+                    <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontWeight: 'bold', fontSize: 12 }} />
+                    <YAxis axisLine={false} tickLine={false} allowDecimals={false} />
+                    <Tooltip contentStyle={{ borderRadius: '1rem', fontWeight: 'bold', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
+                    <Area type="monotone" dataKey="orders" name="عدد الطلبات" stroke="#3b82f6" strokeWidth={3} fillOpacity={1} fill="url(#colorOrders)" />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            </Card>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <Card className="rounded-4xl border-2 p-6">
+                <h3 className="font-black text-lg mb-6 text-center">{t('provider.reports.order_distribution')}</h3>
+                <div className="h-75">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie data={chartData} cx="50%" cy="50%" innerRadius={60} outerRadius={100} paddingAngle={5} dataKey="value">
+                        {chartData.map((entry, index) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}
+                      </Pie>
+                      <Tooltip contentStyle={{ borderRadius: '1rem', fontWeight: 'bold' }} />
+                      <Legend wrapperStyle={{ fontWeight: 'bold', fontSize: '12px' }} />
+                    </PieChart>
+                  </ResponsiveContainer>
                 </div>
               </Card>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                 <Card className="rounded-[2rem] border-2 p-6">
-                    <h3 className="font-black text-lg mb-6 text-center">{t('provider.reports.order_distribution')}</h3>
-                    <div className="h-[300px]">
-                       <ResponsiveContainer width="100%" height="100%">
-                          <PieChart>
-                             <Pie data={chartData} cx="50%" cy="50%" innerRadius={60} outerRadius={100} paddingAngle={5} dataKey="value">
-                                {chartData.map((entry, index) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}
-                             </Pie>
-                             <Tooltip contentStyle={{ borderRadius: '1rem', fontWeight: 'bold' }} />
-                             <Legend wrapperStyle={{ fontWeight: 'bold', fontSize: '12px' }} />
-                          </PieChart>
-                       </ResponsiveContainer>
-                    </div>
-                 </Card>
-                 <Card className="rounded-[2rem] border-2 p-6">
-                    <h3 className="font-black text-lg mb-6 text-center">{t('provider.reports.performance_stats')}</h3>
-                    <div className="h-[300px]">
-                       <ResponsiveContainer width="100%" height="100%">
-                          <BarChart data={chartData}>
-                             <CartesianGrid strokeDasharray="3 3" opacity={0.2} vertical={false} />
-                             <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontWeight: 'bold', fontSize: 12 }} />
-                             <YAxis axisLine={false} tickLine={false} />
-                             <Tooltip cursor={{ fill: 'transparent' }} contentStyle={{ borderRadius: '1rem', fontWeight: 'bold' }} />
-                             <Bar dataKey="value" radius={[8, 8, 8, 8]}>
-                                {chartData.map((entry, index) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}
-                             </Bar>
-                          </BarChart>
-                       </ResponsiveContainer>
-                    </div>
-                 </Card>
-              </div>
+              <Card className="rounded-4xl border-2 p-6">
+                <h3 className="font-black text-lg mb-6 text-center">{t('provider.reports.performance_stats')}</h3>
+                <div className="h-75">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={chartData}>
+                      <CartesianGrid strokeDasharray="3 3" opacity={0.2} vertical={false} />
+                      <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontWeight: 'bold', fontSize: 12 }} />
+                      <YAxis axisLine={false} tickLine={false} />
+                      <Tooltip cursor={{ fill: 'transparent' }} contentStyle={{ borderRadius: '1rem', fontWeight: 'bold' }} />
+                      <Bar dataKey="value" radius={[8, 8, 8, 8]}>
+                        {chartData.map((entry, index) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </Card>
+            </div>
           </TabsContent>
 
           {/* تبويب: عرض الخدمات */}
           <TabsContent value="services" className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {services.map(s => (
-              <Card key={s.id} className="rounded-[2rem] overflow-hidden border-2 flex flex-col group bg-card">
-                <img src={s.image_url || ''} className="h-48 object-cover group-hover:scale-105 transition-transform" />
+            {services.map((s) => (
+              <Card key={s.id} className="rounded-4xl overflow-hidden border-2 flex flex-col group bg-card">
+                <img src={s.image_url || ''} className="h-48 object-cover group-hover:scale-105 transition-transform" alt={s.title} />
                 <div className="p-6 flex-1 flex flex-col">
                   <div className="flex justify-between items-start mb-4">
                     <h3 className="font-black text-xl line-clamp-1">{s.title}</h3>
@@ -637,36 +691,36 @@ const ProviderDashboard = () => {
               <CardContent className="p-8 space-y-8">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                   <div className="space-y-5">
-                    <div className="space-y-2"><Label className="font-black text-sm">{t('provider.service_title_label')} *</Label><Input placeholder={t('provider.service_title_placeholder')} value={title} onChange={e => setTitle(e.target.value)} className="rounded-2xl h-14 bg-muted/20 border-2" /></div>
+                    <div className="space-y-2"><Label className="font-black text-sm">{t('provider.service_title_label')} *</Label><Input placeholder={t('provider.service_title_placeholder')} value={title} onChange={(e) => setTitle(e.target.value)} className="rounded-2xl h-14 bg-muted/20 border-2" /></div>
                     <div className="space-y-2">
                       <Label className="font-black text-sm">{t('provider.category_label')} *</Label>
                       <Select value={category} onValueChange={setCategory}>
                         <SelectTrigger className="rounded-2xl h-14 bg-muted/20 border-2"><SelectValue placeholder={t('provider.category_placeholder')} /></SelectTrigger>
-                        <SelectContent>{categories.filter(c=>c.id!=='all').map(c=><SelectItem key={c.id} value={c.id} className="font-bold">{c.label}</SelectItem>)}</SelectContent>
+                        <SelectContent>{categories.filter((c) => c.id !== 'all').map((c) => <SelectItem key={c.id} value={c.id} className="font-bold">{c.label}</SelectItem>)}</SelectContent>
                       </Select>
                     </div>
-                    <div className="space-y-2"><Label className="font-black text-sm">{t('provider.description_label')} *</Label><Textarea placeholder={t('provider.description_placeholder')} value={description} onChange={e => setDescription(e.target.value)} className="rounded-2xl min-h-[140px] bg-muted/20 border-2 resize-none p-4" /></div>
+                    <div className="space-y-2"><Label className="font-black text-sm">{t('provider.description_label')} *</Label><Textarea placeholder={t('provider.description_placeholder')} value={description} onChange={(e) => setDescription(e.target.value)} className="rounded-2xl min-h-35 bg-muted/20 border-2 resize-none p-4" /></div>
                   </div>
                   <div className="space-y-5">
-                    <div className="bg-primary/5 p-6 rounded-[2rem] space-y-5 border border-primary/10">
-                      <div className="space-y-2"><Label className="font-black text-sm flex items-center gap-2"><MapPin className="w-4 h-4 text-primary" /> {t('provider.neighborhood_label')} *</Label><Input placeholder={t('provider.neighborhood_placeholder')} value={neighborhood} onChange={e => setNeighborhood(e.target.value)} className="rounded-2xl h-14 bg-white" /></div>
-                      <div className="space-y-2"><Label className="font-black text-sm">{t('provider.map_link_label')} *</Label><Input type="url" placeholder={t('provider.map_link_placeholder')} value={mapsLink} onChange={e => setMapsLink(e.target.value)} className="rounded-2xl h-14 bg-white" /></div>
+                    <div className="bg-primary/5 p-6 rounded-4xl space-y-5 border border-primary/10">
+                      <div className="space-y-2"><Label className="font-black text-sm flex items-center gap-2"><MapPin className="w-4 h-4 text-primary" /> {t('provider.neighborhood_label')} *</Label><Input placeholder={t('provider.neighborhood_placeholder')} value={neighborhood} onChange={(e) => setNeighborhood(e.target.value)} className="rounded-2xl h-14 bg-white" /></div>
+                      <div className="space-y-2"><Label className="font-black text-sm">{t('provider.map_link_label')} *</Label><Input type="url" placeholder={t('provider.map_link_placeholder')} value={mapsLink} onChange={(e) => setMapsLink(e.target.value)} className="rounded-2xl h-14 bg-white" /></div>
                     </div>
                     <div className="grid grid-cols-2 gap-4">
-                      <div className={`p-6 border-2 border-dashed rounded-[2rem] text-center cursor-pointer transition-all ${serviceImage ? 'bg-primary/10 border-primary' : 'hover:bg-muted/50'}`} onClick={() => imageInputRef.current?.click()}>
+                      <div className={`p-6 border-2 border-dashed rounded-4xl text-center cursor-pointer transition-all ${serviceImage ? 'bg-primary/10 border-primary' : 'hover:bg-muted/50'}`} onClick={() => imageInputRef.current?.click()}>
                         <Image className={`mx-auto mb-3 w-8 h-8 ${serviceImage ? 'text-primary' : 'text-muted-foreground'}`} />
                         <p className="text-xs font-black">{serviceImage ? t('provider.image_attached') : t('provider.attach_service_image')}</p>
-                        <input ref={imageInputRef} type="file" className="hidden" onChange={e => setServiceImage(e.target.files?.[0] || null)} />
+                        <input ref={imageInputRef} type="file" className="hidden" onChange={(e) => setServiceImage(e.target.files?.[0] || null)} />
                       </div>
-                      <div className={`p-6 border-2 border-dashed rounded-[2rem] text-center cursor-pointer transition-all ${licenseFile ? 'bg-amber-50 border-amber-500' : 'hover:bg-muted/50'}`} onClick={() => licenseInputRef.current?.click()}>
+                      <div className={`p-6 border-2 border-dashed rounded-4xl text-center cursor-pointer transition-all ${licenseFile ? 'bg-amber-50 border-amber-500' : 'hover:bg-muted/50'}`} onClick={() => licenseInputRef.current?.click()}>
                         <FileText className={`mx-auto mb-3 w-8 h-8 ${licenseFile ? 'text-amber-600' : 'text-muted-foreground'}`} />
                         <p className="text-xs font-black">{licenseFile ? t('provider.license_attached') : t('provider.attach_license')}</p>
-                        <input ref={licenseInputRef} type="file" className="hidden" onChange={e => setLicenseFile(e.target.files?.[0] || null)} />
+                        <input ref={licenseInputRef} type="file" className="hidden" onChange={(e) => setLicenseFile(e.target.files?.[0] || null)} />
                       </div>
                     </div>
                   </div>
                 </div>
-                <Button onClick={handleSubmitService} disabled={addingService || !isFormValid} className="w-full h-16 rounded-[1.5rem] text-xl font-black shadow-xl shadow-primary/20">
+                <Button onClick={handleSubmitService} disabled={addingService || !isFormValid} className="w-full h-16 rounded-3xl text-xl font-black shadow-xl shadow-primary/20">
                   {addingService ? t('provider.service_publishing') : t('provider.submit_service')}
                 </Button>
               </CardContent>
@@ -676,10 +730,10 @@ const ProviderDashboard = () => {
       </div>
 
       {/* النوافذ المنبثقة للدعم الفني ومحادثة العملاء */}
-      <SupportTicketDialog open={supportOpen} onOpenChange={supportOpen => setSupportOpen(supportOpen)} />
-      
+      <SupportTicketDialog open={supportOpen} onOpenChange={(open) => setSupportOpen(open)} />
+
       {chatBooking && (
-        <ChatDialog open={!!chatBooking} onOpenChange={open => !open && setChatBooking(null)} bookingId={chatBooking.id} otherName={chatBooking.client?.full_name || t('roles.client')} />
+        <ChatDialog open={!!chatBooking} onOpenChange={(open) => !open && setChatBooking(null)} bookingId={chatBooking.id} otherName={chatBooking.client?.full_name || t('roles.client')} />
       )}
     </div>
   );
