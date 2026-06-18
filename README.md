@@ -1,187 +1,175 @@
 # Hail Community Portal
 
-A full-stack digital marketplace designed to connect clients with local service providers across the Hail region, Saudi Arabia.
+> A full-stack digital marketplace connecting clients with local service providers across the Hail region, Saudi Arabia.
 
-Developed as a graduation capstone project for the Bachelor of Computer Science and Information Systems program at the University of Hail.
+Developed as a graduation capstone project for the **Bachelor of Computer Science and Information Systems** program at the **University of Hail**.
+
+🔗 **Live Demo:** [hail-community-portal.vercel.app](https://hail-community-portal.vercel.app/)
 
 ---
 
-## Live Demo
+## Table of Contents
 
-visit: https://hail-community-portal.vercel.app/
-
-
+- [Project Overview](#project-overview)
+- [Key Features](#key-features)
+- [Technology Stack](#technology-stack)
+- [System Preview](#system-preview)
+- [Getting Started](#getting-started)
+- [Environment Variables](#environment-variables)
+- [Project Team](#project-team)
+- [License](#license)
 
 ---
 
 ## Project Overview
 
-Hail Community Portal is a web-based platform that enables users to discover, book, and communicate with local service providers through a secure and modern digital ecosystem.
+Hail Community Portal is a role-based web platform that connects clients with service providers through a secure and scalable digital ecosystem.
 
-The platform provides dedicated workspaces for clients, service providers, and administrators while supporting real-time communication, service moderation, and operational analytics.
+The platform enables users to:
+- Discover and book local services
+- Communicate with providers in real time
+- Manage transactions through dedicated role-based dashboards
+
+It also includes a full administrative system for service moderation, user management, and platform analytics.
 
 ---
 
 ## Key Features
 
-### Client Portal
+### 👤 Client Portal
+- Browse and search service categories
+- View provider profiles and service details
+- Submit service requests and bookings
+- Real-time messaging with providers
+- Ratings and reviews system
+- Order tracking and history
 
-* Browse and search service categories
-* View provider profiles and service details
-* Submit service requests and bookings
-* Real-time messaging with providers
-* Ratings and reviews system
-* Order tracking and history
+### 🛠️ Provider Workspace
+- Create, edit, and manage services
+- Handle incoming customer requests
+- Real-time communication with clients
+- Performance analytics dashboard
+- Subscription and trial management
+- Support ticket system
 
-### Provider Workspace
+### 🔧 Administrator Dashboard
+- Service approval and moderation workflow
+- User verification and account management
+- Platform analytics and statistics
+- Support ticket oversight
+- Subscription monitoring
+- Data export functionality
 
-* Create, edit, and manage services
-* Manage incoming customer requests
-* Real-time communication with clients
-* Performance analytics dashboard
-* Subscription and trial management
-* Support ticket system
-
-### Administrator Dashboard
-
-* Service approval and moderation workflow
-* User verification and account management
-* Platform analytics and statistics
-* Support ticket oversight
-* Subscription monitoring
-* Data export functionality
-
----
-
-## Technical Features
-
-* Role-Based Access Control (RBAC)
-* Real-Time Messaging System
-* Secure Authentication & MFA Support
-* PostgreSQL Database Architecture
-* Responsive Mobile-First Design
-* Analytics Dashboards
-* Service Moderation Workflow
-* Cloud Storage Integration
-* Secure Deployment Pipeline
+### ⚙️ Technical Highlights
+- Role-Based Access Control (RBAC)
+- Real-Time Messaging via Supabase Realtime
+- Secure Authentication with MFA support
+- PostgreSQL database architecture
+- Responsive, mobile-first design
+- Analytics dashboards with data visualization
+- Cloud storage integration
+- Secure deployment pipeline (Vercel)
 
 ---
 
 ## Technology Stack
 
-### Frontend
-
-* React.js
-* TypeScript
-* Vite
-
-### UI & Styling
-
-* Tailwind CSS
-* shadcn/ui
-
-### Backend
-
-* Supabase
-* PostgreSQL
-
-### Authentication
-
-* Supabase Auth
-* Multi-Factor Authentication (MFA)
-
-### Data Visualization
-
-* Recharts
+| Layer | Technologies |
+|---|---|
+| **Frontend** | React.js, TypeScript, Vite |
+| **UI & Styling** | Tailwind CSS, shadcn/ui |
+| **Backend** | Supabase (PostgreSQL, Auth, Realtime) |
+| **Data Visualization** | Recharts |
+| **Deployment** | Vercel |
 
 ---
 
-## Screenshots
+## System Preview
 
 ### Authentication
+![Multi-factor Auth](./public/screenshots/multifactor_auth_new_signup.png)
 
-![Authentication](./screenshots/multifactor_auth_new_signup.png)
-
-### Administrator Dashboard
-
-![Admin Statistics](./screenshots/admin_stats.png)
-
-![Admin Services](./screenshots/Admin_services_in_website.png)
-
-![Admin Verification](./screenshots/Admin_Verfiy.png)
+### Client Experience
+![Booking Flow](./public/screenshots/booking_Sequence.png)
+![Customer Orders](./public/screenshots/Customer_orders_page.jpeg)
 
 ### Provider Dashboard
+![Provider Orders](./public/screenshots/Provider_orders.jpeg)
+![Add Service](./public/screenshots/Provider_add_service_page.png)
 
-![Provider Statistics](./screenshots/Provider_stats.png)
+### Admin Control Panel
+![Platform Stats](./public/screenshots/admin_stats.jpeg)
+![User Management](./public/screenshots/Admin_Users.jpeg)
+![Service Moderation](./public/screenshots/Admin_services_in_website.jpeg)
 
-![Provider Services](./screenshots/Provider_Services_Page.png)
+### Real-Time Communication
+![Chat](./public/screenshots/provider-customer_chat.jpeg)
 
-![Provider Orders](./screenshots/Provider_orders.jpeg)
+> Additional screenshots are available in the `/public/screenshots` folder, covering authentication & onboarding, admin dashboard & moderation tools, provider management, client booking & messaging flow, and the support ticket system.
 
-### Messaging System
+---
 
-![Customer Provider Chat](./screenshots/provider-customer_chat.jpeg)
+## Getting Started
 
-![Support Ticket Chat](./screenshots/Admin-Provider_support_ticketchat.jpeg)
+### Prerequisites
+- Node.js (v18 or higher recommended)
+- A Supabase project with URL and API key
+
+### Installation
+
+```bash
+# Clone the repository
+git clone https://github.com/y9yz/hail-community-portal.git
+
+# Navigate into the project directory
+cd hail-community-portal
+
+# Install dependencies
+npm install
+
+# Start the development server
+npm run dev
+```
 
 ---
 
 ## Environment Variables
 
-Create a `.env` file in the project root:
+Create a `.env` file in the project root with the following:
 
 ```env
-VITE_SUPABASE_URL=YOUR_SUPABASE_URL
-VITE_SUPABASE_PUBLISHABLE_KEY=YOUR_SUPABASE_KEY
+VITE_SUPABASE_URL=your_supabase_url
+VITE_SUPABASE_PUBLISHABLE_KEY=your_supabase_key
 ```
 
-## Installation
+These are required to connect the application to Supabase services.
 
-```bash
-git clone https://github.com/y9yz/hail-community-portal.git
-
-cd hail-community-portal
-
-npm install
-
-npm run dev
-```
+---
 
 ## Project Team
 
-### Lead Full-Stack Developer
+### 👨‍💻 Lead Full-Stack Developer
 
 **Yazeed Muteb AlShammari**
 
-Responsible for:
-
-* System Architecture
-* Database Design
-* Frontend Development
-* Backend Integration
-* Authentication System
-* Real-Time Messaging
-* Dashboard Development
-* Deployment & Infrastructure
+Responsible for system architecture, database design, frontend development, backend integration, authentication system, real-time communication, dashboard development, and deployment (Vercel).
 
 ### Team Members
 
-* Fawaz Ziyad Alluhayd
-* Hamad Nabil Almutairi
-* Tariq Mohammed Alshammari
-* Mohammed Saadi Alrashidi
+| Name | Role |
+|---|---|
+| Fawaz Ziyad Aluyd | Testing, feedback & requirements validation |
+| Hamad Nabil Almutairi | Testing, feedback & requirements validation |
+| Tariq Mohammed Alshammari | Testing, feedback & requirements validation |
+| Mohammed Saadi Alrashidi | Testing, feedback & requirements validation |
 
-Provided feedback, testing, and requirement validation during development.
----
+### Academic Supervisor
 
-## Academic Supervisor
-
-Dr. Zeyad Ghaleb Al-Mekhlaf
-
+**Dr. Zeyad Ghaleb Al-Mekhlaf**
 University of Hail
 
 ---
 
 ## License
 
-This project was developed for academic and educational purposes as part of the graduation requirements at the University of Hail.
+This project was developed for academic and educational purposes as part of the graduation requirements at the **University of Hail**.
