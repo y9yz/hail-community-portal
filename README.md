@@ -72,6 +72,24 @@ It also includes a full administrative system for service moderation, user manag
 
 ---
 
+## 🔐 Demo Credentials (بيانات الحسابات التجريبية)
+
+To test and explore the platform's role-based dashboards without creating new accounts, you can use the following pre-configured demo credentials on the [Live Demo](https://hail-community-portal.vercel.app/):
+
+### 👤 Client (المستفيد)
+* **Email:** `user@example.com`
+* **Password:** `user1234`
+
+### 🛠️ Provider (مقدم الخدمة)
+* **Email:** `provider@example.com`
+* **Password:** `provider1234`
+
+### 🔧 Administrator (المسؤول)
+* **Email:** `admin@example.com`
+* **Password:** `admin123`
+
+---
+
 ## Technology Stack
 
 | Layer | Technologies |
