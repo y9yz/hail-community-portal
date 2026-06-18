@@ -13,6 +13,7 @@ Developed as a graduation capstone project for the **Bachelor of Computer Scienc
 - [Project Overview](#project-overview)
 - [Key Features](#key-features)
 - [Technology Stack](#technology-stack)
+- [Demo Credentials](#-demo-credentials)
 - [System Preview](#system-preview)
 - [Getting Started](#getting-started)
 - [Environment Variables](#environment-variables)
@@ -72,19 +73,19 @@ It also includes a full administrative system for service moderation, user manag
 
 ---
 
-## 🔐 Demo Credentials (بيانات الحسابات التجريبية)
+## Demo Credentials
 
 To test and explore the platform's role-based dashboards without creating new accounts, you can use the following pre-configured demo credentials on the [Live Demo](https://hail-community-portal.vercel.app/):
 
-### 👤 Client (المستفيد)
+### 👤 Client
 * **Email:** `user@example.com`
 * **Password:** `user1234`
 
-### 🛠️ Provider (مقدم الخدمة)
+### 🛠️ Provider
 * **Email:** `provider@example.com`
 * **Password:** `provider1234`
 
-### 🔧 Administrator (المسؤول)
+### 🔧 Administrator
 * **Email:** `admin@example.com`
 * **Password:** `admin123`
 
