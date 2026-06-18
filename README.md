@@ -1,86 +1,188 @@
-#  Hail Community Portal (بوابة مجتمع حائل)
+# Hail Community Portal
 
-A comprehensive, full-stack digital marketplace designed to connect local service providers with clients within the Hail region. Developed as a capstone graduation project for the Bachelor’s Degree in Computer Science and Information Systems at the **University of Hail (UOH)**.
+A full-stack digital marketplace designed to connect clients with local service providers across the Hail region, Saudi Arabia.
 
----
-
-##  Project Overview
-Hail Community Portal is an integrated web-based platform that facilitates access to professional and technical services in Hail city. The system offers a secure ecosystem for users to browse, book, and communicate instantly through an optimized dashboard architecture.
+Developed as a graduation capstone project for the Bachelor of Computer Science and Information Systems program at the University of Hail.
 
 ---
 
-## 🛠️ Tech Stack & Architecture
-* **Frontend:** React.js (v18+) with TypeScript & Vite
-* **Styling & UI:** Tailwind CSS v4 + shadcn/ui components (Fully Responsive & Optimized)
-* **Backend & Database:** Supabase (PostgreSQL, Real-time Engine, Storage Buckets)
-* **Authentication:** Supabase Auth (with Secure Email & Multi-Factor Authentication support)
-* **State Management:** React Hooks & Optimized Performance Contexts
-* **Data Visualization:** Recharts (For analytical dashboards)
+## Live Demo
+
+visit: https://hail-community-portal.vercel.app/
+
+
 
 ---
+
+## Project Overview
+
+Hail Community Portal is a web-based platform that enables users to discover, book, and communicate with local service providers through a secure and modern digital ecosystem.
+
+The platform provides dedicated workspaces for clients, service providers, and administrators while supporting real-time communication, service moderation, and operational analytics.
+
+---
+
+## Key Features
+
+### Client Portal
+
+* Browse and search service categories
+* View provider profiles and service details
+* Submit service requests and bookings
+* Real-time messaging with providers
+* Ratings and reviews system
+* Order tracking and history
+
+### Provider Workspace
+
+* Create, edit, and manage services
+* Manage incoming customer requests
+* Real-time communication with clients
+* Performance analytics dashboard
+* Subscription and trial management
+* Support ticket system
+
+### Administrator Dashboard
+
+* Service approval and moderation workflow
+* User verification and account management
+* Platform analytics and statistics
+* Support ticket oversight
+* Subscription monitoring
+* Data export functionality
+
+---
+
+## Technical Features
+
+* Role-Based Access Control (RBAC)
+* Real-Time Messaging System
+* Secure Authentication & MFA Support
+* PostgreSQL Database Architecture
+* Responsive Mobile-First Design
+* Analytics Dashboards
+* Service Moderation Workflow
+* Cloud Storage Integration
+* Secure Deployment Pipeline
+
+---
+
+## Technology Stack
+
+### Frontend
+
+* React.js
+* TypeScript
+* Vite
+
+### UI & Styling
+
+* Tailwind CSS
+* shadcn/ui
+
+### Backend
+
+* Supabase
+* PostgreSQL
+
+### Authentication
+
+* Supabase Auth
+* Multi-Factor Authentication (MFA)
+
+### Data Visualization
+
+* Recharts
+
+---
+
+## Screenshots
+
+### Authentication
+
+![Authentication](./screenshots/multifactor_auth_new_signup.png)
+
+### Administrator Dashboard
+
+![Admin Statistics](./screenshots/admin_stats.png)
+
+![Admin Services](./screenshots/Admin_services_in_website.png)
+
+![Admin Verification](./screenshots/Admin_Verfiy.png)
+
+### Provider Dashboard
+
+![Provider Statistics](./screenshots/Provider_stats.png)
+
+![Provider Services](./screenshots/Provider_Services_Page.png)
+
+![Provider Orders](./screenshots/Provider_orders.jpeg)
+
+### Messaging System
+
+![Customer Provider Chat](./screenshots/provider-customer_chat.jpeg)
+
+![Support Ticket Chat](./screenshots/Admin-Provider_support_ticketchat.jpeg)
+
+---
+
+## Environment Variables
+
+Create a `.env` file in the project root:
+
+```env
+VITE_SUPABASE_URL=YOUR_SUPABASE_URL
+VITE_SUPABASE_PUBLISHABLE_KEY=YOUR_SUPABASE_KEY
+```
+
+## Installation
+
+```bash
+git clone https://github.com/y9yz/hail-community-portal.git
+
+cd hail-community-portal
+
+npm install
+
+npm run dev
+```
 
 ## Project Team
 
-* **Yazeed Muteb AlShammari** – Lead Full-Stack Developer & Software Architect
-* **Fawaz Ziyad Alluhayd** 
-* **Hamad Nabil Almutairi**
-* **Tariq Mohammed Alshammari**
-* **Mohammed Saadi Alrashidi**
+### Lead Full-Stack Developer
 
+**Yazeed Muteb AlShammari**
 
+Responsible for:
 
----
+* System Architecture
+* Database Design
+* Frontend Development
+* Backend Integration
+* Authentication System
+* Real-Time Messaging
+* Dashboard Development
+* Deployment & Infrastructure
 
-## System Walkthrough & Screenshots
+### Team Members
 
-### 🔑 Authentication
-| System Sequence Diagram | Secure Multi-Factor Auth (MFA) |
-| :---: | :---: |
-| ![MFA Signup](/screenshots/multifactor_auth_new_signup.png) |
+* Fawaz Ziyad Alluhayd
+* Hamad Nabil Almutairi
+* Tariq Mohammed Alshammari
+* Mohammed Saadi Alrashidi
 
-### Admin Control Panel (لوحة تحكم المسؤول)
-| Analytics & Platform Statistics | Service Management | User Verification |
-| :---: | :---: | :---: |
-| ![Admin Stats](/screenshots/admin_stats.png) | ![Admin Services](/screenshots/Admin_services_in_website.png) | ![Admin Verify](/screenshots/Admin_Verfiy.png) |
-
-| Subscription Tracking | User Management | Ticket Under Review |
-| :---: | :---: | :---: |
-| ![Subscriptions](/screenshots/admin_providersSubscriptions.jpeg) | ![Admin Users](/screenshots/Admin_Users.jpeg) | ![Ticket Review](/screenshots/Admin_Ticket_underreview.png) |
-
-### Provider Workspace (لوحة تحكم المزود)
-| Provider Analytical Stats | Add New Service Page | Dynamic Services Grid |
-| :---: | :---: | :---: |
-| ![Provider Stats](/screenshots/Provider_stats.png) | ![Add Service](/screenshots/Provider_add_service_page.png) | ![Services Page](/screenshots/Provider_Services_Page.png) |
-
-| Incoming Customer Orders | Provider Ticket Management | Active Support Chat |
-| :---: | :---: | :---: |
-| ![Provider Orders](/screenshots/Provider_orders.jpeg) | ![New Ticket](/screenshots/Provider_new_support_ticket.png) | ![Support Chat](/screenshots/Provider_support_chat.png) |
-
-### 👥 Client & Interaction Flow
-| Real-time Client-Provider Chat | Admin Support Ticket Chat | Order Confirmation Flow |
-| :---: | :---: | :---: |
-| ![Customer Provider Chat](/screenshots/provider-customer_chat.jpeg) | ![Support Chat](/screenshots/Admin-Provider_support_ticketchat.jpeg) | ![Sequence Provider](/screenshots/Sequence_Provider.png) |
+Contributed through testing, feedback, requirements validation, and project evaluation.
 
 ---
 
-## Core Features
+## Academic Supervisor
 
-### 1. Client Dashboard
-* Smart category filtration and instant booking mechanisms with automated collision avoidance.
-* Rich real-time messaging pipeline powered by Supabase WebSockets.
-* Interactive reviews, ratings, and active order logs.
+Dr. Zeyad Ghaleb Al-Mekhlaf
 
-### 2. Provider Hub
-* Complete CRUD functionality for services.
-* Integrated subscription engine featuring an automated 30-day trial counter.
-* Visual performance charts utilizing clean HSL theme presets.
-
-### 3. Administrator Dashboard
-* Pre-publish auditing pipeline for evaluating newly posted services.
-* Core user supervision control (Verification, Flagging, and Ban execution).
-* Live automated database exports for operational auditing (.csv / .xlsx format).
+University of Hail
 
 ---
 
-## Check website
-demo on: 
+## License
+
+This project was developed for academic and educational purposes as part of the graduation requirements at the University of Hail.
