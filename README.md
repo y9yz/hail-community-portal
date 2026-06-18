@@ -171,8 +171,7 @@ Responsible for:
 * Tariq Mohammed Alshammari
 * Mohammed Saadi Alrashidi
 
-Contributed through testing, feedback, requirements validation, and project evaluation.
-
+Provided feedback, testing, and requirement validation during development.
 ---
 
 ## Academic Supervisor
