@@ -14,7 +14,6 @@ import RatingDialog from "@/components/RatingDialog";
 import SupportTicketDialog from "@/components/SupportTicketDialog";
 import { toast } from "sonner";
 
-// ─── Types ────────────────────────────────────────────────────────────────────
 interface BookingData {
   id: string;
   order_number?: string;
@@ -33,9 +32,6 @@ interface BookingData {
   service?: { maps_link: string | null };
 }
 
-/**
- * دالة مساعدة لتحديد حالة الطلب وإرجاع التنسيق البصري المناسب
- */
 const getBookingStatus = (b: BookingData) => {
   if (b.status === "completed") return { label: i18n.t('bookings.status.completed'), color: "bg-green-500 text-white border-none", icon: CheckCheck };
   if (b.provider_status === "declined") return { label: i18n.t('bookings.status.declined'), color: "bg-destructive text-white border-none", icon: XCircle };
@@ -49,14 +45,12 @@ const MyBookings = () => {
   const { user, loading: authLoading } = useAuth();
   const { t } = useTranslation();
   
-  // حالات المكون مع إسناد الأنواع الصريحة بدلاً من any
   const [bookings, setBookings] = useState<BookingData[]>([]);
   const [loading, setLoading] = useState(true);
   const [chatBooking, setChatBooking] = useState<BookingData | null>(null);
   const [ratingBooking, setRatingBooking] = useState<BookingData | null>(null);
   const [supportBooking, setSupportBooking] = useState<BookingData | null>(null);
 
-  // جلب الطلبات من قاعدة البيانات مع بيانات المزود والخدمة
   const fetchBookings = useCallback(async () => {
     if (!user?.id) return;
     try {
@@ -76,12 +70,10 @@ const MyBookings = () => {
     }
   }, [user?.id]);
 
-  // إعداد التحقق من الهوية والاشتراك في تحديثات قاعدة البيانات (Realtime)
   useEffect(() => {
     if (authLoading) return;
     if (!user?.id) { navigate("/auth"); return; }
     
-    // تأجيل استدعاء جلب البيانات والـ state لمنع الـ Cascading Renders المتزامنة
     queueMicrotask(() => {
       fetchBookings();
     });
@@ -104,7 +96,6 @@ const MyBookings = () => {
     };
   }, [user?.id, authLoading, fetchBookings, navigate]);
 
-  // دالة إلغاء الطلب
   const handleCancel = async (booking: BookingData) => {
     if (!window.confirm(i18n.t('bookings.cancel_confirm'))) return;
     try {
@@ -135,7 +126,6 @@ const MyBookings = () => {
     <div className="min-h-screen bg-background" dir="rtl">
       <Navbar />
       
-      {/* الترويسة الرئيسية */}
       <header className="sticky top-16 z-40 bg-card/80 backdrop-blur-lg border-b">
         <div className="container flex items-center justify-between h-16 gap-4">
           <div className="flex items-center gap-3">
@@ -149,7 +139,6 @@ const MyBookings = () => {
       
       <div className="container py-6 max-w-2xl">
         {bookings.length === 0 ? (
-          /* حالة عدم وجود طلبات */
           <Card className="rounded-3xl border-dashed border-2 py-20 bg-muted/5">
             <CardContent className="text-center space-y-4">
               <ClipboardList className="w-12 h-12 mx-auto opacity-20 text-primary" />
@@ -158,7 +147,6 @@ const MyBookings = () => {
             </CardContent>
           </Card>
         ) : (
-          /* عرض قائمة الطلبات */
           <div className="space-y-6">
             {bookings.map((b) => {
               const status = getBookingStatus(b);
@@ -232,7 +220,6 @@ const MyBookings = () => {
         )}
       </div>
 
-      {/* الحوارات المنبثقة (Modals) */}
       {ratingBooking && (
         <RatingDialog
           open={!!ratingBooking}

@@ -1,8 +1,6 @@
-// استيراد الأيقونات والمكتبات المطلوبة
 import { Heart, GraduationCap, Users, Star } from "lucide-react";
 import { useTranslation } from 'react-i18next';
 
-// مكون التذييل (Footer) لعرض معلومات الفريق والمشروع
 const Footer = () => {
   const { t } = useTranslation();
   
@@ -20,7 +18,6 @@ const Footer = () => {
       <div className="container mx-auto px-4">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-10 items-start text-center md:text-right">
           
-          {/* القسم الأول: نبذة عن مشروع التخرج */}
           <div className="space-y-4">
             <div className="flex items-center justify-center md:justify-start gap-2">
               <div className="bg-primary p-1.5 rounded-lg shadow-lg shadow-primary/20">
@@ -33,7 +30,6 @@ const Footer = () => {
             </p>
           </div>
 
-          {/* القسم الثاني: قائمة فريق العمل وإشراف الدكتور */}
           <div className="space-y-4">
             <div className="flex flex-col items-center justify-center gap-1">
               <div className="flex items-center gap-2 text-primary font-black mb-1">
@@ -57,7 +53,6 @@ const Footer = () => {
             </div>
           </div>
 
-          {/* القسم الثالث: حقوق النشر وبيانات الجامعة */}
           <div className="flex flex-col items-center justify-center space-y-4 h-full">
             <div className="bg-muted px-8 py-5 rounded-[2.5rem] border-2 border-dashed border-primary/20 shadow-inner">
               <p className="text-[10px] font-black text-muted-foreground mb-1 uppercase tracking-[0.2em]">{t('footer.copyright', 'All rights reserved © 2026')}</p>

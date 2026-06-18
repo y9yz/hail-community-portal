@@ -1,9 +1,7 @@
-/* استيراد أدوات React الأساسية ومكتبات التوجيه والترجمة */
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useTranslation } from 'react-i18next';
 
-/* استيراد أدوات المصادقة وقاعدة البيانات والواجهة المرئية */
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -13,13 +11,11 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import Navbar from "@/components/Navbar";
 
-/* استيراد الأيقونات المستخدمة لتحسين التجربة البصرية */
 import {
   Send, MessageCircle, ArrowRight, User as UserIcon,
   LifeBuoy, Check, CheckCheck, ImagePlus, X, Loader2, Lock
 } from "lucide-react";
 
-// ─── Types ────────────────────────────────────────────────────────────────────
 interface SupportTicket {
   id: string;
   user_id: string;
@@ -50,27 +46,24 @@ const SupportTickets = () => {
   const { user, role } = useAuth();
   const { t } = useTranslation();
 
-  /* إدارة حالة الواجهة (UI State) مع تعيين الأنواع الصريحة بدلاً من any */
   const [tickets, setTickets] = useState<SupportTicket[]>([]);
   const [selectedTicket, setSelectedTicket] = useState<SupportTicket | null>(null);
   const [messages, setMessages] = useState<SupportMessage[]>([]);
   const [signedUrls, setSignedUrls] = useState<Record<string, string>>({});
   
-  /* حالة صندوق الإدخال وحالة التحميل */
   const [newMessage, setNewMessage] = useState("");
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [pendingImage, setPendingImage] = useState<File | null>(null);
 
-  /* مراجع (Refs) للتحكم المباشر في عناصر DOM والتمرير التلقائي */
   const fileInputRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const signedUrlsRef = useRef<Record<string, string>>({});
 
-  /* 🔒 التحقق من صلاحية الرد: يمنع المستخدم من الكتابة إذا كانت التذكرة مغلقة من الإدارة */
+  /* check if the ticket is read-only */
   const isReadOnly = location.state?.readOnly || selectedTicket?.status === 'closed';
 
-  /* تحديث حالة الرسائل إلى "مقروءة" (Read Receipt) بتجاوز فحص المخطط المحلي */
+  /* read messages */
   const markAsRead = useCallback(async (ticketId: string) => {
     if (!user?.id || !ticketId || isReadOnly) return;
     try {
@@ -84,7 +77,7 @@ const SupportTickets = () => {
     }
   }, [user?.id, isReadOnly]);
 
-  /* جلب التذاكر لملء القائمة الجانبية بناءً على هوية وصلاحية المستخدم */
+  /* fetch tickets by user ID */
   const fetchTickets = useCallback(async () => {
     if (!user?.id) return;
     try {
@@ -108,7 +101,7 @@ const SupportTickets = () => {
     }
   }, [user?.id, role]);
 
-  /* جلب تاريخ الدردشة وتوليد مسارات العرض الآمنة للصور */
+  /*get messages*/
   const fetchMessages = useCallback(async (ticketId: string) => {
     if (!ticketId) return;
     try {
@@ -148,14 +141,14 @@ const SupportTickets = () => {
     }
   }, []);
 
-  /* تحميل التذاكر عند فتح الصفحة لأول مرة بأمان مع تأجيل استدعاء الحالة */
+  /* fetch tickets when the component mounts */
   useEffect(() => {
     queueMicrotask(() => {
       fetchTickets();
     });
   }, [fetchTickets]);
 
-  /* 🚀 الاتصال اللحظي الفوري لرسائل الدعم الفني (Real-time Subscription) */
+  /* real-time updates */
   useEffect(() => {
     if (!selectedTicket?.id) return;
 
@@ -186,7 +179,7 @@ const SupportTickets = () => {
     };
   }, [selectedTicket?.id, fetchMessages, markAsRead]);
 
-  /* فتح تذكرة معينة تلقائياً إذا تم تمرير الـ ID عبر الإشعارات */
+  /* when a ticket is selected from the sidebar */
   useEffect(() => {
     if (tickets.length > 0 && location.state?.ticketId) {
       const target = tickets.find(t => t.id === location.state.ticketId);
@@ -199,7 +192,7 @@ const SupportTickets = () => {
     }
   }, [tickets, location.state]);
 
-  /* تمرير الشاشة تلقائياً للأسفل (Auto-scroll) عند وصول رسالة جديدة */
+  /* auto scroll for new messages */
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTo({
@@ -209,7 +202,7 @@ const SupportTickets = () => {
     }
   }, [messages]);
 
-  /* إرسال الردود ورفع الصور إلى لوحة التخزين السحابي */
+  /*chatbox and pics area*/
   const sendMessage = async () => {
     if (isReadOnly || (!newMessage.trim() && !pendingImage) || !selectedTicket || !user) return;
     setSending(true);
@@ -234,12 +227,12 @@ const SupportTickets = () => {
 
       if (error) throw error;
       
-      /* تفريغ حقول الإدخال بعد نجاح الإرسال */
+    
       setNewMessage("");
       setPendingImage(null);
       if (fileInputRef.current) fileInputRef.current.value = "";
 
-      /* إرسال إشعار للمستخدم إذا كان المرسل هو الإدارة */
+      /* send notification from admin to customer*/
       if (role === "admin" && selectedTicket.user_id !== user.id) {
         await supabase.from("notifications").insert({
           recipient_id: selectedTicket.user_id,
@@ -259,7 +252,7 @@ const SupportTickets = () => {
     <div className="h-dvh bg-[#f8fafc] flex flex-col overflow-hidden" dir="rtl">
       <Navbar />
       
-      {/* 🏷️ شريط العنوان العلوي (Header Layout) */}
+      {/* header */}
       <header className="sticky top-16 z-30 bg-white border-b shadow-sm">
         <div className="container py-3 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
@@ -287,7 +280,7 @@ const SupportTickets = () => {
       <div className="flex-1 container py-4 md:py-6 flex flex-col overflow-hidden">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 flex-1 overflow-hidden">
 
-          /* 📋 القائمة الجانبية (Sidebar) */
+          {/* side bar */}
           <Card className={`md:col-span-1 rounded-4xl border-none shadow-xl overflow-hidden bg-white flex-col h-full ${selectedTicket ? 'hidden md:flex' : 'flex'}`}>
             <CardHeader className="border-b bg-primary/5 p-6 shrink-0">
               <CardTitle className="flex items-center gap-2 text-primary font-black text-xl">
@@ -350,7 +343,7 @@ const SupportTickets = () => {
             </CardContent>
           </Card>
 
-          {/* 💬 منطقة المحادثة (Chat Area) */}
+          {/* reply area */}
           <Card className={`md:col-span-2 rounded-4xl border-none shadow-2xl overflow-hidden bg-white flex-col h-full ${selectedTicket ? 'flex' : 'hidden md:flex'}`}>
             {selectedTicket ? (
               <>
@@ -453,7 +446,7 @@ const SupportTickets = () => {
                   ))}
                 </CardContent>
 
-                {/* 📝 منطقة كتابة الرد */}
+                {/* reply area */}
                 <div className="p-3 md:p-4 border-t bg-white shrink-0">
                     {isReadOnly ? (
                     <div className="bg-muted/50 p-4 rounded-2xl border border-dashed text-center flex flex-col items-center gap-2">

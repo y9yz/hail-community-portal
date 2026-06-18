@@ -1,4 +1,3 @@
-// استيراد المكتبات الأساسية ومكونات واجهة المستخدم وأدوات المساعدة
 import { useState, useEffect, useRef } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -14,7 +13,6 @@ import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
 import { arSA } from "date-fns/locale";
 
-// تعريف واجهة الخصائص المطلوبة للمكون
 interface SupportTicketDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -25,12 +23,10 @@ const SupportTicketDialog = ({ open, onOpenChange, booking }: SupportTicketDialo
   const { t } = useTranslation();
   const { user } = useAuth();
   
-  // حالة النموذج الخاص بإنشاء تذكرة جديدة
   const [subject, setSubject] = useState("");
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
   
-  // حالة التذكرة المفتوحة والمحادثة الخاصة بها
   const [activeTicket, setActiveTicket] = useState<any>(null);
   const [messages, setMessages] = useState<any[]>([]);
   const [replyText, setReplyText] = useState("");
@@ -39,7 +35,6 @@ const SupportTicketDialog = ({ open, onOpenChange, booking }: SupportTicketDialo
 
   
 
-  // إعادة تهيئة النموذج عند فتح النافذة
   const fetchMessages = async (ticketId: string) => {
   const { data } = await supabase
     .from("support_messages" as any)
@@ -81,7 +76,6 @@ const checkExistingTicket = async () => {
     }
   }, [open, user, booking]);
 
-  // دالة تمرير شاشة المحادثة للأسفل عند وصول رسالة جديدة
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
@@ -90,7 +84,6 @@ const checkExistingTicket = async () => {
     scrollToBottom();
   }, [messages]);
 
-  // إعداد الاستماع اللحظي للرسائل الجديدة في حال كانت التذكرة مفتوحة
   useEffect(() => {
     if (!activeTicket || !user) return;
 
@@ -118,7 +111,6 @@ const checkExistingTicket = async () => {
     };
   }, [activeTicket, user]);
 
-  // إنشاء تذكرة دعم فني جديدة
   const handleCreateTicket = async () => {
     if (!user || !subject.trim() || !message.trim()) {
       toast.error(t('support.fill_subject_message'));
@@ -127,7 +119,6 @@ const checkExistingTicket = async () => {
 
     setLoading(true);
     try {
-      // إضافة التذكرة الأساسية
       const { data: newTicket, error: ticketError } = await supabase
         .from("support_tickets")
         .insert({
@@ -142,7 +133,6 @@ const checkExistingTicket = async () => {
 
       if (ticketError) throw ticketError;
 
-      // إضافة الرسالة الأولى للمحادثة
       const { error: msgError } = await supabase
         .from("support_messages" as any)
         .insert({
@@ -153,7 +143,6 @@ const checkExistingTicket = async () => {
 
       if (msgError) throw msgError;
 
-      // إشعار المدراء بوجود تذكرة جديدة
       const { data: admins } = await supabase
         .from("user_roles")
         .select("user_id")
@@ -180,7 +169,6 @@ const checkExistingTicket = async () => {
     }
   };
 
-  // إرسال رد ضمن تذكرة قائمة
   const handleSendReply = async () => {
     if (!user || !activeTicket || !replyText.trim()) return;
 
@@ -206,7 +194,6 @@ const checkExistingTicket = async () => {
     }
   };
 
-  // تنسيق شارة حالة التذكرة
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'open': return <Badge className="bg-amber-500 hover:bg-amber-600 gap-1"><Clock className="w-3 h-3" /> {t('support.status.review')}</Badge>;
@@ -232,7 +219,6 @@ const checkExistingTicket = async () => {
         </DialogHeader>
 
         {!activeTicket ? (
-          // واجهة إنشاء تذكرة جديدة
           <div className="p-6 space-y-6">
             <div className="bg-amber-50/50 p-4 rounded-2xl border border-amber-100 flex items-start gap-3">
               <AlertCircle className="w-5 h-5 text-amber-600 mt-0.5" />
@@ -271,7 +257,6 @@ const checkExistingTicket = async () => {
             </div>
           </div>
         ) : (
-          // واجهة المحادثة في تذكرة قائمة
           <div className="flex flex-col h-125">
             <div className="p-4 border-b bg-background flex justify-between items-center shadow-sm z-10">
               <div>

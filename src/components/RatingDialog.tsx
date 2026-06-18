@@ -1,4 +1,3 @@
-// استيراد المكتبات والمكونات اللازمة
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -10,7 +9,6 @@ import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
 import { Star } from "lucide-react";
 
-// تعريف الخصائص المستلمة للمكون
 interface RatingDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -24,12 +22,10 @@ const RatingDialog = ({ open, onOpenChange, serviceId, serviceTitle, bookingId, 
   const { t } = useTranslation();
   const { user } = useAuth();
   
-  // تعريف متغيرات الحالة الخاصة بنموذج التقييم
   const [rating, setRating] = useState(0);
   const [comment, setComment] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
-  // إعادة تهيئة قيم النموذج عند فتح النافذة
   useEffect(() => {
     if (open) {
       setRating(0);
@@ -37,9 +33,7 @@ const RatingDialog = ({ open, onOpenChange, serviceId, serviceTitle, bookingId, 
     }
   }, [open]);
 
-  // دالة إرسال التقييم إلى قاعدة البيانات
   const handleSubmit = async () => {
-    // التحقق من وجود مستخدم واختيار تقييم (نجمة واحدة على الأقل)
     if (!user || rating === 0) {
       toast.error(t('rating.select_stars_error'));
       return;
@@ -47,7 +41,6 @@ const RatingDialog = ({ open, onOpenChange, serviceId, serviceTitle, bookingId, 
 
     setSubmitting(true);
     try {
-      // 1. حفظ سجل التقييم والتعليق في جدول التقييمات
       const { error: reviewError } = await supabase.from("reviews").insert({
         service_id: serviceId,
         client_id: user.id,
@@ -57,7 +50,6 @@ const RatingDialog = ({ open, onOpenChange, serviceId, serviceTitle, bookingId, 
 
       if (reviewError) throw reviewError;
 
-      // 2. تحديث سجل الطلب لتمييزه بأنه تم تقييمه بالفعل (لمنع تكرار التقييم لنفس الطلب)
       const { error: bookingError } = await supabase
         .from("bookings")
         .update({ has_review: true } as any)
@@ -67,7 +59,6 @@ const RatingDialog = ({ open, onOpenChange, serviceId, serviceTitle, bookingId, 
 
       toast.success(t('rating.submitted_success'));
       
-      // تنفيذ دالة الاستدعاء عند النجاح وإغلاق النافذة
       onSubmitted?.();
       onOpenChange(false);
     } catch (err: any) {
@@ -89,7 +80,6 @@ const RatingDialog = ({ open, onOpenChange, serviceId, serviceTitle, bookingId, 
         </DialogHeader>
 
         <div className="space-y-6 py-4">
-          {/* قسم اختيار التقييم بالنجوم */}
           <div className="flex flex-col items-center gap-2">
             <p className="text-xs text-muted-foreground font-bold">{t('rating.prompt')}</p>
             <div className="bg-muted/30 p-4 rounded-2xl">
@@ -97,18 +87,16 @@ const RatingDialog = ({ open, onOpenChange, serviceId, serviceTitle, bookingId, 
             </div>
           </div>
 
-          {/* قسم كتابة التعليق النصي */}
           <div className="space-y-2">
             <Textarea
               placeholder={t('rating.comment_placeholder')}
               value={comment}
               onChange={(e) => setComment(e.target.value)}
               dir="rtl"
-              className="rounded-2xl min-h-[120px] border-2 focus-visible:ring-primary resize-none p-4"
+              className="rounded-2xl min-h-30 border-2 focus-visible:ring-primary resize-none p-4"
             />
           </div>
 
-          {/* زر إرسال التقييم */}
           <Button 
             onClick={handleSubmit} 
             disabled={submitting || rating === 0} 

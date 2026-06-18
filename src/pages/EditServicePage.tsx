@@ -1,4 +1,3 @@
-// استيراد المكتبات والمكونات الأساسية المطلوبة
 import { useEffect, useState, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { ArrowRight, Image, Upload } from "lucide-react";
@@ -16,19 +15,15 @@ import { useTranslation } from 'react-i18next';
 import { categories } from "@/data/categories";
 import type { Service } from "@/types/service";
 
-// تعريف مكون صفحة تعديل الخدمة
 const EditServicePage = () => {
-  // جلب معرف الخدمة من الرابط وأدوات التنقل والترجمة
   const { id } = useParams();
   const navigate = useNavigate();
   const { user, role, loading: authLoading } = useAuth();
   const { t } = useTranslation();
   
-  // تعريف متغيرات الحالة لتخزين تفاصيل الخدمة وحالة التحميل
   const [service, setService] = useState<Service | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // تعريف متغيرات الحالة الخاصة بحقول النموذج
   const [title, setTitle] = useState("");
   const [category, setCategory] = useState("");
   const [description, setDescription] = useState("");
@@ -38,7 +33,6 @@ const EditServicePage = () => {
   const [saving, setSaving] = useState(false);
   const imageInputRef = useRef<HTMLInputElement>(null);
 
-  // جلب بيانات الخدمة والتأكد من أن المستخدم الحالي هو مالك الخدمة
   useEffect(() => {
     if (authLoading) return;
     if (!user) { navigate("/auth"); return; }
@@ -49,7 +43,6 @@ const EditServicePage = () => {
 
     const fetchServiceDetails = async () => {
       try {
-        // الاستعلام عن بيانات الخدمة المحددة من قاعدة البيانات
         const { data, error } = await supabase
           .from("services")
           .select("*")
@@ -62,13 +55,11 @@ const EditServicePage = () => {
           return;
         }
 
-        // منع المستخدم من تعديل خدمات لا يملكها
         if ((data as any).provider_id !== user.id) {
           navigate("/permission-denied");
           return;
         }
 
-        // تعبئة حقول النموذج بالبيانات الحالية للخدمة
         if (mounted) {
           const s = data as any;
           setService(s);
@@ -87,28 +78,23 @@ const EditServicePage = () => {
 
     fetchServiceDetails();
 
-    // إيقاف التحديثات عند مغادرة الصفحة
     return () => {
       mounted = false; 
     };
   }, [authLoading, user, role, id, navigate, t]);
 
-  // دالة مساعدة للتحقق من صحة صيغة الرابط الإلكتروني
   const isValidUrl = (url: string) => { try { new URL(url); return true; } catch { return false; } };
 
-  // معالجة حفظ التعديلات وإرسالها إلى قاعدة البيانات
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!service || !user) return;
     
-    // التحقق من صحة رابط الخريطة إذا تم إدخاله
     if (mapsLink && !isValidUrl(mapsLink)) { toast.error(t('service.invalid_map_link')); return; }
     
     setSaving(true);
     try {
       let imageUrl = service.image_url;
       
-      // رفع الصورة الجديدة وتحديث الرابط إذا قام المستخدم باختيار صورة جديدة
       if (serviceImage) {
         const ext = serviceImage.name.split(".").pop();
         const path = `${user.id}/${Date.now()}-service.${ext}`;
@@ -118,7 +104,6 @@ const EditServicePage = () => {
         imageUrl = urlData.publicUrl;
       }
 
-      // إرسال البيانات المحدثة إلى جدول الخدمات
       const { error } = await supabase.from("services").update({
         title, category, description,
         address_name: addressName,
@@ -137,7 +122,6 @@ const EditServicePage = () => {
     }
   };
 
-  // واجهة التحميل التي تظهر قبل جاهزية البيانات
   if (authLoading || loading) {
     return (
       <div className="min-h-screen bg-background" dir="rtl">
@@ -147,12 +131,10 @@ const EditServicePage = () => {
     );
   }
 
-  // واجهة الصفحة الرئيسية المكونة من نموذج التعديل
   return (
     <div className="min-h-screen bg-background" dir="rtl">
       <Navbar />
       
-      {/* الشريط العلوي لعنوان الصفحة وزر الرجوع */}
       <header className="sticky top-16 z-40 bg-card/80 backdrop-blur-lg border-b">
         <div className="container flex items-center justify-between h-16 gap-4">
           <div className="flex items-center gap-3">
@@ -168,7 +150,6 @@ const EditServicePage = () => {
         <Card className="rounded-2xl border-2 shadow-sm">
           <CardContent className="p-6">
             
-            {/* نموذج إدخال وتعديل البيانات */}
             <form onSubmit={handleSave} className="space-y-4">
               
               <div className="space-y-2">
@@ -190,24 +171,21 @@ const EditServicePage = () => {
               
               <div className="space-y-2">
                 <Label className="font-bold text-sm">{t('service.description_label')}</Label>
-                <Textarea value={description} onChange={(e) => setDescription(e.target.value)} required className="min-h-[120px] rounded-xl resize-none p-3" />
+                <Textarea value={description} onChange={(e) => setDescription(e.target.value)} required className="min-h-30 rounded-xl resize-none p-3" />
               </div>
 
-              {/* قسم تعديل تفاصيل الموقع والخريطة */}
               <div className="space-y-3 border-2 rounded-2xl p-4 bg-muted/10 border-dashed">
                 <Label className="font-black text-sm flex items-center gap-2 text-primary">📍 {t('service.location_label')}</Label>
                 <Input placeholder="عنوان المحل أو الحي (مثال: حي النقرة)" value={addressName} onChange={(e) => setAddressName(e.target.value)} className="rounded-xl h-11 bg-background" />
                 <Input type="url" placeholder={t('service.map_placeholder')} value={mapsLink} onChange={(e) => setMapsLink(e.target.value)} className="rounded-xl h-11 bg-background" />
               </div>
 
-              {/* قسم معاينة وتعديل صورة الخدمة */}
               <div className="space-y-2">
                 <Label className="font-bold text-sm flex items-center gap-2">
                   <Image className="w-4 h-4 text-primary" />
                   {t('service.image_label')}
                 </Label>
                 
-                {/* عرض معاينة الصورة الحالية أو الجديدة المختارة */}
                 {(serviceImage || service?.image_url) && (
                   <div className="rounded-2xl h-40 w-full overflow-hidden border-2 mb-2 relative animate-in fade-in duration-300">
                     <img 
@@ -215,7 +193,7 @@ const EditServicePage = () => {
                       alt={t('service.current_image_alt')} 
                       className="w-full h-full object-cover" 
                     />
-                    <div className="absolute bottom-2 start-2 bg-black/60 backdrop-blur-sm text-white px-3 py-1 rounded-xl text-[10px] font-bold">
+                    <div className="absolute bottom-2 inset-s-2 bg-black/60 backdrop-blur-sm text-white px-3 py-1 rounded-xl text-[10px] font-bold">
                       {serviceImage ? "معاينة الملف المختار حالياً" : t('service.current_image_alt')}
                     </div>
                   </div>
@@ -237,7 +215,6 @@ const EditServicePage = () => {
                 <input ref={imageInputRef} type="file" accept="image/*" className="hidden" onChange={(e) => setServiceImage(e.target.files?.[0] || null)} />
               </div>
 
-              {/* أزرار الحفظ والإلغاء */}
               <div className="flex gap-2 pt-2">
                 <Button type="submit" className="flex-1 rounded-xl h-12 font-black text-md shadow-md" disabled={saving}>
                   {saving ? t('service.saving') : t('service.save_btn')}

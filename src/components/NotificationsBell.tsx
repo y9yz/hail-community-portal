@@ -1,4 +1,3 @@
-// استيراد المكتبات والمكونات الأساسية
 import { useEffect, useState, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { 
@@ -12,7 +11,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 
-// مكون جرس الإشعارات في شريط التنقل
 const NotificationsBell = () => {
   const { t } = useTranslation();
   const { user, role } = useAuth();
@@ -21,7 +19,6 @@ const NotificationsBell = () => {
   const [notifications, setNotifications] = useState<any[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
 
-  // جلب الإشعارات الخاصة بالمستخدم من قاعدة البيانات
   const fetchNotifications = useCallback(async () => {
     if (!user?.id) return;
     const { data } = await supabase
@@ -35,7 +32,6 @@ const NotificationsBell = () => {
     setUnreadCount((data || []).filter((n: any) => !n.is_read).length);
   }, [user?.id]);
 
-  // إعداد المزامنة اللحظية (Realtime) لتحديث الإشعارات فور وصولها
   useEffect(() => {
     if (!user?.id) return;
     fetchNotifications();
@@ -51,13 +47,11 @@ const NotificationsBell = () => {
       }, () => fetchNotifications())
       .subscribe();
 
-    // إغلاق القناة عند مغادرة الصفحة
     return () => { 
       supabase.removeChannel(channel); 
     };
   }, [user?.id, fetchNotifications]);
 
-  // دالة ذكية لتحديد شكل وألوان الأيقونة بناءً على محتوى نص الإشعار
   const getNotifDetails = (content: string) => {
     const text = content.toLowerCase();
     if (text.includes("رسالة") || text.includes("محادثة")) 
@@ -74,7 +68,6 @@ const NotificationsBell = () => {
     return { icon: <AlertCircle className="w-4 h-4 text-muted-foreground" />, bg: "bg-muted" };
   };
 
-  // معالجة النقر على الإشعار: تحديث الحالة كـ "مقروء" وتوجيه المستخدم للصفحة المناسبة
   const handleNotificationClick = async (notification: any) => {
     if (!notification.is_read) {
       await supabase
@@ -92,7 +85,6 @@ const NotificationsBell = () => {
     }
   };
 
-  // تعيين جميع الإشعارات كمقروءة
   const markAllRead = async () => {
     if (!user?.id) return;
     const { error } = await supabase
@@ -107,7 +99,6 @@ const NotificationsBell = () => {
     }
   };
 
-  // حذف جميع الإشعارات بعد تأكيد المستخدم
   const clearAll = async () => {
     if (!user?.id) return;
     if (!confirm(t('notifications.clear_confirm'))) return;
@@ -124,15 +115,14 @@ const NotificationsBell = () => {
         <Button variant="ghost" size="icon" className="relative hover:bg-primary/10 rounded-full transition-all active:scale-95">
           <Bell className="w-5 h-5 text-foreground/80" />
           {unreadCount > 0 && (
-            <span className="absolute -top-0.5 -end-0.5 w-5 h-5 rounded-full bg-destructive text-destructive-foreground text-[10px] font-black flex items-center justify-center border-2 border-background animate-bounce">
+            <span className="absolute -top-0.5 -inset-e-0.5 w-5 h-5 rounded-full bg-destructive text-destructive-foreground text-[10px] font-black flex items-center justify-center border-2 border-background animate-bounce">
               {unreadCount}
             </span>
           )}
         </Button>
       </PopoverTrigger>
       
-      <PopoverContent className="w-[340px] p-0 rounded-3xl border-2 shadow-2xl overflow-hidden" align="end">
-        {/* رأس قائمة الإشعارات */}
+      <PopoverContent className="w-85 p-0 rounded-3xl border-2 shadow-2xl overflow-hidden" align="end">
         <div className="bg-primary text-primary-foreground p-4 flex items-center justify-between shadow-md">
           <div className="flex items-center gap-2">
             <Bell className="w-4 h-4 fill-current" />
@@ -145,8 +135,7 @@ const NotificationsBell = () => {
           )}
         </div>
 
-        {/* قائمة الإشعارات */}
-        <div className="max-h-[400px] overflow-y-auto scrollbar-thin">
+        <div className="max-h-100 overflow-y-auto scrollbar-thin">
           {notifications.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 text-muted-foreground opacity-30">
               <BellOff className="w-12 h-12 mb-3" />
@@ -166,7 +155,7 @@ const NotificationsBell = () => {
                   <div 
                     key={n.id} 
                     onClick={() => handleNotificationClick(n)}
-                    className={`p-4 border-b last:border-0 cursor-pointer transition-all hover:bg-muted/50 flex gap-3 items-start ${!n.is_read ? "bg-primary/[0.03] border-r-4 border-r-primary" : "opacity-70"}`}
+                    className={`p-4 border-b last:border-0 cursor-pointer transition-all hover:bg-muted/50 flex gap-3 items-start ${!n.is_read ? "bg-primary/3 border-r-4 border-r-primary" : "opacity-70"}`}
                   >
                     <div className={`p-2 rounded-xl shrink-0 ${bg}`}>
                       {icon}
@@ -190,7 +179,6 @@ const NotificationsBell = () => {
           )}
         </div>
         
-        {/* تذييل القائمة */}
         <div className="p-3 bg-muted/10 text-center border-t">
           <p className="text-[9px] text-muted-foreground font-black tracking-tight">{t('notifications.footer')} — {new Date().getFullYear()}</p>
         </div>

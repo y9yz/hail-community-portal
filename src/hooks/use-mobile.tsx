@@ -13,7 +13,6 @@ export function useIsMobile() {
     
     mql.addEventListener("change", onChange);
     
-    // تأجيل عملية المواءمة الابتدائية باستخدام طابور المهام الدقيقة لمنع تضارب الـ Cascading Renders
     queueMicrotask(() => {
       setIsMobile(window.innerWidth < MOBILE_BREAKPOINT);
     });

@@ -20,7 +20,6 @@ const ChatDialog = ({ open, onOpenChange, bookingId, otherName, readOnly = false
   const { t } = useTranslation();
   const { user } = useAuth();
   
-  // متغيرات الحالة للمحادثة
   const [messages, setMessages] = useState<any[]>([]);
   const [signedUrls, setSignedUrls] = useState<Record<string, string>>({});
   const [newMessage, setNewMessage] = useState("");
@@ -31,12 +30,10 @@ const ChatDialog = ({ open, onOpenChange, bookingId, otherName, readOnly = false
   const scrollRef = useRef<HTMLDivElement>(null);
   const signedUrlsRef = useRef<Record<string, string>>({});
 
-  // متغيرات حالة لتحديد أطراف المحادثة وحالة الطلب
   const [chatRoles, setChatRoles] = useState({ clientId: "", providerId: "" });
   const [participants, setParticipants] = useState<Record<string, string>>({});
   const [bookingState, setBookingState] = useState({ status: "", providerStatus: "" });
 
-  // جلب تفاصيل الطلب لتحديد حالة المحادثة وأطرافها
   useEffect(() => {
     if (!bookingId || !open) return;
     const fetchBookingDetails = async () => {
@@ -58,7 +55,6 @@ const ChatDialog = ({ open, onOpenChange, bookingId, otherName, readOnly = false
     fetchBookingDetails();
   }, [bookingId, open, t]);
 
-  // تحديث حالة الرسائل إلى "مقروءة"
   const markAsRead = useCallback(async () => {
     if (readOnly || !user || !bookingId) return;
     try {
@@ -72,7 +68,6 @@ const ChatDialog = ({ open, onOpenChange, bookingId, otherName, readOnly = false
     }
   }, [bookingId, user?.id, readOnly]);
 
-  // جلب سجل الرسائل من قاعدة البيانات
   const fetchMessages = useCallback(async () => {
     if (!bookingId) return;
     const { data } = await (supabase
@@ -84,7 +79,6 @@ const ChatDialog = ({ open, onOpenChange, bookingId, otherName, readOnly = false
     const msgs = data || [];
     setMessages(msgs);
 
-    // جلب روابط الصور المرفقة في المحادثة
     const imagesToFetch = msgs.filter(
       (m: any) => m.image_url && !signedUrlsRef.current[m.image_url]
     );
@@ -106,7 +100,6 @@ const ChatDialog = ({ open, onOpenChange, bookingId, otherName, readOnly = false
     }
   }, [bookingId]);
 
-  // إعداد الاشتراك اللحظي (Realtime) للرسائل
   useEffect(() => {
     if (!open || !bookingId) return;
 
@@ -131,7 +124,6 @@ const ChatDialog = ({ open, onOpenChange, bookingId, otherName, readOnly = false
     };
   }, [open, bookingId, fetchMessages, markAsRead]);
 
-  // التمرير التلقائي لأسفل المحادثة عند إضافة رسائل جديدة
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTo({
@@ -141,7 +133,6 @@ const ChatDialog = ({ open, onOpenChange, bookingId, otherName, readOnly = false
     }
   }, [messages]);
 
-  // إرسال رسالة جديدة (مع أو بدون صورة)
   const handleSend = async () => {
     if (readOnly || !user) return;
 
@@ -190,7 +181,6 @@ const ChatDialog = ({ open, onOpenChange, bookingId, otherName, readOnly = false
         className="max-w-md h-[85vh] md:h-[75vh] flex flex-col rounded-[2.5rem] p-0 overflow-hidden shadow-2xl border-none"
         dir="rtl"
       >
-        {/* رأس النافذة */}
         <DialogHeader className={`p-5 border-b shrink-0 ${readOnly ? "bg-amber-50/50" : "bg-white"}`}>
           <DialogTitle className="font-black text-xl text-primary px-2 flex items-center gap-2">
             {readOnly && <ShieldAlert className="w-5 h-5 text-amber-600" />}
@@ -201,7 +191,6 @@ const ChatDialog = ({ open, onOpenChange, bookingId, otherName, readOnly = false
           )}
         </DialogHeader>
 
-        {/* عرض سجل الرسائل */}
         <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-4 bg-[#f8fafc] scrollbar-thin">
           {messages.length === 0 && (
             <div className="h-full flex flex-col items-center justify-center opacity-30 gap-2">
@@ -228,19 +217,16 @@ const ChatDialog = ({ open, onOpenChange, bookingId, otherName, readOnly = false
                   </span>
                 )}
 
-                {/* عرض الصور المرفقة */}
                 {m.image_url && signedUrls[m.image_url] && (
                   <a href={signedUrls[m.image_url]} target="_blank" rel="noreferrer" className="block mb-2 overflow-hidden rounded-xl">
                     <img src={signedUrls[m.image_url]} alt={t('chat.attachment_alt')} className="w-full h-auto max-h-64 object-cover" />
                   </a>
                 )}
                 
-                {/* عرض نص الرسالة */}
                 {m.message && (
                   <p className="leading-relaxed font-bold whitespace-pre-wrap">{m.message}</p>
                 )}
                 
-                {/* عرض وقت الإرسال وحالة القراءة */}
                 <div className="flex items-center gap-1 mt-1 justify-end opacity-70">
                   <span className="text-[9px] font-black">
                     {new Date(m.created_at).toLocaleTimeString("ar-SA", { hour: "2-digit", minute: "2-digit", hour12: true })}
@@ -260,7 +246,6 @@ const ChatDialog = ({ open, onOpenChange, bookingId, otherName, readOnly = false
           })}
         </div>
 
-        {/* منطقة كتابة وإرسال الرسائل */}
         <div className="shrink-0 bg-white border-t p-4">
           {readOnly ? (
             <div className="bg-amber-50 p-3 rounded-xl border border-amber-200 text-center">

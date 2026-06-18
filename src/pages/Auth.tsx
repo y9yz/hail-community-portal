@@ -203,14 +203,14 @@ const Auth = () => {
                       <div className="space-y-2">
                         <Label className="font-bold">{t('auth.email_label')}</Label>
                         <div className="relative">
-                          <Mail className="absolute start-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                          <Mail className="absolute inset-s-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                           <Input type="email" placeholder={t('auth.email_placeholder')} className="ps-10 h-11 rounded-xl" dir="ltr" value={email} onChange={e => setEmail(e.target.value)} required />
                         </div>
                       </div>
                       <div className="space-y-2">
                         <Label className="font-bold">{t('auth.password_label')}</Label>
                         <div className="relative">
-                          <Lock className="absolute start-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                          <Lock className="absolute inset-s-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                           <Input type="password" placeholder={t('auth.password_placeholder')} className="ps-10 h-11 rounded-xl" dir="ltr" value={password} onChange={e => setPassword(e.target.value)} required />
                         </div>
                       </div>
@@ -249,7 +249,7 @@ const Auth = () => {
                            {role === "provider" ? t('auth.provider_name_label') : t('auth.client_name_label')}
                         </Label>
                         <div className="relative">
-                          <User className="absolute start-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                          <User className="absolute inset-s-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                           <Input 
                             placeholder={role === "provider" ? t('auth.provider_name_placeholder') : t('auth.client_name_placeholder')} 
                             className="ps-10 h-11 rounded-xl" 
@@ -263,7 +263,7 @@ const Auth = () => {
                       <div className="space-y-2">
                         <Label className="font-bold">{t('auth.phone_label')}</Label>
                         <div className="relative">
-                          <Phone className="absolute start-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                          <Phone className="absolute inset-s-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                           <Input 
                             type="tel" 
                             placeholder="05XXXXXXXX" 
@@ -280,7 +280,7 @@ const Auth = () => {
                       <div className="space-y-2">
                         <Label className="font-bold">{t('auth.email_label')}</Label>
                         <div className="relative">
-                          <Mail className="absolute start-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                          <Mail className="absolute inset-s-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                           <Input type="email" placeholder={t('auth.email_placeholder')} className="ps-10 h-11 rounded-xl" dir="ltr" value={email} onChange={e => setEmail(e.target.value)} required />
                         </div>
                       </div>
@@ -288,7 +288,7 @@ const Auth = () => {
                       <div className="space-y-2">
                         <Label className="font-bold">{t('auth.password_label')}</Label>
                         <div className="relative">
-                          <Lock className="absolute start-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                          <Lock className="absolute inset-s-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                           <Input type="password" placeholder={t('auth.password_placeholder')} className="ps-10 h-11 rounded-xl" dir="ltr" value={password} onChange={e => setPassword(e.target.value)} required />
                         </div>
                       </div>
@@ -348,7 +348,7 @@ const Auth = () => {
                 <form onSubmit={handleForgotPassword} className="space-y-4">
                   <div className="space-y-2">
                     <div className="relative">
-                      <Mail className="absolute start-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                      <Mail className="absolute inset-s-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                       <Input type="email" placeholder={t('auth.email_placeholder')} className="ps-10 h-12 text-center text-lg rounded-xl" dir="ltr" value={email} onChange={e => setEmail(e.target.value)} required />
                     </div>
                   </div>
@@ -379,7 +379,7 @@ const Auth = () => {
                   />
                   <Label className="text-xs font-bold text-muted-foreground">{t('auth.new_password_label')}</Label>
                   <div className="relative">
-                    <Lock className="absolute start-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <Lock className="absolute inset-s-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                     <Input type="password" placeholder={t('auth.password_placeholder')} className="ps-10 h-12 rounded-xl" dir="ltr" value={newPassword} onChange={e => setNewPassword(e.target.value)} required />
                   </div>
                   <Button className="w-full h-12 font-black rounded-xl mt-2 shadow-lg shadow-primary/20" type="submit" disabled={loading}>{t('auth.update_password_btn')}</Button>

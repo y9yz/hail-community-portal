@@ -4,7 +4,6 @@ import type { User, Session } from "@supabase/supabase-js";
 import { toast } from "sonner";
 import i18n from "@/i18n/config";
 
-// دالة مساعدة لترجمة أخطاء الخادم (Supabase) إلى رسائل مفهومة للمستخدم باستخدام ملفات الترجمة
 const getArabicError = (errorMsg: string) => {
   console.log("Raw Server Error:", errorMsg);
   if (errorMsg.includes("Invalid login credentials")) return i18n.t("errors.invalid_login_credentials");
@@ -16,7 +15,6 @@ const getArabicError = (errorMsg: string) => {
   return i18n.t("errors.technical_error", { message: errorMsg });
 };
 
-// تعريف هيكل البيانات الخاص بسياق المصادقة والذي سيتم مشاركته في أرجاء التطبيق
 interface AuthContextType {
   user: User | null;
   session: Session | null;
@@ -34,17 +32,14 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  // تعريف متغيرات الحالة الأساسية لحفظ بيانات الجلسة والمستخدم
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [role, setRole] = useState<"client" | "provider" | "admin" | null>(null);
   const [profile, setProfile] = useState<{ full_name: string; phone: string | null; is_verified: boolean } | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // استخدام مرجع لتتبع معرف المستخدم الأخير، وذلك لمنع تكرار جلب البيانات من الخادم بلا داعٍ
   const fetchedForUserId = useRef<string | null>(null);
 
-  // دالة لجلب بيانات المستخدم (الصلاحية والملف الشخصي) مع آلية لإعادة المحاولة وتحديد وقت أقصى للاستجابة
   const fetchUserData = useCallback(async (userId: string): Promise<void> => {
   const maxRetries = 2;
   const queryTimeout = 10000;
@@ -90,14 +85,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       else setProfile(null);
 
       console.log("fetchUserData completed successfully");
-      return; // success — stop the loop here
+      return; 
     } catch (err) {
       console.error(`Error in user queries (attempt ${retryCount + 1}):`, err);
 
       if (retryCount < maxRetries) {
         console.log(`Retrying fetchUserData in 1.5 seconds... (${retryCount + 1}/${maxRetries})`);
         await new Promise(resolve => setTimeout(resolve, 1500));
-        continue; // next loop iteration instead of recursive call
+        continue; 
       }
 
       console.log("All retries failed, using defaults");
@@ -107,28 +102,23 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }
 }, []);
 
-  // الاستماع لتغيرات حالة المصادقة (تسجيل الدخول، تسجيل الخروج، تجديد الجلسة)
   useEffect(() => {
     let mounted = true;
     
-    // حل مشكلة التحديث المتزامن الصارم لـ Linter بتأجيل مواءمة الحالة لنهاية طابور المهام الدقيقة
     queueMicrotask(() => {
       if (mounted) setLoading(true);
     });
 
-    // تسجيل مراقب للاستماع لأحداث مصادقة Supabase
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, currentSession) => {
       if (!mounted) return;
 
       console.log("Auth Event Hooked:", event);
 
-      // تحديث متزامن لبيانات الجلسة لمنع حدوث شاشات تحميل غير مبررة
       setSession(currentSession);
       setUser(currentSession?.user ?? null);
 
       const uid = currentSession?.user?.id;
 
-      // تصفير البيانات فوراً في حال تسجيل الخروج
       if (event === 'SIGNED_OUT') {
         setRole(null);
         setProfile(null);
@@ -138,7 +128,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
 
       if (uid) {
-        // آلية لمنع طلب البيانات من الخادم إذا كان معرف المستخدم هو نفسه (مثلا عند تجديد التوكن)
         if (fetchedForUserId.current !== uid) {
           fetchedForUserId.current = uid;
           setLoading(true);
@@ -147,11 +136,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             if (mounted) setLoading(false);
           });
         } else {
-          // إنهاء حالة التحميل إذا لم يتغير المستخدم
           setLoading(false);
         }
       } else {
-        // التعامل مع حالة عدم وجود مستخدم مسجل دخول
         setRole(null);
         setProfile(null);
         fetchedForUserId.current = null;
@@ -159,14 +146,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
     });
 
-    // تنظيف المراقب عند إزالة المكون من الواجهة لمنع تسريب الذاكرة
     return () => {
       mounted = false;
       subscription.unsubscribe();
     };
   }, [fetchUserData]);
 
-  // مجموعة دوال مساعدة مغلفة بـ useCallback لضمان استقرارها وتقليل إعادة التصيير (Re-renders)
   const signUp = useCallback(async (email: string, password: string, fullName: string, phone: string, roleName: "client" | "provider") => {
     const { error } = await supabase.auth.signUp({
       email,
@@ -211,7 +196,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   }, []);
 
-  // حفظ القيم الممررة للسياق في الذاكرة لتجنب إعادة تصيير المكونات المستهلكة بلا حاجة
   const value = useMemo(() => ({
     user, session, role, profile, loading,
     signUp, signIn, signOut, verifyOtp,
@@ -228,10 +212,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   );
 };
 
-// تصدير دالة المترجم لتسهيل استخدامها في أجزاء أخرى من التطبيق
 export const translateError = (msg: string) => getArabicError(msg);
 
-// خطاف مخصص (Custom Hook) لتسهيل استدعاء سياق المصادقة والتحقق من تغليفه بشكل صحيح
 export const useAuth = () => {
   const ctx = useContext(AuthContext);
   if (!ctx) throw new Error("useAuth must be used within AuthProvider");

@@ -1,4 +1,3 @@
-// استيراد المكتبات والمكونات الأساسية المطلوبة
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -6,28 +5,22 @@ import { useTranslation } from "react-i18next";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { ArrowRight, CheckCircle2, CreditCard } from "lucide-react"; // تم إضافة CreditCard كأيقونة موحدة وجذابة للبطاقات
+import { ArrowRight, CheckCircle2, CreditCard } from "lucide-react"; 
 import Navbar from "@/components/Navbar";
 
-// تعريف مكون صفحة الدفع
 const PaymentPage = () => {
-  // تهيئة دوال التنقل، الترجمة، وجلب بيانات المستخدم الحالي
   const navigate = useNavigate();
   const { t } = useTranslation();
   const { user } = useAuth();
 
-  // دالة معالجة الدفع وتحديث الاشتراك في قاعدة البيانات
   const handlePayment = async (methodName: string) => {
-    // التحقق من تسجيل دخول المستخدم قبل إكمال العملية
     if (!user) return;
 
     try {
-      // تحديد تاريخ انتهاء الاشتراك (إضافة سنة واحدة لتاريخ اليوم)
       const newExpiry = new Date();
       newExpiry.setFullYear(newExpiry.getFullYear() + 1);
 
-      // تحديث أو إنشاء سجل الاشتراك الخاص بمقدم الخدمة في قاعدة البيانات
-      // يتم استخدام upsert للإنشاء إذا لم يكن موجوداً أو التحديث إذا كان موجوداً
+    
       const { error } = await supabase
         .from("subscriptions" as any) 
         .upsert({ 
@@ -37,16 +30,13 @@ const PaymentPage = () => {
           updated_at: new Date().toISOString()
         }, { onConflict: 'provider_id' });
 
-      // معالجة الأخطاء في حال فشل التحديث في قاعدة البيانات
       if (error) {
         alert(t('payment.error_alert', { message: error.message }));
         throw error;
       }
 
-      // عرض رسالة نجاح عملية الدفع للمستخدم
       toast.success(t('payment.success', { methodName }));
       
-      // إعادة توجيه المستخدم للوحة التحكم وتمرير مؤشر نجاح الدفع في الرابط
       navigate("/provider?payment_success=true"); 
       
     } catch (err: any) {
@@ -55,19 +45,16 @@ const PaymentPage = () => {
     }
   };
 
-  // قائمة بوسائل الدفع المتاحة بدون روابط خارجية مكسورة
   const paymentMethods = [
     { name: "Apple Pay" },
     { name: "مدى mada" },
     { name: "Visa / MasterCard" }
   ];
 
-  // هيكل واجهة المستخدم للمكون
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
       
-      {/* الشريط العلوي (الترويسة) وزر الرجوع للوحة التحكم */}
       <header className="sticky top-16 z-40 bg-card/80 backdrop-blur-lg border-b">
         <div className="container flex items-center justify-between h-16 gap-4">
           <div className="flex items-center gap-3">
@@ -81,7 +68,6 @@ const PaymentPage = () => {
       
       <div className="container py-6 max-w-md">
 
-        {/* بطاقة عرض المبلغ المستحق للدفع */}
         <Card className="rounded-3xl border-2 border-primary/20 p-6 text-center space-y-4 shadow-lg">
           <div className="space-y-1">
             <p className="text-muted-foreground text-sm font-bold">{t('payment.annual_fee_label')}</p>
@@ -92,7 +78,6 @@ const PaymentPage = () => {
           </p>
         </Card>
 
-        {/* عرض خيارات الدفع كبطاقات قابلة للنقر */}
         <div className="space-y-4 mt-6">
           <p className="text-sm font-bold text-center mb-2">{t('payment.choose_method')}</p>
           {paymentMethods.map((method) => (
@@ -102,7 +87,6 @@ const PaymentPage = () => {
               onClick={() => handlePayment(method.name)}
             >
               <CardContent className="p-4 flex items-center justify-between gap-4">
-                {/* تم استبدال الـ img بـ Icon متناسق يتفاعل لونه عند تمرير الفأرة (Hover) */}
                 <CreditCard className="w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors shrink-0" />
                 <span className="text-sm font-bold">{method.name}</span>
               </CardContent>
@@ -110,7 +94,6 @@ const PaymentPage = () => {
           ))}
         </div>
 
-        {/* مربع التنبيه أو الملاحظات القانونية أسفل الصفحة */}
         <div className="bg-primary/5 p-4 rounded-2xl border border-primary/10 flex items-start gap-3 mt-6">
           <CheckCircle2 className="w-5 h-5 text-primary shrink-0 mt-0.5" />
           <p className="text-[10px] text-muted-foreground leading-relaxed">

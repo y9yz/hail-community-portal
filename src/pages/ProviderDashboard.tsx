@@ -1,4 +1,3 @@
-// استيراد المكتبات والمكونات اللازمة
 import { useEffect, useState, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import {
@@ -24,10 +23,8 @@ import { categories } from "@/data/categories";
 import type { Service } from "@/types/service";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend, AreaChart, Area } from "recharts";
 
-// ألوان مخصصة للرسوم البيانية
 const COLORS = ["#10b981", "#f59e0b", "#3b82f6", "#ef4444"];
 
-// ─── Types ────────────────────────────────────────────────────────────────────
 interface Subscription {
   status: string;
   expires_at?: string;
@@ -72,31 +69,26 @@ interface ProviderStats {
   avgRating: number;
 }
 
-// ─── Component ────────────────────────────────────────────────────────────────
 const ProviderDashboard = () => {
   const navigate = useNavigate();
   const { t } = useTranslation();
   const { user, role, loading: authLoading } = useAuth();
 
-  // تعريف متغيرات الحالة (State) الخاصة بالبيانات والتحميل
   const [services, setServices] = useState<Service[]>([]);
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [subscription, setSubscription] = useState<Subscription | null>(null);
   const [loading, setLoading] = useState(true);
   const [subscriptionLoading, setSubscriptionLoading] = useState(false);
 
-  // متغيرات حالة الإحصائيات والتقييمات والرسوم البيانية
   const [providerStats, setProviderStats] = useState<ProviderStats>({
     total: 0, accepted: 0, pending: 0, completed: 0, declined: 0, avgRating: 0
   });
   const [recentReviews, setRecentReviews] = useState<RecentReview[]>([]);
   const [timelineData, setTimelineData] = useState<{ date: string; orders: number }[]>([]);
 
-  // متغيرات حالة النوافذ المنبثقة (المحادثة والدعم الفني)
   const [chatBooking, setChatBooking] = useState<Booking | null>(null);
   const [supportOpen, setSupportOpen] = useState(false);
 
-  // متغيرات حالة نموذج إضافة خدمة جديدة
   const [title, setTitle] = useState("");
   const [category, setCategory] = useState("");
   const [description, setDescription] = useState("");
@@ -111,10 +103,8 @@ const ProviderDashboard = () => {
   const fetchedForUserId = useRef<string | null>(null);
   const unsubscribeRef = useRef<(() => void) | null>(null);
 
-  // تخزين وقت تحميل لوحة التحكم لمرة واحدة كمستند حالة نقي لتفادي مشاكل الحسابات غير المستقرة أثناء الرندر
   const [dashboardStartTime] = useState(() => Date.now());
 
-  // ─── جلب وتحديث بيانات الاشتراك ─────────────────────────────────────────
   const refetchSubscription = useCallback(async () => {
     if (!user?.id) return;
     setSubscriptionLoading(true);
@@ -138,7 +128,6 @@ const ProviderDashboard = () => {
     }
   }, [user?.id]);
 
-  // ─── جلب كافة البيانات الأساسية للوحة التحكم ────────────────────────────
   const fetchData = useCallback(async () => {
     if (!user) return;
     setLoading(true);
@@ -174,7 +163,6 @@ const ProviderDashboard = () => {
       setServices(svc);
       setBookings(bk);
 
-      // axستخراج وتنسيق بيانات الرسم البياني الزمني للطلبات
       const timelineMap: Record<string, number> = {};
       bk.forEach((b) => {
         const dateStr = new Date(b.created_at).toLocaleDateString('ar-SA', { month: 'short', day: 'numeric' });
@@ -183,7 +171,6 @@ const ProviderDashboard = () => {
       const tData = Object.entries(timelineMap).map(([date, orders]) => ({ date, orders })).reverse();
       setTimelineData(tData);
 
-      // تجهيز قائمة التقييمات وحساب متوسط التقييم
       const svcIds = new Set(svc.map((s) => s.id));
       const myReviews = reviewData.filter((r) => svcIds.has(r.service_id));
       const avg = myReviews.length > 0 ? myReviews.reduce((s, r) => s + r.rating, 0) / myReviews.length : 0;
@@ -197,7 +184,6 @@ const ProviderDashboard = () => {
         }));
       setRecentReviews(commentsWithTitles);
 
-      // تعيين الإحصائيات النهائية
       setProviderStats({
         total: bk.length,
         accepted: bk.filter((b) => b.provider_status === "accepted").length,
@@ -214,7 +200,6 @@ const ProviderDashboard = () => {
     }
   }, [user, t]);
 
-  // ─── إعداد الاستماع الفوري لقاعدة البيانات ───────────────────────────────
   const setupRealtimeListener = useCallback(() => {
     if (!user?.id) return;
 
@@ -243,7 +228,6 @@ const ProviderDashboard = () => {
     };
   }, [user?.id, refetchSubscription, fetchData]);
 
-  // ─── حساب الأيام المتبقية في الفترة التجريبية ────────────────────────────
   const calculateTrialDays = useCallback((): number => {
     if (subscription) {
       if (subscription.status === 'active') return 30;
@@ -264,7 +248,6 @@ const ProviderDashboard = () => {
   const trialDaysLeft = calculateTrialDays();
   const isSubscribed = subscription?.status === 'active';
 
-  // ─── التأكد من تسجيل الدخول وصلاحية المستخدم ────────────────────────────
   useEffect(() => {
     if (authLoading) return;
     if (!user || role !== "provider") { navigate("/", { replace: true }); return; }
@@ -274,7 +257,6 @@ const ProviderDashboard = () => {
     setupRealtimeListener();
   }, [user?.id, role, authLoading, navigate, fetchData, setupRealtimeListener]);
 
-  // ─── التحقق من حالة الدفع عبر رابط الصفحة ───────────────────────────────
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const justPaid = params.get('payment_success');
@@ -284,7 +266,6 @@ const ProviderDashboard = () => {
     }
   }, [user?.id, refetchSubscription]);
 
-  // ─── توجيه المستخدم لصفحة الدفع عند انتهاء الفترة التجريبية ─────────────
   useEffect(() => {
     if (loading || authLoading) return;
     if (isSubscribed) return;
@@ -293,20 +274,17 @@ const ProviderDashboard = () => {
     navigate('/payment', { replace: true });
   }, [loading, authLoading, isSubscribed, trialDaysLeft, navigate, t]);
 
-  // ─── إزالة الاستماع الفوري عند تفريغ المكون ──────────────────────────────
   useEffect(() => {
     return () => {
       if (unsubscribeRef.current) unsubscribeRef.current();
     };
   }, []);
 
-  // تحديث البيانات يدوياً
   const handleManualRefresh = () => {
     fetchedForUserId.current = null;
     fetchData();
   };
 
-  // تصدير جدول الطلبات إلى ملف CSV (متوافق مع إكسل)
   const handleExportCSV = () => {
     if (!bookings || bookings.length === 0) {
       toast.error(t('admin.no_data_error') || 'لا توجد بيانات متاحة للتصدير.');
@@ -343,14 +321,11 @@ const ProviderDashboard = () => {
 
   const isFormValid = !!(title && category && description && neighborhood && mapsLink && serviceImage && licenseFile);
 
-  // معالجة نموذج إضافة خدمة جديدة ورفع المرفقات
   const handleSubmitService = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user || !isFormValid) return;
     setAddingService(true);
     try {
-      // استخدام الـ Timestamp بأمان تام داخل دالة الحدث المنعزلة
-      // eslint-disable-next-line react-hooks/purity
       const timestamp = Date.now();
       const imagePath = `${user.id}/${timestamp}-svc.jpg`;
       await supabase.storage.from("public-assets").upload(imagePath, serviceImage!);
@@ -381,19 +356,16 @@ const ProviderDashboard = () => {
     }
   };
 
-  // بيانات مخطط التوزيع الخاص بحالة الطلبات
   const chartData = [
     { name: t('provider.status.completed'), value: providerStats.completed },
     { name: t('provider.status.pending'), value: providerStats.pending },
     { name: t('provider.status.declined'), value: providerStats.declined },
   ];
 
-  // إخفاء المحتوى إذا انتهت الفترة التجريبية
   if (!loading && !authLoading && !isSubscribed && trialDaysLeft <= 0) {
     return null;
   }
 
-  // شاشة التحميل الأولية
   if (loading || authLoading) {
     return <div className="min-h-screen bg-background flex items-center justify-center font-bold text-muted-foreground animate-pulse">{t('provider.loading_dashboard')}</div>;
   }
@@ -402,7 +374,6 @@ const ProviderDashboard = () => {
     <div className="min-h-screen bg-background pb-10 text-right flex flex-col" dir="rtl">
       <Navbar />
 
-      {/* الشريط العلوي الخاص بلوحة التحكم */}
       <header className="sticky top-16 z-40 bg-card/80 backdrop-blur-lg border-b shadow-sm">
         <div className="container flex flex-col md:flex-row items-start md:items-center justify-between h-auto md:h-16 gap-3 md:gap-4 py-3">
           <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 w-full">
@@ -430,7 +401,6 @@ const ProviderDashboard = () => {
 
       <div className="container py-4 max-w-6xl space-y-4 flex-1 overflow-auto">
 
-        {/* التنبيه بضرورة تفعيل الاشتراك في حال الاعتماد على الفترة التجريبية */}
         {!isSubscribed && trialDaysLeft > 0 && (
           <Card className="rounded-4xl border-2 p-6 flex flex-col md:flex-row items-center justify-between gap-6 shadow-sm transition-all border-primary/20 bg-primary/5">
             <div className="space-y-2 text-center md:text-right">
@@ -447,7 +417,6 @@ const ProviderDashboard = () => {
           </Card>
         )}
 
-        {/* عرض بطاقات الإحصائيات والتقييمات */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="grid grid-cols-2 gap-4 lg:col-span-2">
             <Card className="rounded-3xl border-2"><CardContent className="p-6 text-center h-full flex flex-col justify-center">
@@ -468,7 +437,6 @@ const ProviderDashboard = () => {
             </CardContent></Card>
           </div>
 
-          {/* قائمة أحدث تقييمات العملاء */}
           <Card className="rounded-3xl border-2 bg-primary/5 border-primary/10 flex flex-col overflow-hidden max-h-65 lg:max-h-full">
             <div className="bg-primary text-primary-foreground px-4 py-3 font-black flex items-center gap-2 shadow-sm z-10 shrink-0">
               <Star className="w-5 h-5 fill-current" /> {t('provider.top_reviews')}
@@ -496,7 +464,6 @@ const ProviderDashboard = () => {
           </Card>
         </div>
 
-        {/* التبويبات الخاصة بلوحة التحكم */}
         <Tabs defaultValue="requests" className="w-full">
           <TabsList className="flex overflow-x-auto overflow-y-hidden w-full h-auto min-h-16 rounded-3xl bg-muted/50 p-1.5 mb-8 shadow-inner justify-start sm:grid sm:grid-cols-4 snap-x [&::-webkit-scrollbar]:hidden [-ms-overflow-style:'none'] [scrollbar-width:'none'] gap-1">
             <TabsTrigger value="requests" className="rounded-xl font-black whitespace-nowrap shrink-0 snap-start px-6 sm:px-3 py-3 data-[state=active]:bg-white data-[state=active]:shadow-sm">
@@ -513,7 +480,6 @@ const ProviderDashboard = () => {
             </TabsTrigger>
           </TabsList>
 
-          {/* تبويب: الطلبات */}
           <TabsContent value="requests" className="space-y-4">
             {bookings.map((b) => (
               <Card key={b.id} className="rounded-3xl border-2 overflow-hidden hover:border-primary/30 transition-all bg-card">
@@ -600,7 +566,6 @@ const ProviderDashboard = () => {
             {bookings.length === 0 && <div className="text-center py-20 opacity-30 font-black text-xl">{t('provider.no_requests')}</div>}
           </TabsContent>
 
-          {/* تبويب: التقارير والرسوم البيانية */}
           <TabsContent value="reports" className="space-y-6">
             <Card className="rounded-4xl border-2 p-6">
               <div className="flex flex-col md:flex-row justify-between items-center gap-4 mb-6">
@@ -663,7 +628,6 @@ const ProviderDashboard = () => {
             </div>
           </TabsContent>
 
-          {/* تبويب: عرض الخدمات */}
           <TabsContent value="services" className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {services.map((s) => (
               <Card key={s.id} className="rounded-4xl overflow-hidden border-2 flex flex-col group bg-card">
@@ -685,7 +649,6 @@ const ProviderDashboard = () => {
             ))}
           </TabsContent>
 
-          {/* تبويب: إضافة خدمة جديدة */}
           <TabsContent value="add">
             <Card className="rounded-[2.5rem] border-2 shadow-sm">
               <CardContent className="p-8 space-y-8">
@@ -729,7 +692,6 @@ const ProviderDashboard = () => {
         </Tabs>
       </div>
 
-      {/* النوافذ المنبثقة للدعم الفني ومحادثة العملاء */}
       <SupportTicketDialog open={supportOpen} onOpenChange={(open) => setSupportOpen(open)} />
 
       {chatBooking && (
