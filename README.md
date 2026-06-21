@@ -17,7 +17,7 @@ Developed as a graduation capstone project for the **Bachelor of Computer Scienc
 - [System Preview](#system-preview)
 - [Getting Started](#getting-started)
 - [Environment Variables](#environment-variables)
-- [Project Team](#project-team)
+- [Project Team](#-project-team--credits)
 - [License](#license)
 
 ---
@@ -165,27 +165,29 @@ These are required to connect the application to Supabase services.
 
 ---
 
-## Project Team
+## 👥 Project Team & Credits
 
-### 👨‍💻 Lead Full-Stack Developer
+This project was successfully conceptualized, developed, and validated through the collaborative efforts of our graduation project team at the **University of Hail**.
 
-**Yazeed Muteb AlShammari**
+### 👨‍💻 Lead Software Engineer & Full-Stack Developer
+* **Yazeed Muteb AlShammari**
+  * **Core Scope:** End-to-end system architecture, relational database design, frontend UI/UX development, backend integrations, Supabase RLS security implementation, and Vercel cloud deployment.
 
-Responsible for system architecture, database design, frontend development, backend integration, authentication system, real-time communication, dashboard development, and deployment (Vercel).
+---
 
-### Team Members
+### 👥 Team Members & Specialized Roles
 
-| Name | Role |
-|---|---|
-| Fawaz Ziyad Aluyd | Testing, feedback & requirements validation |
-| Hamad Nabil Almutairi | Testing, feedback & requirements validation |
-| Tariq Mohammed Alshammari | Testing, feedback & requirements validation |
-| Mohammed Saadi Alrashidi | Testing, feedback & requirements validation |
+| Name | Professional Role | Core Project Contribution |
+| :--- | :--- | :--- |
+| **Hamad Nabil Almutairi** | Technical Product Manager & QA Specialist | Technology R&D, platform requirements definition, system data flow architecture, and quality assurance tracking. |
+| **Fawaz Ziyad Aluyd** | Systems Analyst & Security QA Engineer | Requirements validation, continuous functional testing, database access control reviews, and compliance feedback. |
+| **Tariq Mohammed Alshammari** | Database QA Engineer & Performance Analyst | Test case execution, database stress testing, query validation, and performance feedback analysis. |
+| **Mohammed Saadi Alrashidi** | UI/UX Engineer & Quality Assurance | Frontend layout auditing, cross-device responsiveness testing, accessibility (a11y) validation, and user experience feedback. |
 
-### Academic Supervisor
+---
 
-**Dr. Zeyad Ghaleb Al-Mekhlaf**
-University of Hail
+### 🎓 Academic Supervisor
+* **Dr. Zeyad Ghaleb Al-Mekhlaf** — *University of Hail*
 
 ---
 
